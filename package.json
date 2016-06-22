@@ -1,0 +1,22 @@
+{
+  "name": "lisp-console",
+  "version": "0.0.1",
+  "description": "A simple web-browser virtual terminal and command-line REPL for mhlisp.",
+  "main": "initializeMHLispConsole.js",
+  "scripts": {
+    "devbundle": "browserify src/initializeMHLispConsole.js -o build/output.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "lisp-console"
+  },
+  "keywords": [
+    "lisp"
+  ],
+  "author": "Matthew Hilty",
+  "license": "MIT",
+  "devDependencies": {
+    "browserify": "^13.0.1"
+  }
+}
