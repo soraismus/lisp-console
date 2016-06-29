@@ -10,7 +10,7 @@ module.exports = require('./tinkerbox').interpreter;
 },{"./tinkerbox":4}],4:[function(require,module,exports){
 module.exports = require('../../tinkerbox/index');
 
-},{"../../tinkerbox/index":32}],5:[function(require,module,exports){
+},{"../../tinkerbox/index":37}],5:[function(require,module,exports){
 var appState = {
   history: {
     past: [],
@@ -358,23 +358,38 @@ function translateDisplay(promptLabel, displayEffects) {
       modify: [
         {
           child: childByClass(consoleClass),
-          changes: { children: { add:
-            displayEffects.map(function (displayEffect) {
-              return createDisplay(displayEffect.value);
-            })
-          }}
+          changes: {
+            children: {
+              add: procrustate(displayEffects).map(function (displayEffect) {
+                return createDisplay(displayEffect.value);
+              })
+            }
+          }
         }
       ]
     }
   }];
 }
 
+function procrustate(displayEffects) {
+  return displayEffects.length >= magicNumber - 1
+    ? displayEffects.slice(
+        displayEffects.length - magicNumber + 2,
+        displayEffects.length)
+    : displayEffects;
+}
+
 function translateSubmit(promptLabel, command) {
   var removals = [childByClass(promptClass)];
   if (command.entryCount >= magicNumber) {
-    var count = command.entryCount - command.newEntryCount > magicNumber
-      ? command.newEntryCount
-      : command.entryCount - magicNumber;
+    var count = Math.min(
+      command.entryCount,
+      //magicNumber - 1,
+      magicNumber,
+      command.entryCount - command.newEntryCount > magicNumber
+        ? command.newEntryCount
+        //: command.entryCount - magicNumber);
+        : command.entryCount - command.newEntryCount);
     for (var i = 0; i < count; i++) {
       removals.push(
         childByClass(lineItemClass));
@@ -1091,7 +1106,7 @@ process.umask = function() { return 0; };
 
 },{}],15:[function(require,module,exports){
 var initialize    = require('../../jsconsole/src/initialize');
-var interpretLisp = require('../../mhlisp-copy/build/_repl');
+var interpretLisp = require('../../mhlisp-copy/build/interpret');
 
 var promptLabel = 'Lisp> ';
 
@@ -1100,90 +1115,39 @@ initialize({
   transform: interpretLisp
 });
 
-},{"../../jsconsole/src/initialize":7,"../../mhlisp-copy/build/_repl":16}],16:[function(require,module,exports){
-var createMalString, display, environment, fromArray, getEnvironment, repl, serialize, standard, _createMalString, _fromArray, _process, _repl, _serialize,
-  __hasProp = {}.hasOwnProperty;
+},{"../../jsconsole/src/initialize":7,"../../mhlisp-copy/build/interpret":26}],16:[function(require,module,exports){
+var commentSignal, evaluate, _process;
 
-createMalString = require('./mal-type-utilities').createMalString;
+commentSignal = require('./commentSignal');
 
-fromArray = require('./linked-list').fromArray;
+evaluate = require('./evaluate');
 
-getEnvironment = require('./environment');
-
-_process = require('./process');
-
-_serialize = require('./serialize');
-
-_createMalString = function(jsString) {
-  return createMalString('"' + jsString + '"');
-};
-
-display = function(malValue) {
-  return {
-    effect: {
-      type: 'display'
-    },
-    value: malValue
+_process = function(transform) {
+  return function(envs) {
+    return function(sourceCode) {
+      var addResult, result, results, value;
+      results = [];
+      addResult = function(result) {
+        return results.push(result);
+      };
+      value = evaluate(envs, addResult)(transform(sourceCode));
+      result = value === commentSignal ? {
+        effect: {
+          type: 'comment'
+        }
+      } : {
+        effect: false,
+        value: value
+      };
+      addResult(result);
+      return results;
+    };
   };
 };
 
-_fromArray = function(array) {
-  var i, index, _i, _ref;
-  index = {};
-  for (i = _i = 0, _ref = array.length; 0 <= _ref ? _i <= _ref : _i >= _ref; i = 0 <= _ref ? ++_i : --_i) {
-    index[array[i]] = array[i + 1];
-  }
-  return index;
-};
+module.exports = _process;
 
-repl = function(envs, jsString) {
-  var e;
-  try {
-    return serialize(_process(envs)(jsString));
-  } catch (_error) {
-    e = _error;
-    return "repl error: (" + (serialize(e)) + " + )";
-  }
-};
-
-_repl = function(jsString, userEnv) {
-  var _userEnv;
-  if (userEnv != null) {
-    _userEnv = {
-      '*ARGV*': fromArray(userEnv.map(_createMalString))
-    };
-    return repl([_userEnv, environment], jsString);
-  } else {
-    return repl([environment], jsString);
-  }
-};
-
-serialize = function(results) {
-  return results.map(function(result) {
-    var key, value, _result;
-    _result = {};
-    for (key in result) {
-      if (!__hasProp.call(result, key)) continue;
-      value = result[key];
-      if (key === 'effect') {
-        _result[key] = value;
-      } else {
-        _result[key] = _serialize(value);
-      }
-    }
-    return _result;
-  });
-};
-
-environment = getEnvironment(display);
-
-standard = "(do\n  (def! fix*\n    (fn* (f)\n      ( (fn* (x) (f (fn* (& ys) (apply (x x) ys))))\n        (fn* (x) (f (fn* (& ys) (apply (x x) ys)))))))\n\n  (def! y* (macro* (f x) `(~f (y* ~f) ~x)))\n\n  (def! memfix*\n    (fn* (f)\n      (let* (cache {})\n        (\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          cache))))\n\n  (def! 1st car)\n  (def! 2nd (fn* (xs) (nth 1 xs)))\n  (def! 3rd (fn* (xs) (nth 2 xs)))\n\n  (def! swap! (macro* (atom & xs)\n    (if (empty? xs)\n      atom\n      `(let* (-atom- ~atom)\n        (do\n          (reset! -atom- (~(car xs) (deref -atom-) ~@(cdr xs)))\n          (deref -atom-))))))\n\n  (def! *gensym-counter* (atom 0))\n\n  (def! gensym (fn* ()\n    (symbol (str \"G__\" (swap! *gensym-counter* incr)))))\n\n  (def! or (macro* (& xs)\n    (if (empty? xs)\n      false\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query- \n            ~-query-\n            (or ~@(cdr xs))))))))\n\n  (def! and (macro* (& xs)\n    (if (empty? xs)\n      true\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query-\n            (and ~@(cdr xs))\n            false))))))\n\n  (def! cond (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (if (empty? (cdr xs))\n        (throw \"`cond` requires an even number of forms.\")\n        (let* (-query- (gensym))\n          `(let* (~-query- ~(car xs))\n            (if ~-query-\n              ~(2nd xs)\n              (cond ~@(cdr (cdr xs))))))))))\n\n  (def! loop (macro* (form0 form1)\n    `(let* (loop (memfix* (fn* (loop) (fn* (~(1st form0)) ~form1)))) (loop ~(2nd form0)))))\n\n  (def! -> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n            xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                forms (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~(car form) ~x ~@(cdr form)))\n                (list form x))\n              `(-> (-> ~x ~form) ~@forms))))))))\n\n  (def! ->> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n            xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                forms (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~@form  ~x))\n                (list form x))\n              `(->> (->> ~x ~form) ~@forms))))))))\n\n  (def! ->* (macro* (& xs) `(fn* (-x-) (-> -x- ~@xs))))\n\n  (def! ->>* (macro* (& xs) `(fn* (-x-) (->> -x- ~@xs))))\n\n  (def! not (fn* (x) (if x false true)))\n  (def! incr  (->* (+ 1)))\n  (def! decr  (->* (- 1)))\n  (def! zero? (->* (= 0)))\n\n  (def! identity (fn* (x) x))\n\n  (def! constant-fn (fn* (x) (fn* (y) x)))\n\n  (def! call-on (fn* (& xs) (fn* (fn) (apply fn xs))))\n\n  (def! reduce\n    (fn* (seed f xs)\n      (if (empty? xs)\n        seed\n        (reduce (f seed (car xs)) f (cdr xs)))))\n\n  (def! every?\n    (fn* (pred xs)\n      (if (empty? xs)\n        true\n        (if (pred (car xs))\n          (every? pred (cdr xs))\n          false))))\n\n  (def! some?\n    (fn* (pred xs)\n      (if (empty? xs)\n        false\n        (if (pred (car xs))\n          true\n          (some? pred (cdr xs))))))\n\n  (def! letmemrec* (macro* (alias expr)\n    `(let* (~(car alias) (memfix* (fn* (~(car alias)) ~(2nd alias)))) ~expr)))\n\n  (def! skip (fn* (nbr xs)\n    (letrec* (-skip- (fn* (ys)\n      (let* (nbr (car ys)\n            xs (2nd ys))\n        (cond\n          (= 0 nbr) xs\n          (= 1 nbr) (cdr xs)\n          \"default\" (-skip- (list (decr nbr) (cdr xs)))))))\n      (-skip- (list nbr xs)))))\n\n  (def! . (macro* (x key & xs)\n    `((get ~x ~key) ~@xs)))\n\n  (def! .. (fn* (lo hi)\n    (letrec* (-..- (fn* (ys)\n      (let* (lo     (1st ys)\n            hi     (2nd ys)\n            -list- (3rd ys))\n        (if (= lo hi)\n          (cons hi -list-)\n          (-..- (list lo (decr hi) (cons hi -list-)))))))\n      (-..- (list lo hi '())))))\n)";
-
-_repl(standard);
-
-module.exports = _repl;
-
-},{"./environment":19,"./linked-list":25,"./mal-type-utilities":26,"./process":29,"./serialize":30}],17:[function(require,module,exports){
+},{"./commentSignal":17,"./evaluate":23}],17:[function(require,module,exports){
 var comment;
 
 comment = {};
@@ -1246,58 +1210,25 @@ module.exports = {
 };
 
 },{}],19:[function(require,module,exports){
-(function (process){
-var car, cdr, circumpendQuotes, concat, createMalAtom, createMalBoolean, createMalCoreEffectfulFunction, createMalCorePureFunction, createMalIdentifier, createMalIgnore, createMalIndex, createMalList, createMalNumber, createMalString, createMalSymbol, drop, empty_question_, equal_question_, evaluate, extractJsValue, fromArray, fromJsObject, fromMalIndex, getEnvironment, interpret, jsNaN_question_, jsNumber_question_, jsString_question_, last, malAtom_question_, malBoolean_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIgnore, malIndex_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malUserEffectfulFunction_question_, malUserPureFunction_question_, next, recurse, reduce, reverse, serialize, take, toArray, toPartialArray, _process_,
+var createMalBoolean, createMalCorePureFunction, createMalIdentifier, createMalIndex, createMalNumber, createMalString, extractJsValue, fromArray, getEnvironment, jsNaN_question_, jsNumber_question_, jsString_question_, lift, malNil, reduce, setCoreFnsOnJsValues_bang_, toArray,
   __hasProp = {}.hasOwnProperty,
   __slice = [].slice;
 
-car = require('./linked-list').car;
+createMalBoolean = require('./type-utilities').createMalBoolean;
 
-cdr = require('./linked-list').cdr;
+createMalCorePureFunction = require('./type-utilities').createMalCorePureFunction;
 
-circumpendQuotes = require('./js-utilities').circumpendQuotes;
+createMalIdentifier = require('./type-utilities').createMalIdentifier;
 
-concat = require('./linked-list').concat;
+createMalIndex = require('./type-utilities').createMalIndex;
 
-createMalAtom = require('./mal-type-utilities').createMalAtom;
+createMalNumber = require('./type-utilities').createMalNumber;
 
-createMalBoolean = require('./mal-type-utilities').createMalBoolean;
+createMalString = require('./type-utilities').createMalString;
 
-createMalCoreEffectfulFunction = require('./mal-type-utilities').createMalCoreEffectfulFunction;
-
-createMalCorePureFunction = require('./mal-type-utilities').createMalCorePureFunction;
-
-createMalIdentifier = require('./mal-type-utilities').createMalIdentifier;
-
-createMalIgnore = require('./mal-type-utilities').createMalIgnore;
-
-createMalIndex = require('./mal-type-utilities').createMalIndex;
-
-createMalList = require('./mal-type-utilities').createMalList;
-
-createMalNumber = require('./mal-type-utilities').createMalNumber;
-
-createMalString = require('./mal-type-utilities').createMalString;
-
-createMalSymbol = require('./mal-type-utilities').createMalSymbol;
-
-drop = require('./linked-list').drop;
-
-empty_question_ = require('./linked-list').empty_question_;
-
-equal_question_ = require('./linked-list').equal_question_;
-
-evaluate = require('./evaluate').evaluate;
-
-extractJsValue = require('./mal-type-utilities').extractJsValue;
+extractJsValue = require('./type-utilities').extractJsValue;
 
 fromArray = require('./linked-list').fromArray;
-
-fromJsObject = require('./index-utilities').fromJsObject;
-
-fromMalIndex = require('./index-utilities').fromMalIndex;
-
-interpret = require('./interpret');
 
 jsNaN_question_ = require('./js-utilities').jsNaN_question_;
 
@@ -1305,81 +1236,32 @@ jsNumber_question_ = require('./js-utilities').jsNumber_question_;
 
 jsString_question_ = require('./js-utilities').jsString_question_;
 
-last = require('./linked-list').last;
-
-malAtom_question_ = require('./mal-type-utilities').malAtom_question_;
-
-malCoreEffectfulFunction_question_ = require('./mal-type-utilities').malCoreEffectfulFunction_question_;
-
-malCorePureFunction_question_ = require('./mal-type-utilities').malCorePureFunction_question_;
-
-malBoolean_question_ = require('./mal-type-utilities').malBoolean_question_;
-
-malFalse = require('./mal-type-utilities').malFalse;
-
-malFalse_question_ = require('./mal-type-utilities').malFalse_question_;
-
-malIgnore = require('./mal-type-utilities').malIgnore;
-
-malIndex_question_ = require('./mal-type-utilities').malIndex_question_;
-
-malList_question_ = require('./mal-type-utilities').malList_question_;
-
-malMacro_question_ = require('./mal-type-utilities').malMacro_question_;
-
-malNil = require('./mal-type-utilities').malNil;
-
-malNil_question_ = require('./mal-type-utilities').malNil_question_;
-
-malNumber_question_ = require('./mal-type-utilities').malNumber_question_;
-
-malString_question_ = require('./mal-type-utilities').malString_question_;
-
-malSymbol_question_ = require('./mal-type-utilities').malSymbol_question_;
-
-malTrue = require('./mal-type-utilities').malTrue;
-
-malTrue_question_ = require('./mal-type-utilities').malTrue_question_;
-
-malUserEffectfulFunction_question_ = require('./mal-type-utilities').malUserEffectfulFunction_question_;
-
-malUserPureFunction_question_ = require('./mal-type-utilities').malUserPureFunction_question_;
-
-next = require('./linked-list').next;
-
-_process_ = require('./process');
-
-recurse = require('./linked-list').recurse;
+malNil = require('./type-utilities').malNil;
 
 reduce = require('./linked-list').reduce;
 
-reverse = require('./linked-list').reverse;
-
-serialize = require('./serialize');
-
-take = require('./linked-list').take;
-
 toArray = require('./linked-list').toArray;
 
-toPartialArray = require('./linked-list').toPartialArray;
+lift = function(fnOnJsValues) {
+  return function(malValueList) {
+    return fnOnJsValues.apply(null, (toArray(malValueList)).map(extractJsValue));
+  };
+};
 
-getEnvironment = function(display) {
-  var add, append, apply, areEqual, assoc, atom, atom_question_, boolean_question_, call, cons, contains_question_, coreFn_question_, count, createPredicate, deref, displayEffectsOnMalValues, dissoc, divide, environment, evalWithBareEnv, evalWithEnv, exponentiate, false_question_, first, fix, function_question_, functionsOnJsValues, functionsOnMalValues, get, greaterThan, greaterThanOrEqual, ignoreIfTrue, ignoreUnlessTrue, ignore_bang_, keys, lessThan, lessThanOrEqual, lift, list, list_question_, load, loadWithBareEnv, loadWithEnv, macro_question_, malReduce, map, meta, mod, multiply, negate, nil_question_, nth, number_question_, parseNumber, prStr, prepend, read, reset, rest, set, setCoreEffectfulFnsOnMalValues_bang_, setCoreFnsOnJsValues_bang_, setCoreFnsOnMalValues_bang_, setMalValue, slurp, str, string_question_, stripQuotes, subtract, symbol, symbol_question_, time_hyphen_ms, true_question_, typeOf, userFn_question_, vals, withMeta, write, __evaluate__, __evaluate__2, _car, _cdr, _concat, _drop, _empty_question_, _environment_, _evaluate, _evaluateString, _evaluate_, _index, _interpret, _last, _length, _not, _prStr, _quit_, _read, _ref, _reverse, _take, _throw;
-  lift = function(fnOnJsValues) {
-    return function(malValueList) {
-      return fnOnJsValues.apply(null, (toArray(malValueList)).map(extractJsValue));
-    };
-  };
-  setCoreFnsOnJsValues_bang_ = function(env, fns) {
-    var fn, fnName, _results;
-    _results = [];
-    for (fnName in fns) {
-      if (!__hasProp.call(fns, fnName)) continue;
-      fn = fns[fnName];
-      _results.push(env[fnName] = createMalCorePureFunction(lift(fn)));
-    }
-    return _results;
-  };
+setCoreFnsOnJsValues_bang_ = function(env, fns) {
+  var fn, fnName, _results;
+  _results = [];
+  for (fnName in fns) {
+    if (!__hasProp.call(fns, fnName)) continue;
+    fn = fns[fnName];
+    _results.push(env[fnName] = createMalCorePureFunction(lift(fn)));
+  }
+  return _results;
+};
+
+getEnvironment = function(config) {
+  var add, assoc, contains_question_, dissoc, divide, environment, exponentiate, functionsOnJsValues, get, greaterThan, greaterThanOrEqual, index, keys, length, lessThan, lessThanOrEqual, mod, multiply, negate, parseNumber, subtract, vals;
+  environment = config.environment;
   add = function() {
     var nbrs;
     nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
@@ -1449,8 +1331,8 @@ getEnvironment = function(display) {
     nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
     return createMalBoolean(nbrs[0] > nbrs[1]);
   };
-  _index = function() {
-    var args, i, index, k, _i, _len;
+  index = function() {
+    var args, i, k, _i, _len;
     args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
     index = {};
     for (i = _i = 0, _len = args.length; _i < _len; i = ++_i) {
@@ -1471,7 +1353,7 @@ getEnvironment = function(display) {
     }
     return fromArray(_keys);
   };
-  _length = function(jsVal) {
+  length = function(jsVal) {
     if (!jsString_question_(jsVal)) {
       return malNil;
     }
@@ -1542,9 +1424,9 @@ getEnvironment = function(display) {
     'get': get,
     '>': greaterThan,
     '>=': greaterThanOrEqual,
-    'index': _index,
+    'index': index,
     'keys': keys,
-    'length': _length,
+    'length': length,
     '<': lessThan,
     '<=': lessThanOrEqual,
     '%': mod,
@@ -1554,6 +1436,107 @@ getEnvironment = function(display) {
     '-': subtract,
     'vals': vals
   };
+  setCoreFnsOnJsValues_bang_(environment, functionsOnJsValues);
+  return environment;
+};
+
+module.exports = getEnvironment;
+
+},{"./js-utilities":27,"./linked-list":29,"./type-utilities":35}],20:[function(require,module,exports){
+(function (process){
+var car, cdr, circumpendQuotes, concat, createMalAtom, createMalBoolean, createMalCoreEffectfulFunction, createMalCorePureFunction, createMalList, createMalNumber, createMalString, createMalSymbol, drop, empty_question_, equal_question_, extractJsValue, fromArray, getEnvironment, interpret, last, malAtom_question_, malBoolean_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIgnore, malIndex_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malUserPureFunction_question_, next, reduce, reverse, serialize, take, toArray, toPartialArray,
+  __hasProp = {}.hasOwnProperty,
+  __slice = [].slice;
+
+car = require('./linked-list').car;
+
+cdr = require('./linked-list').cdr;
+
+circumpendQuotes = require('./js-utilities').circumpendQuotes;
+
+concat = require('./linked-list').concat;
+
+createMalAtom = require('./type-utilities').createMalAtom;
+
+createMalBoolean = require('./type-utilities').createMalBoolean;
+
+createMalCoreEffectfulFunction = require('./type-utilities').createMalCoreEffectfulFunction;
+
+createMalCorePureFunction = require('./type-utilities').createMalCorePureFunction;
+
+createMalList = require('./type-utilities').createMalList;
+
+createMalNumber = require('./type-utilities').createMalNumber;
+
+createMalString = require('./type-utilities').createMalString;
+
+createMalSymbol = require('./type-utilities').createMalSymbol;
+
+drop = require('./linked-list').drop;
+
+empty_question_ = require('./linked-list').empty_question_;
+
+equal_question_ = require('./linked-list').equal_question_;
+
+extractJsValue = require('./type-utilities').extractJsValue;
+
+fromArray = require('./linked-list').fromArray;
+
+interpret = require('./interpret');
+
+last = require('./linked-list').last;
+
+malAtom_question_ = require('./type-utilities').malAtom_question_;
+
+malCorePureFunction_question_ = require('./type-utilities').malCorePureFunction_question_;
+
+malBoolean_question_ = require('./type-utilities').malBoolean_question_;
+
+malFalse = require('./type-utilities').malFalse;
+
+malFalse_question_ = require('./type-utilities').malFalse_question_;
+
+malIgnore = require('./type-utilities').malIgnore;
+
+malIndex_question_ = require('./type-utilities').malIndex_question_;
+
+malList_question_ = require('./type-utilities').malList_question_;
+
+malMacro_question_ = require('./type-utilities').malMacro_question_;
+
+malNil = require('./type-utilities').malNil;
+
+malNil_question_ = require('./type-utilities').malNil_question_;
+
+malNumber_question_ = require('./type-utilities').malNumber_question_;
+
+malString_question_ = require('./type-utilities').malString_question_;
+
+malSymbol_question_ = require('./type-utilities').malSymbol_question_;
+
+malTrue = require('./type-utilities').malTrue;
+
+malTrue_question_ = require('./type-utilities').malTrue_question_;
+
+malUserPureFunction_question_ = require('./type-utilities').malUserPureFunction_question_;
+
+next = require('./linked-list').next;
+
+reduce = require('./linked-list').reduce;
+
+reverse = require('./linked-list').reverse;
+
+serialize = require('./serialize');
+
+take = require('./linked-list').take;
+
+toArray = require('./linked-list').toArray;
+
+toPartialArray = require('./linked-list').toPartialArray;
+
+getEnvironment = function(config) {
+  var append, areEqual, atom, atom_question_, boolean_question_, cons, coreFn_question_, count, createPredicate, deref, environment, false_question_, first, function_question_, functionsOnMalValues, ignoreIfTrue, ignoreUnlessTrue, ignore_bang_, list, list_question_, macro_question_, meta, nil_question_, nth, number_question_, prStr, prepend, read, reset, rest, set, setCoreFnsOnMalValues_bang_, slurp, str, string_question_, stripQuotes, symbol, symbol_question_, time_hyphen_ms, true_question_, typeOf, userFn_question_, withMeta, write, _car, _cdr, _concat, _drop, _empty_question_, _interpret, _last, _not, _prStr, _quit_, _ref, _reverse, _take, _throw;
+  environment = config.environment;
   createPredicate = function(pred) {
     return function(jsList) {
       var malValue;
@@ -1561,36 +1544,10 @@ getEnvironment = function(display) {
       return createMalBoolean(pred(malValue));
     };
   };
-  __evaluate__ = function(malVal) {
-    return evaluate([environment])(malVal);
-  };
-  __evaluate__2 = function(malVal) {
-    return __evaluate__(__evaluate__(malVal));
-  };
-  _evaluate_ = function(jsString) {
-    return _process_([environment])(jsString);
-  };
-  _evaluateString = function(malArgs) {
-    return _evaluate_(stripQuotes(extractJsValue(car(malArgs))));
-  };
-  _evaluate = function(malArgs) {
-    return evaluate([environment])(car(malArgs));
-  };
   _prStr = function(malArgs, printReadably_question_) {
     return (toArray(malArgs)).map(function(malArg) {
       return serialize(malArg, printReadably_question_);
     });
-  };
-  prStr = function(malArgs) {
-    return createMalString('"' + (_prStr(malArgs, true)).join('') + '"');
-  };
-  str = function(malArgs) {
-    return createMalString('"' + (_prStr(malArgs, false)).join('') + '"');
-  };
-  _read = function(malArgs) {
-    var jsFileName;
-    jsFileName = stripQuotes(extractJsValue(car(malArgs)));
-    return require('fs').readFileSync(jsFileName).toString();
   };
   setCoreFnsOnMalValues_bang_ = function(env, fns) {
     var fn, fnName, _results;
@@ -1602,10 +1559,6 @@ getEnvironment = function(display) {
     }
     return _results;
   };
-  setMalValue = function(malAtom, malValue) {
-    malAtom.malValue = malValue;
-    return malAtom;
-  };
   stripQuotes = function(jsString) {
     return jsString.slice(1, -1);
   };
@@ -1613,11 +1566,6 @@ getEnvironment = function(display) {
     var malList, malValues, _ref;
     _ref = toArray(malArgs), malList = _ref[0], malValues = 2 <= _ref.length ? __slice.call(_ref, 1) : [];
     return concat(malList, fromArray(malValues));
-  };
-  apply = function(malArgs) {
-    var malArgList, malFn, _ref;
-    _ref = toArray(malArgs), malFn = _ref[0], malArgList = _ref[1];
-    return evaluate([])(createMalList(malFn, malArgList));
   };
   areEqual = function(malArgs) {
     var malValue0, malValue1, _areEqual, _ref;
@@ -1638,9 +1586,6 @@ getEnvironment = function(display) {
   };
   atom = function(malArgs) {
     return createMalAtom(car(malArgs));
-  };
-  call = function(malArgs) {
-    return evaluate([])(malArgs);
   };
   _car = function(malArgs) {
     var arg;
@@ -1698,35 +1643,8 @@ getEnvironment = function(display) {
       }
     }
   };
-  evalWithBareEnv = function(malArgs) {
-    var expr, localEnv, _ref;
-    _ref = toPartialArray(2, malArgs), expr = _ref[0], localEnv = _ref[1];
-    return evaluate([fromMalIndex(localEnv)])(expr);
-  };
-  evalWithEnv = function(malArgs) {
-    var expr, localEnv, _ref;
-    _ref = toPartialArray(2, malArgs), expr = _ref[0], localEnv = _ref[1];
-    return evaluate([fromMalIndex(localEnv), environment])(expr);
-  };
   first = function(malArgs) {
     return car(car(malArgs));
-  };
-  fix = function(malArgs) {
-    var jsFnX, malFnF, malFnX;
-    malFnF = car(malArgs);
-    jsFnX = function(malArgs1) {
-      var jsFnY, malFnX, malFnY;
-      malFnX = car(malArgs1);
-      jsFnY = function(malArgs2) {
-        var malValY;
-        malValY = car(malArgs2);
-        return __evaluate__2(createMalList(createMalList(malFnX, createMalList(malFnX)), createMalList(malValY)));
-      };
-      malFnY = createMalCorePureFunction(jsFnY);
-      return __evaluate__2(createMalList(malFnF, createMalList(malFnY)));
-    };
-    malFnX = createMalCorePureFunction(jsFnX);
-    return __evaluate__2(createMalList(malFnX, createMalList(malFnX)));
   };
   function_question_ = function(jsList) {
     var malValue;
@@ -1769,44 +1687,6 @@ getEnvironment = function(display) {
   list = function(malArgs) {
     return malArgs;
   };
-  load = function(malArgs) {
-    return _evaluate_(_read(malArgs));
-  };
-  loadWithBareEnv = function(malArgs) {
-    var file, jsFileName, localEnv, malFileName, _ref;
-    _ref = toPartialArray(2, malArgs), malFileName = _ref[0], localEnv = _ref[1];
-    jsFileName = stripQuotes(extractJsValue(malFileName));
-    file = require('fs').readFileSync(jsFileName).toString();
-    return _process_([fromMalIndex(localEnv)])(file);
-  };
-  loadWithEnv = function(malArgs) {
-    var file, jsFileName, localEnv, malFileName, _ref;
-    _ref = toPartialArray(2, malArgs), malFileName = _ref[0], localEnv = _ref[1];
-    jsFileName = stripQuotes(extractJsValue(malFileName));
-    file = require('fs').readFileSync(jsFileName, 'utf-8').toString();
-    return _process_([fromMalIndex(localEnv), environment])(file);
-  };
-  malReduce = function(malArgs) {
-    var malArgList, malFn, malSeed, _malArgs, _reduce, _ref;
-    _ref = toArray(malArgs), malSeed = _ref[0], malFn = _ref[1], malArgList = _ref[2];
-    _malArgs = toArray(malArgList);
-    _reduce = function(memo, item) {
-      var _memo;
-      _memo = malList_question_(memo) ? createMalList(createMalSymbol('quote'), createMalList(memo)) : memo;
-      return evaluate([])(createMalList(malFn, createMalList(_memo, createMalList(item))));
-    };
-    return _malArgs.reduce(_reduce, malSeed);
-  };
-  map = function(malArgs) {
-    var malArgList, malFn, results, __malArgs, _malArgs, _ref;
-    _ref = toArray(malArgs), malFn = _ref[0], malArgList = _ref[1];
-    _malArgs = toArray(malArgList);
-    __malArgs = _malArgs.map(function(x) {
-      return createMalList(malFn, createMalList(x));
-    });
-    results = __malArgs.map(evaluate([]));
-    return fromArray(results);
-  };
   meta = function(malArgs) {
     var malMeta;
     malMeta = (car(malArgs)).meta;
@@ -1841,16 +1721,26 @@ getEnvironment = function(display) {
     };
     return malValues.reduce(_reduce, malList);
   };
+  prStr = function(malArgs) {
+    return createMalString('"' + (_prStr(malArgs, true)).join('') + '"');
+  };
   _quit_ = function() {
     return process.exit(0);
   };
   read = function(jsList) {
+    var _read;
+    _read = function(malArgs) {
+      var jsFileName;
+      jsFileName = stripQuotes(extractJsValue(car(malArgs)));
+      return require('fs').readFileSync(jsFileName).toString();
+    };
     return createMalString(_read(jsList));
   };
   reset = function(malArgs) {
     var value, _ref;
     _ref = toPartialArray(2, malArgs), atom = _ref[0], value = _ref[1];
-    return setMalValue(atom, value);
+    atom.malValue = value;
+    return atom;
   };
   rest = function(malArgs) {
     var arg;
@@ -1880,6 +1770,9 @@ getEnvironment = function(display) {
     var jsFileName;
     jsFileName = stripQuotes(extractJsValue(car(malArgs)));
     return createMalString(circumpendQuotes(require('fs').readFileSync(jsFileName).toString()));
+  };
+  str = function(malArgs) {
+    return createMalString('"' + (_prStr(malArgs, false)).join('') + '"');
   };
   symbol = function(malArgs) {
     var jsStr, malValue;
@@ -1933,12 +1826,10 @@ getEnvironment = function(display) {
   functionsOnMalValues = {
     '=': areEqual,
     'append': append,
-    'apply': apply,
     'atom': atom,
     'atom?': atom_question_,
     'boolean?': boolean_question_,
     'car': _car,
-    'call': call,
     'cdr': _cdr,
     'cons': cons,
     'concat': _concat,
@@ -1947,13 +1838,8 @@ getEnvironment = function(display) {
     'deref': deref,
     'drop': _drop,
     'empty?': _empty_question_,
-    'eval': _evaluate,
-    'evalStr': _evaluateString,
-    'eval-with-env': evalWithEnv,
-    'eval-with-bare-env': evalWithBareEnv,
     'first': _car,
     'false?': false_question_,
-    'fix': fix,
     'function?': function_question_,
     'ignore!': ignore_bang_,
     'ignoreIfTrue': ignoreIfTrue,
@@ -1961,11 +1847,7 @@ getEnvironment = function(display) {
     'last': _last,
     'list': list,
     'list?': list_question_,
-    'load': load,
-    'load-with-env': loadWithEnv,
-    'load-with-bare-env': loadWithBareEnv,
     'macro?': macro_question_,
-    'map': map,
     'meta': meta,
     'nil?': nil_question_,
     'not': _not,
@@ -1976,7 +1858,6 @@ getEnvironment = function(display) {
     'pr-str': prStr,
     '-quit-': _quit_,
     'read': read,
-    'reduce': malReduce,
     'reset!': reset,
     'rest': _cdr,
     'reverse': _reverse,
@@ -1994,6 +1875,31 @@ getEnvironment = function(display) {
     'user-fn?': userFn_question_,
     'with-meta': withMeta,
     'write': write
+  };
+  setCoreFnsOnMalValues_bang_(environment, functionsOnMalValues);
+  return environment;
+};
+
+module.exports = getEnvironment;
+
+}).call(this,require('_process'))
+},{"./interpret":26,"./js-utilities":27,"./linked-list":29,"./serialize":31,"./type-utilities":35,"_process":14,"fs":13}],21:[function(require,module,exports){
+var createMalCoreEffectfulFunction, getEnvironment, serialize, toArray,
+  __hasProp = {}.hasOwnProperty;
+
+createMalCoreEffectfulFunction = require('./type-utilities').createMalCoreEffectfulFunction;
+
+serialize = require('./serialize');
+
+toArray = require('./linked-list').toArray;
+
+getEnvironment = function(config) {
+  var display, displayEffectsOnMalValues, environment, setCoreEffectfulFnsOnMalValues_bang_, _prStr;
+  display = config.display, environment = config.environment;
+  _prStr = function(malArgs, printReadably_question_) {
+    return (toArray(malArgs)).map(function(malArg) {
+      return serialize(malArg, printReadably_question_);
+    });
   };
   setCoreEffectfulFnsOnMalValues_bang_ = function(represent) {
     return function(env, fns) {
@@ -2017,21 +1923,109 @@ getEnvironment = function(display) {
       return _prStr(malArgs, false).join('');
     }
   };
-  environment = {};
-  setCoreFnsOnJsValues_bang_(environment, functionsOnJsValues);
-  setCoreFnsOnMalValues_bang_(environment, functionsOnMalValues);
   setCoreEffectfulFnsOnMalValues_bang_(display)(environment, displayEffectsOnMalValues);
-  environment['*ARGV*'] = createMalList();
-  _environment_ = fromJsObject(environment);
-  environment['*DEFAULT-ENV*'] = _environment_;
   return environment;
 };
 
 module.exports = getEnvironment;
 
-}).call(this,require('_process'))
-},{"./evaluate":20,"./index-utilities":21,"./interpret":22,"./js-utilities":23,"./linked-list":25,"./mal-type-utilities":26,"./process":29,"./serialize":30,"_process":14,"fs":13}],20:[function(require,module,exports){
-var addEnv, car, catch_asterisk_, cdr, circumpendQuotes, commentSignal, createFn, createLocalEnv, createMacro, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNumber, createMalString, createMalSymbol, createMalUserPureFunction, def_bang_, defineNewValue, empty_question_, evalQuasiquotedExpr, evaluate, expandMacro, expand_hyphen_macro, extractJsValue, filter, fn_asterisk_, forEach, fromArray, ignorable_question_, jsString_question_, keyword_question_, let_asterisk_, letrec_asterisk_, lookup, macro_asterisk_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIgnore_question_, malIndex_question_, malList_question_, malMacro_question_, malNil, malSymbol_question_, malUserPureFunction_question_, map, next, quasiquote, quote, recurse, reduce, reduceBy2, reduceLet_asterisk_, reduceLetrec_asterisk_, reverse, serialize, setMainEnv, splat, spliceUnquote, spliceUnquote_question_, spliceUnquotedExpr_question_, toPartialArray, try_asterisk_, undef_bang_, undefineValue, unquote, unquote_question_, unquotedExpr_question_, unsetMainEnv, _do, _evaluate, _if,
+},{"./linked-list":29,"./serialize":31,"./type-utilities":35}],22:[function(require,module,exports){
+var car, createMalCorePureFunction, createMalList, createMalSymbol, extractJsValue, fromArray, fromMalIndex, getEnvironment, malList_question_, toArray, toPartialArray, tokenizeAndParse, _process,
+  __hasProp = {}.hasOwnProperty;
+
+car = require('./linked-list').car;
+
+createMalCorePureFunction = require('./type-utilities').createMalCorePureFunction;
+
+createMalList = require('./type-utilities').createMalList;
+
+createMalSymbol = require('./type-utilities').createMalSymbol;
+
+extractJsValue = require('./type-utilities').extractJsValue;
+
+fromArray = require('./linked-list').fromArray;
+
+fromMalIndex = require('./index-utilities').fromMalIndex;
+
+malList_question_ = require('./type-utilities').malList_question_;
+
+_process = require('./_process');
+
+toArray = require('./linked-list').toArray;
+
+tokenizeAndParse = require('./tokenizeAndParse');
+
+toPartialArray = require('./linked-list').toPartialArray;
+
+getEnvironment = function(config) {
+  var apply, call, environment, evalString, evalWithBareEnv, evalWithEnv, functionsOnMalValues, identity, setCoreFnsOnMalValues_bang_, stripQuotes, _eval, _evalListHead, _process_;
+  environment = config.environment;
+  _eval = function(malVal) {
+    return _process_([environment])(malVal);
+  };
+  identity = function(malVal) {
+    return malVal;
+  };
+  _process_ = function(envs) {
+    return function(malVal) {
+      return _process(identity)(envs)(malVal);
+    };
+  };
+  setCoreFnsOnMalValues_bang_ = function(env, fns) {
+    var fn, fnName, _results;
+    _results = [];
+    for (fnName in fns) {
+      if (!__hasProp.call(fns, fnName)) continue;
+      fn = fns[fnName];
+      _results.push(env[fnName] = createMalCorePureFunction(fn));
+    }
+    return _results;
+  };
+  stripQuotes = function(jsString) {
+    return jsString.slice(1, -1);
+  };
+  apply = function(malArgs) {
+    var malArgList, malFn, _ref;
+    _ref = toArray(malArgs), malFn = _ref[0], malArgList = _ref[1];
+    return _eval(createMalList(malFn, malArgList));
+  };
+  call = function(malArgs) {
+    return _eval(malArgs);
+  };
+  _evalListHead = function(malArgs) {
+    return _eval(car(malArgs));
+  };
+  evalString = function(malArgs) {
+    return (function(__i) {
+      return _eval(tokenizeAndParse(stripQuotes(extractJsValue(car(__i)))));
+    })(malArgs);
+  };
+  evalWithBareEnv = function(malArgs) {
+    var expr, localEnv, _ref;
+    _ref = toPartialArray(2, malArgs), expr = _ref[0], localEnv = _ref[1];
+    return _process_([fromMalIndex(localEnv)])(expr);
+  };
+  evalWithEnv = function(malArgs) {
+    var expr, localEnv, _ref;
+    _ref = toPartialArray(2, malArgs), expr = _ref[0], localEnv = _ref[1];
+    return _process_([fromMalIndex(localEnv), environment])(expr);
+  };
+  functionsOnMalValues = {
+    'apply': apply,
+    'call': call,
+    'eval': _evalListHead,
+    'eval-string': evalString,
+    'eval-with-env': evalWithEnv,
+    'eval-with-bare-env': evalWithBareEnv
+  };
+  setCoreFnsOnMalValues_bang_(environment, functionsOnMalValues);
+  return environment;
+};
+
+module.exports = getEnvironment;
+
+},{"./_process":16,"./index-utilities":25,"./linked-list":29,"./tokenizeAndParse":34,"./type-utilities":35}],23:[function(require,module,exports){
+var addEnv, car, catch_asterisk_, cdr, circumpendQuotes, commentSignal, createFn, createLocalEnv, createMacro, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNumber, createMalString, createMalSymbol, createMalUserPureFunction, def_bang_, defineNewValue, empty_question_, evalQuasiquotedExpr, evaluate, expandMacro, expand_hyphen_macro, extractJsValue, filter, fn_asterisk_, forEach, fromArray, ignorable_question_, jsString_question_, keyword_question_, let_asterisk_, letrec_asterisk_, lookup, macro_asterisk_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIgnore_question_, malIndex_question_, malList_question_, malMacro_question_, malNil, malSymbol_question_, malUserPureFunction_question_, map, next, quasiquote, quote, recurse, reduce, reduceBy2, reduceLet_asterisk_, reduceLetrec_asterisk_, reverse, setMainEnv, splat, spliceUnquote, spliceUnquote_question_, spliceUnquotedExpr_question_, toPartialArray, try_asterisk_, undef_bang_, undefineValue, unquote, unquote_question_, unquotedExpr_question_, unsetMainEnv, _do, _evaluate, _if,
   __hasProp = {}.hasOwnProperty;
 
 addEnv = require('./env-utilities').addEnv;
@@ -2046,21 +2040,21 @@ circumpendQuotes = require('./js-utilities').circumpendQuotes;
 
 commentSignal = require('./commentSignal');
 
-createMalIndex = require('./mal-type-utilities').createMalIndex;
+createMalIndex = require('./type-utilities').createMalIndex;
 
-createMalKeyword = require('./mal-type-utilities').createMalKeyword;
+createMalKeyword = require('./type-utilities').createMalKeyword;
 
-createMalList = require('./mal-type-utilities').createMalList;
+createMalList = require('./type-utilities').createMalList;
 
-createMalMacro = require('./mal-type-utilities').createMalMacro;
+createMalMacro = require('./type-utilities').createMalMacro;
 
-createMalNumber = require('./mal-type-utilities').createMalNumber;
+createMalNumber = require('./type-utilities').createMalNumber;
 
-createMalString = require('./mal-type-utilities').createMalString;
+createMalString = require('./type-utilities').createMalString;
 
-createMalSymbol = require('./mal-type-utilities').createMalSymbol;
+createMalSymbol = require('./type-utilities').createMalSymbol;
 
-createMalUserPureFunction = require('./mal-type-utilities').createMalUserPureFunction;
+createMalUserPureFunction = require('./type-utilities').createMalUserPureFunction;
 
 def_bang_ = require('./keyTokens').def_bang_;
 
@@ -2070,7 +2064,7 @@ empty_question_ = require('./linked-list').empty_question_;
 
 expand_hyphen_macro = require('./keyTokens').expand_hyphen_macro;
 
-extractJsValue = require('./mal-type-utilities').extractJsValue;
+extractJsValue = require('./type-utilities').extractJsValue;
 
 filter = require('./linked-list').filter;
 
@@ -2094,23 +2088,23 @@ lookup = require('./env-utilities').lookup;
 
 macro_asterisk_ = require('./keyTokens').macro_asterisk_;
 
-malCoreEffectfulFunction_question_ = require('./mal-type-utilities').malCoreEffectfulFunction_question_;
+malCoreEffectfulFunction_question_ = require('./type-utilities').malCoreEffectfulFunction_question_;
 
-malCorePureFunction_question_ = require('./mal-type-utilities').malCorePureFunction_question_;
+malCorePureFunction_question_ = require('./type-utilities').malCorePureFunction_question_;
 
-malIgnore_question_ = require('./mal-type-utilities').malIgnore_question_;
+malIgnore_question_ = require('./type-utilities').malIgnore_question_;
 
-malIndex_question_ = require('./mal-type-utilities').malIndex_question_;
+malIndex_question_ = require('./type-utilities').malIndex_question_;
 
-malList_question_ = require('./mal-type-utilities').malList_question_;
+malList_question_ = require('./type-utilities').malList_question_;
 
-malMacro_question_ = require('./mal-type-utilities').malMacro_question_;
+malMacro_question_ = require('./type-utilities').malMacro_question_;
 
-malNil = require('./mal-type-utilities').malNil;
+malNil = require('./type-utilities').malNil;
 
-malSymbol_question_ = require('./mal-type-utilities').malSymbol_question_;
+malSymbol_question_ = require('./type-utilities').malSymbol_question_;
 
-malUserPureFunction_question_ = require('./mal-type-utilities').malUserPureFunction_question_;
+malUserPureFunction_question_ = require('./type-utilities').malUserPureFunction_question_;
 
 map = require('./linked-list').map;
 
@@ -2143,8 +2137,6 @@ try_asterisk_ = require('./keyTokens').try_asterisk_;
 undef_bang_ = require('./keyTokens').undef_bang_;
 
 unsetMainEnv = require('./env-utilities').unsetMainEnv;
-
-serialize = require('./serialize');
 
 createFn = function(malList, envs) {
   return createMalUserPureFunction({
@@ -2211,7 +2203,7 @@ evalQuasiquotedExpr = function(expr, envs, addResult) {
 };
 
 _evaluate = function(malExpr, envs, addResult) {
-  var a1, catchExpr, ex, fn, head, index, jsString, key, localEnvs, malArgs, malExpression, malInvokable, malParameters, malSymbol, newEnv, newIndex, otherwise, remaining, t1, value, _catch, _ex, _ref, _ref1, _ref2;
+  var arg1, catchExpr, ex, fn, head, index, jsString, key, localEnvs, malArgs, malExpression, malInvokable, malParameters, malSymbol, newEnv, newIndex, otherwise, remainingArgs, tailList, value, _catch, _ex, _ref, _ref1, _ref2;
   while (true) {
     switch (false) {
       case !malSymbol_question_(malExpr):
@@ -2237,45 +2229,45 @@ _evaluate = function(malExpr, envs, addResult) {
         malExpr = filter((function(x) {
           return !(ignorable_question_(x, envs, addResult));
         }), malExpr);
-        _ref = toPartialArray(2, malExpr), head = _ref[0], a1 = _ref[1], remaining = _ref[2];
-        t1 = cdr(malExpr);
+        _ref = toPartialArray(2, malExpr), head = _ref[0], arg1 = _ref[1], remainingArgs = _ref[2];
+        tailList = cdr(malExpr);
         switch (extractJsValue(head)) {
           case def_bang_:
-            return defineNewValue(t1, envs, addResult);
+            return defineNewValue(tailList, envs, addResult);
           case undef_bang_:
-            return undefineValue(t1, envs);
+            return undefineValue(tailList, envs);
           case let_asterisk_:
-            malExpr = car(remaining);
-            envs = addEnv(envs, reduceLet_asterisk_(envs, a1, addResult));
+            malExpr = car(remainingArgs);
+            envs = addEnv(envs, reduceLet_asterisk_(envs, arg1, addResult));
             break;
           case letrec_asterisk_:
-            malExpr = car(remaining);
-            envs = addEnv(envs, reduceLetrec_asterisk_(envs, a1, addResult));
+            malExpr = car(remainingArgs);
+            envs = addEnv(envs, reduceLetrec_asterisk_(envs, arg1, addResult));
             break;
           case _do:
-            return forEach(evaluate(envs, addResult), t1);
+            return forEach(evaluate(envs, addResult), tailList);
           case _if:
-            malExpr = extractJsValue(_evaluate(a1, envs, addResult)) ? car(remaining) : empty_question_(otherwise = next(remaining)) ? malNil : otherwise;
+            malExpr = extractJsValue(_evaluate(arg1, envs, addResult)) ? car(remainingArgs) : empty_question_(otherwise = next(remainingArgs)) ? malNil : otherwise;
             break;
           case fn_asterisk_:
-            return createFn(t1, envs);
+            return createFn(tailList, envs);
           case macro_asterisk_:
-            return createMacro(t1, envs);
+            return createMacro(tailList, envs);
           case quote:
-            return car(t1);
+            return car(tailList);
           case quasiquote:
-            return evalQuasiquotedExpr(car(t1), envs, addResult);
+            return evalQuasiquotedExpr(car(tailList), envs, addResult);
           case expand_hyphen_macro:
-            return expandMacro(car(a1), cdr(a1), envs, addResult);
+            return expandMacro(car(arg1), cdr(arg1), envs, addResult);
           case try_asterisk_:
             try {
-              return _evaluate(a1, envs, addResult);
+              return _evaluate(arg1, envs, addResult);
             } catch (_error) {
               ex = _error;
-              if (empty_question_(remaining)) {
+              if (empty_question_(remainingArgs)) {
                 throw ex;
               } else {
-                _ref1 = toPartialArray(3, car(remaining)), _catch = _ref1[0], _ex = _ref1[1], catchExpr = _ref1[2];
+                _ref1 = toPartialArray(3, car(remainingArgs)), _catch = _ref1[0], _ex = _ref1[1], catchExpr = _ref1[2];
                 if ((extractJsValue(_catch)) !== "catch*") {
                   throw ex;
                 }
@@ -2290,11 +2282,11 @@ _evaluate = function(malExpr, envs, addResult) {
             break;
           default:
             malSymbol = head;
-            malExpr = t1;
+            malExpr = tailList;
             malInvokable = _evaluate(malSymbol, envs, addResult);
             switch (false) {
               case !malMacro_question_(malInvokable):
-                malExpr = expandMacro(head, t1, envs, addResult);
+                malExpr = expandMacro(head, tailList, envs, addResult);
                 break;
               case !malCorePureFunction_question_(malInvokable):
                 fn = extractJsValue(malInvokable);
@@ -2364,7 +2356,7 @@ reduceLetrec_asterisk_ = function(envs, list, addResult) {
   while (!empty_question_(list)) {
     jsKey = extractJsValue(list.value);
     list = recurse(list);
-    _malExpr = fromArray([createMalSymbol("fix"), fromArray([createMalSymbol("fn*"), fromArray([jsKey]), list.value])]);
+    _malExpr = fromArray([createMalSymbol("fix*"), fromArray([createMalSymbol("fn*"), fromArray([jsKey]), list.value])]);
     envValue = _evaluate(_malExpr, _envs, addResult);
     newEnv[jsKey] = envValue;
     list = recurse(list);
@@ -2394,16 +2386,41 @@ unquotedExpr_question_ = function(malValue) {
   return malList_question_(malValue) && (unquote_question_(car(malValue)));
 };
 
-module.exports = {
-  evaluate: evaluate,
-  expandMacro: expandMacro
+module.exports = evaluate;
+
+},{"./commentSignal":17,"./env-utilities":18,"./js-utilities":27,"./keyTokens":28,"./linked-list":29,"./type-utilities":35}],24:[function(require,module,exports){
+var getLispEnvironment, setEnv0, setEnv1, setEnv2, setEnv3;
+
+setEnv0 = require('./env0');
+
+setEnv1 = require('./env1');
+
+setEnv2 = require('./env2');
+
+setEnv3 = require('./env3');
+
+getLispEnvironment = function(config) {
+  var display, environment;
+  console.log('getLispEnvironment');
+  display = config.display;
+  environment = {};
+  config = {
+    display: display,
+    environment: environment
+  };
+  setEnv0(config);
+  setEnv1(config);
+  setEnv2(config);
+  return setEnv3(config);
 };
 
-},{"./commentSignal":17,"./env-utilities":18,"./js-utilities":23,"./keyTokens":24,"./linked-list":25,"./mal-type-utilities":26,"./serialize":30}],21:[function(require,module,exports){
-var createMalIndex, fromJsObject, fromMalIndex, jsString_question_,
+module.exports = getLispEnvironment;
+
+},{"./env0":19,"./env1":20,"./env2":21,"./env3":22}],25:[function(require,module,exports){
+var createMalIndex, fromJsObject, fromMalIndex, jsString_question_, stripQuotes,
   __hasProp = {}.hasOwnProperty;
 
-createMalIndex = require('./mal-type-utilities').createMalIndex;
+createMalIndex = require('./type-utilities').createMalIndex;
 
 jsString_question_ = require('./js-utilities').jsString_question_;
 
@@ -2430,6 +2447,7 @@ fromMalIndex = function(malIndex) {
     if (!__hasProp.call(_ref, key)) continue;
     value = _ref[key];
     if (jsString_question_(key)) {
+      stripQuotes(key);
       localEnv[stripQuotes(key)] = value;
     } else {
       localEnv[key] = value;
@@ -2438,25 +2456,105 @@ fromMalIndex = function(malIndex) {
   return localEnv;
 };
 
+stripQuotes = function(jsString) {
+  return jsString.slice(1, -1);
+};
+
 module.exports = {
   fromJsObject: fromJsObject,
   fromMalIndex: fromMalIndex
 };
 
-},{"./js-utilities":23,"./mal-type-utilities":26}],22:[function(require,module,exports){
-var interpret, parse, tokenize;
+},{"./js-utilities":27,"./type-utilities":35}],26:[function(require,module,exports){
+var circumpendQuotes, createMalString, display, environment, flattenIfNecessary, fromArray, getLispEnvironment, interpret, serialize, standardFnsAndMacros, tokenizeAndParse, _createMalString, _interpret, _process, _serialize,
+  __hasProp = {}.hasOwnProperty;
 
-parse = require('./parse');
+circumpendQuotes = require('./js-utilities').circumpendQuotes;
 
-tokenize = require('./tokenize');
+createMalString = require('./type-utilities').createMalString;
 
-interpret = function(sourceCode) {
-  return parse(tokenize(sourceCode));
+fromArray = require('./linked-list').fromArray;
+
+getLispEnvironment = require('./getLispEnvironment');
+
+_process = require('./_process');
+
+_serialize = require('./serialize');
+
+standardFnsAndMacros = require('./standard-fns-and-macros');
+
+tokenizeAndParse = require('./tokenizeAndParse');
+
+_createMalString = function(jsString) {
+  return createMalString(circumpendQuotes(jsString));
 };
+
+display = function(malValue) {
+  return {
+    effect: {
+      type: 'display'
+    },
+    value: malValue
+  };
+};
+
+flattenIfNecessary = function(effects) {
+  var result, value;
+  result = effects;
+  while (result.length === 1 && Array.isArray(value = result[0].value)) {
+    result = flattenIfNecessary(value);
+  }
+  return result;
+};
+
+_interpret = function(envs, jsString) {
+  var e;
+  try {
+    return serialize(flattenIfNecessary(_process(tokenizeAndParse)(envs)(jsString)));
+  } catch (_error) {
+    e = _error;
+    return "repl error: (" + (serialize(e)) + " + )";
+  }
+};
+
+interpret = function(jsString, userJsArray) {
+  var userEnv;
+  if (userJsArray != null) {
+    userEnv = {
+      '*ARGV*': fromArray(userJsArray.map(_createMalString))
+    };
+    return _interpret([userEnv, environment], jsString);
+  } else {
+    return _interpret([environment], jsString);
+  }
+};
+
+serialize = function(results) {
+  return results.map(function(result) {
+    var key, value, _result;
+    _result = {};
+    for (key in result) {
+      if (!__hasProp.call(result, key)) continue;
+      value = result[key];
+      if (key === 'effect') {
+        _result[key] = value;
+      } else {
+        _result[key] = _serialize(value);
+      }
+    }
+    return _result;
+  });
+};
+
+environment = getLispEnvironment({
+  display: display
+});
+
+interpret(standardFnsAndMacros);
 
 module.exports = interpret;
 
-},{"./parse":28,"./tokenize":31}],23:[function(require,module,exports){
+},{"./_process":16,"./getLispEnvironment":24,"./js-utilities":27,"./linked-list":29,"./serialize":31,"./standard-fns-and-macros":32,"./tokenizeAndParse":34,"./type-utilities":35}],27:[function(require,module,exports){
 var circumpendQuotes, jsNaN_question_, jsNumber_question_, jsString_question_;
 
 circumpendQuotes = function(jsString) {
@@ -2482,7 +2580,7 @@ module.exports = {
   jsString_question_: jsString_question_
 };
 
-},{}],24:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 var binaryGlyphTokens, catch_asterisk_, def_bang_, deref, derefGlyph, expand_hyphen_macro, fn_asterisk_, glyphTokens, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, indexEnd, indexStart, keyTokens, keyword_question_, keywords, let_asterisk_, letrec_asterisk_, listEnd, listStart, macroTokens, macro_asterisk_, nil, quasiquote, quasiquoteGlyph, quote, quoteGlyph, splat, spliceUnquote, spliceUnquoteGlyph, try_asterisk_, undef_bang_, unquote, unquoteGlyph, _do, _false, _if, _process, _true,
   __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
@@ -2545,11 +2643,11 @@ module.exports = {
   unquoteGlyph: unquoteGlyph
 };
 
-},{}],25:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 var EOL, car, cdr, concat, cons, copy, createMalList, createNode, drop, empty_question_, equal_question_, filter, forEach, fromArray, last, lastTail, malListType, malTypes, map, next, recurse, reduce, reduceBy2, reverse, take, toArray, toPartialArray, zip, _EOL,
   __slice = [].slice;
 
-malTypes = require('./mal-types').malTypes;
+malTypes = require('./types').malTypes;
 
 malListType = malTypes[6];
 
@@ -2815,173 +2913,37 @@ module.exports = {
   toPartialArray: toPartialArray
 };
 
-},{"./mal-types":27}],26:[function(require,module,exports){
-var createMalAtom, createMalBoolean, createMalCoreEffectfulFunction, createMalCorePureFunction, createMalIdentifier, createMalIgnore, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNil, createMalNumber, createMalSpecialForm, createMalString, createMalSymbol, createMalUserPureFunction, createMalValue, createPredicate, create_hyphen_factory_hyphen__ampersand__hyphen_predicate, extractJsValue, malAtomType, malAtom_question_, malBoolean_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIdentifier_question_, malIgnore, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malSpecialForm_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malTypes, malUserPureFunction_question_, _createMalAtom, _createMalBoolean, _createMalList, _createMalUnit, _malUnit_question_, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
-
-createMalList = require('./linked-list').createMalList;
-
-malAtomType = require('./mal-types').malAtomType;
-
-malTypes = require('./mal-types').malTypes;
-
-create_hyphen_factory_hyphen__ampersand__hyphen_predicate = function(malType) {
-  var factory, predicate;
-  factory = function(jsValue) {
-    return createMalValue(jsValue, malType);
-  };
-  predicate = function(malValue) {
-    return malValue.type === malType;
-  };
-  return [factory, predicate];
-};
-
-createMalAtom = function(malValue) {
-  return {
-    malValue: malValue,
-    type: malAtomType
-  };
-};
-
-createMalBoolean = function(jsBoolean) {
-  if (jsBoolean) {
-    return malTrue;
-  } else {
-    return malFalse;
-  }
-};
-
-createMalIgnore = function() {
-  return malIgnore;
-};
-
-createMalNil = function() {
-  return malNil;
-};
-
-createMalValue = function(jsValue, malType) {
-  return {
-    jsValue: jsValue,
-    type: malType
-  };
-};
-
-createPredicate = function(constant) {
-  return function(value) {
-    return value === constant;
-  };
-};
-
-extractJsValue = function(malValue) {
-  return malValue.jsValue;
-};
-
-_ref = malTypes.map(create_hyphen_factory_hyphen__ampersand__hyphen_predicate), (_ref1 = _ref[0], _createMalBoolean = _ref1[0], malBoolean_question_ = _ref1[1]), (_ref2 = _ref[1], createMalCoreEffectfulFunction = _ref2[0], malCoreEffectfulFunction_question_ = _ref2[1]), (_ref3 = _ref[2], createMalCorePureFunction = _ref3[0], malCorePureFunction_question_ = _ref3[1]), (_ref4 = _ref[3], createMalIdentifier = _ref4[0], malIdentifier_question_ = _ref4[1]), (_ref5 = _ref[4], createMalIndex = _ref5[0], malIndex_question_ = _ref5[1]), (_ref6 = _ref[5], createMalKeyword = _ref6[0], malKeyword_question_ = _ref6[1]), (_ref7 = _ref[6], _createMalList = _ref7[0], malList_question_ = _ref7[1]), (_ref8 = _ref[7], createMalMacro = _ref8[0], malMacro_question_ = _ref8[1]), (_ref9 = _ref[8], createMalNumber = _ref9[0], malNumber_question_ = _ref9[1]), (_ref10 = _ref[9], createMalSpecialForm = _ref10[0], malSpecialForm_question_ = _ref10[1]), (_ref11 = _ref[10], createMalString = _ref11[0], malString_question_ = _ref11[1]), (_ref12 = _ref[11], createMalSymbol = _ref12[0], malSymbol_question_ = _ref12[1]), (_ref13 = _ref[12], _createMalUnit = _ref13[0], _malUnit_question_ = _ref13[1]), (_ref14 = _ref[13], createMalUserPureFunction = _ref14[0], malUserPureFunction_question_ = _ref14[1]), (_ref15 = _ref[14], _createMalAtom = _ref15[0], malAtom_question_ = _ref15[1]);
-
-malIgnore = _createMalUnit(null);
-
-malNil = _createMalUnit(null);
-
-_ref16 = [false, true].map(_createMalBoolean), malFalse = _ref16[0], malTrue = _ref16[1];
-
-_ref17 = [malFalse, malIgnore, malNil, malTrue].map(createPredicate), malFalse_question_ = _ref17[0], malIgnore_question_ = _ref17[1], malNil_question_ = _ref17[2], malTrue_question_ = _ref17[3];
-
-module.exports = {
-  createMalAtom: createMalAtom,
-  createMalBoolean: createMalBoolean,
-  createMalCoreEffectfulFunction: createMalCoreEffectfulFunction,
-  createMalCorePureFunction: createMalCorePureFunction,
-  createMalIdentifier: createMalIdentifier,
-  createMalIgnore: createMalIgnore,
-  createMalIndex: createMalIndex,
-  createMalKeyword: createMalKeyword,
-  createMalList: createMalList,
-  createMalMacro: createMalMacro,
-  createMalNil: createMalNil,
-  createMalNumber: createMalNumber,
-  createMalSpecialForm: createMalSpecialForm,
-  createMalString: createMalString,
-  createMalSymbol: createMalSymbol,
-  createMalUserPureFunction: createMalUserPureFunction,
-  extractJsValue: extractJsValue,
-  malAtom_question_: malAtom_question_,
-  malBoolean_question_: malBoolean_question_,
-  malCoreEffectfulFunction_question_: malCoreEffectfulFunction_question_,
-  malCorePureFunction_question_: malCorePureFunction_question_,
-  malFalse: malFalse,
-  malFalse_question_: malFalse_question_,
-  malIdentifier_question_: malIdentifier_question_,
-  malIgnore: malIgnore,
-  malIgnore_question_: malIgnore_question_,
-  malIndex_question_: malIndex_question_,
-  malKeyword_question_: malKeyword_question_,
-  malList_question_: malList_question_,
-  malMacro_question_: malMacro_question_,
-  malNil: malNil,
-  malNil_question_: malNil_question_,
-  malNumber_question_: malNumber_question_,
-  malSpecialForm_question_: malSpecialForm_question_,
-  malString_question_: malString_question_,
-  malSymbol_question_: malSymbol_question_,
-  malTrue: malTrue,
-  malTrue_question_: malTrue_question_,
-  malUserPureFunction_question_: malUserPureFunction_question_
-};
-
-},{"./linked-list":25,"./mal-types":27}],27:[function(require,module,exports){
-var malAtomType, malBooleanType, malCoreEffectfulFunctionType, malCorePureFunctionType, malIdentifierType, malIndexType, malKeywordType, malListType, malMacroType, malNumberType, malSpecialFormType, malStringType, malSymbolType, malTypes, malUnitType, malUserPureFunctionType;
-
-malTypes = [malBooleanType = 'malBooleanType', malCoreEffectfulFunctionType = 'malCoreEffectfulFunctionType', malCorePureFunctionType = 'malCorePureFunctionType', malIdentifierType = 'malIdentifierType', malIndexType = 'malIndexType', malKeywordType = 'malKeywordType', malListType = 'malListType', malMacroType = 'malMacroType', malNumberType = 'malNumberType', malSpecialFormType = 'malSpecialFormType', malStringType = 'malStringType', malSymbolType = 'malSymbolType', malUnitType = 'malUnitType', malUserPureFunctionType = 'malUserPureFunctionType', malAtomType = 'malAtomType'];
-
-module.exports = {
-  malAtomType: malAtomType,
-  malBooleanType: malBooleanType,
-  malCoreEffectfulFunctionType: malCoreEffectfulFunctionType,
-  malCorePureFunctionType: malCorePureFunctionType,
-  malIdentifierType: malIdentifierType,
-  malIndexType: malIndexType,
-  malKeywordType: malKeywordType,
-  malListType: malListType,
-  malMacroType: malMacroType,
-  malNumberType: malNumberType,
-  malSpecialFormType: malSpecialFormType,
-  malStringType: malStringType,
-  malSymbolType: malSymbolType,
-  malTypes: malTypes,
-  malUnitType: malUnitType,
-  malUserPureFunctionType: malUserPureFunctionType
-};
-
-},{}],28:[function(require,module,exports){
-var atomize, binaryGlyphIndex, binaryGlyphTokens, binaryGlyph_question_, boolean_question_, comment, createMalBoolean, createMalIdentifier, createMalIgnore, createMalIndex, createMalList, createMalNil, createMalNumber, createMalString, createMalSymbol, deref, derefGlyph, extractJsValue, float_question_, glyphIndex, glyphTokens, glyph_question_, identifer_question_, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, ignore_question_, indexEnd, indexStart, indexStart_question_, integer_question_, keyTokens, listEnd, listStart, listStart_question_, nil, nil_question_, parse, parseBinaryGlyph, parseBoolean, parseFloat10, parseGlyph, parseIndex, parseInt10, parseList, quasiquote, quasiquoteGlyph, quote, quoteGlyph, reverse, spliceUnquote, spliceUnquoteGlyph, startsWith_question_, string_question_, unquote, unquoteGlyph, _false, _parse, _true,
+},{"./types":36}],30:[function(require,module,exports){
+var atomize, binaryGlyphIndex, binaryGlyphTokens, binaryGlyph_question_, boolean_question_, comment, createMalBoolean, createMalIdentifier, createMalIgnore, createMalIndex, createMalList, createMalNil, createMalNumber, createMalString, createMalSymbol, deref, derefGlyph, extractJsValue, float_question_, glyphIndex, glyphTokens, glyph_question_, identifer_question_, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, ignore_question_, indexEnd, indexStart, indexStart_question_, integer_question_, keyTokens, listEnd, listStart, listStart_question_, nil, nil_question_, parse, parseBinaryGlyph, parseBoolean, parseFloat10, parseGlyph, parseIndex, parseInt10, parseList, quasiquote, quasiquoteGlyph, quote, quoteGlyph, reverse, spliceUnquote, spliceUnquoteGlyph, startsWith_question_, string_question_, stripUnderscores, unquote, unquoteGlyph, _false, _parse, _true,
   __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
 binaryGlyphTokens = require('./keyTokens').binaryGlyphTokens;
 
 comment = require('./commentSignal');
 
-createMalBoolean = require('./mal-type-utilities').createMalBoolean;
+createMalBoolean = require('./type-utilities').createMalBoolean;
 
-createMalIdentifier = require('./mal-type-utilities').createMalIdentifier;
+createMalIdentifier = require('./type-utilities').createMalIdentifier;
 
-createMalIgnore = require('./mal-type-utilities').createMalIgnore;
+createMalIgnore = require('./type-utilities').createMalIgnore;
 
-createMalIndex = require('./mal-type-utilities').createMalIndex;
+createMalIndex = require('./type-utilities').createMalIndex;
 
-createMalList = require('./mal-type-utilities').createMalList;
+createMalList = require('./type-utilities').createMalList;
 
-createMalNil = require('./mal-type-utilities').createMalNil;
+createMalNil = require('./type-utilities').createMalNil;
 
-createMalNumber = require('./mal-type-utilities').createMalNumber;
+createMalNumber = require('./type-utilities').createMalNumber;
 
-createMalString = require('./mal-type-utilities').createMalString;
+createMalString = require('./type-utilities').createMalString;
 
-createMalSymbol = require('./mal-type-utilities').createMalSymbol;
+createMalSymbol = require('./type-utilities').createMalSymbol;
 
 deref = require('./keyTokens').deref;
 
 derefGlyph = require('./keyTokens').derefGlyph;
 
-extractJsValue = require('./mal-type-utilities').extractJsValue;
+extractJsValue = require('./type-utilities').extractJsValue;
 
 _false = require('./keyTokens')._false;
 
@@ -3069,7 +3031,7 @@ boolean_question_ = function(token) {
 };
 
 float_question_ = function(token) {
-  return /^(-|\+)?[1-9]\d*\.\d+$/.test(token);
+  return /^(-|\+)?[0-9](_|\d)*\.(\d|(\d(_|\d)*\d))$/.test(token);
 };
 
 binaryGlyph_question_ = function(token) {
@@ -3089,7 +3051,7 @@ indexStart_question_ = function(token) {
 };
 
 integer_question_ = function(token) {
-  return /^(?:0|(?:(-|\+)?[1-9]\d*$))/.test(token);
+  return /^(0(?!\.)|((-|\+)?[1-9](_|\d)*$))/.test(token);
 };
 
 listStart_question_ = function(token) {
@@ -3131,7 +3093,7 @@ parseBoolean = function(token) {
 };
 
 parseFloat10 = function(token) {
-  return parseFloat(token, 10);
+  return parseFloat(stripUnderscores(token), 10);
 };
 
 parseGlyph = function(keyword, tokens) {
@@ -3156,7 +3118,7 @@ parseIndex = function(tokens) {
 };
 
 parseInt10 = function(token) {
-  return parseInt(token, 10);
+  return parseInt(stripUnderscores(token), 10);
 };
 
 parseList = function(tokens) {
@@ -3172,6 +3134,10 @@ startsWith_question_ = function(char) {
   return function(token) {
     return token[0] === char;
   };
+};
+
+stripUnderscores = function(token) {
+  return token.replace(/_/g, '');
 };
 
 glyphIndex = {};
@@ -3200,45 +3166,13 @@ identifer_question_ = startsWith_question_(':');
 
 module.exports = parse;
 
-},{"./commentSignal":17,"./keyTokens":24,"./linked-list":25,"./mal-type-utilities":26}],29:[function(require,module,exports){
-var commentSignal, evaluate, interpret, process;
-
-commentSignal = require('./commentSignal');
-
-evaluate = require('./evaluate').evaluate;
-
-interpret = require('./interpret');
-
-process = function(envs) {
-  return function(sourceCode) {
-    var addResult, result, results, value;
-    results = [];
-    addResult = function(result) {
-      return results.push(result);
-    };
-    value = evaluate(envs, addResult)(interpret(sourceCode));
-    result = value === commentSignal ? {
-      effect: {
-        type: 'comment'
-      }
-    } : {
-      effect: false,
-      value: value
-    };
-    addResult(result);
-    return results;
-  };
-};
-
-module.exports = process;
-
-},{"./commentSignal":17,"./evaluate":20,"./interpret":22}],30:[function(require,module,exports){
+},{"./commentSignal":17,"./keyTokens":28,"./linked-list":29,"./type-utilities":35}],31:[function(require,module,exports){
 var adjoinMalValue, commentSignal, coreEffectfulFunctionLabel, corePureFunctionLabel, extractJsValue, ignoreLabel, indexEnd, indexStart, keywordLabel, listEnd, listStart, macroLabel, malAtom_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIdentifier_question_, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil_question_, malString_question_, malUserPureFunction_question_, nilLabel, reduce, serialize, serializeAtom, serializeIdentifier, serializeIndex, serializeList, serializeString, stripQuotes, userPureFunctionLabel,
   __hasProp = {}.hasOwnProperty;
 
 commentSignal = require('./commentSignal');
 
-extractJsValue = require('./mal-type-utilities').extractJsValue;
+extractJsValue = require('./type-utilities').extractJsValue;
 
 indexEnd = require('./keyTokens').indexEnd;
 
@@ -3248,29 +3182,29 @@ listEnd = require('./keyTokens').listEnd;
 
 listStart = require('./keyTokens').listStart;
 
-malAtom_question_ = require('./mal-type-utilities').malAtom_question_;
+malAtom_question_ = require('./type-utilities').malAtom_question_;
 
-malCoreEffectfulFunction_question_ = require('./mal-type-utilities').malCoreEffectfulFunction_question_;
+malCoreEffectfulFunction_question_ = require('./type-utilities').malCoreEffectfulFunction_question_;
 
-malCorePureFunction_question_ = require('./mal-type-utilities').malCorePureFunction_question_;
+malCorePureFunction_question_ = require('./type-utilities').malCorePureFunction_question_;
 
-malIdentifier_question_ = require('./mal-type-utilities').malIdentifier_question_;
+malIdentifier_question_ = require('./type-utilities').malIdentifier_question_;
 
-malIgnore_question_ = require('./mal-type-utilities').malIgnore_question_;
+malIgnore_question_ = require('./type-utilities').malIgnore_question_;
 
-malIndex_question_ = require('./mal-type-utilities').malIndex_question_;
+malIndex_question_ = require('./type-utilities').malIndex_question_;
 
-malKeyword_question_ = require('./mal-type-utilities').malKeyword_question_;
+malKeyword_question_ = require('./type-utilities').malKeyword_question_;
 
-malList_question_ = require('./mal-type-utilities').malList_question_;
+malList_question_ = require('./type-utilities').malList_question_;
 
-malMacro_question_ = require('./mal-type-utilities').malMacro_question_;
+malMacro_question_ = require('./type-utilities').malMacro_question_;
 
-malNil_question_ = require('./mal-type-utilities').malNil_question_;
+malNil_question_ = require('./type-utilities').malNil_question_;
 
-malString_question_ = require('./mal-type-utilities').malString_question_;
+malString_question_ = require('./type-utilities').malString_question_;
 
-malUserPureFunction_question_ = require('./mal-type-utilities').malUserPureFunction_question_;
+malUserPureFunction_question_ = require('./type-utilities').malUserPureFunction_question_;
 
 reduce = require('./linked-list').reduce;
 
@@ -3397,7 +3331,10 @@ userPureFunctionLabel = '<user function>';
 
 module.exports = serialize;
 
-},{"./commentSignal":17,"./keyTokens":24,"./linked-list":25,"./mal-type-utilities":26}],31:[function(require,module,exports){
+},{"./commentSignal":17,"./keyTokens":28,"./linked-list":29,"./type-utilities":35}],32:[function(require,module,exports){
+module.exports = "(do\n  (def! fix*\n    (fn* (f)\n      ( (fn* (x) (f (fn* (& ys) (apply (x x) ys))))\n        (fn* (x) (f (fn* (& ys) (apply (x x) ys)))))))\n\n  (def! y* (macro* (f x) `(~f (y* ~f) ~x)))\n\n  (def! memfix*\n    (fn* (f)\n      (let* (cache {})\n        (\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          cache))))\n\n  (def! 1st car)\n  (def! 2nd (fn* (xs) (nth 1 xs)))\n  (def! 3rd (fn* (xs) (nth 2 xs)))\n\n  (def! swap! (macro* (atom & xs)\n    (if (empty? xs)\n      atom\n      `(let* (-atom- ~atom)\n        (do\n          (reset! -atom- (~(car xs) (deref -atom-) ~@(cdr xs)))\n          (deref -atom-))))))\n\n  (def! *gensym-counter* (atom 0))\n\n  (def! gensym (fn* ()\n    (symbol (str \"G__\" (swap! *gensym-counter* incr)))))\n\n  (def! or (macro* (& xs)\n    (if (empty? xs)\n      false\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query- \n            ~-query-\n            (or ~@(cdr xs))))))))\n\n  (def! and (macro* (& xs)\n    (if (empty? xs)\n      true\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query-\n            (and ~@(cdr xs))\n            false))))))\n\n  (def! cond (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (if (empty? (cdr xs))\n        (throw \"`cond` requires an even number of forms.\")\n        (let* (-query- (gensym))\n          `(let* (~-query- ~(car xs))\n            (if ~-query-\n              ~(2nd xs)\n              (cond ~@(cdr (cdr xs))))))))))\n\n  (def! loop (macro* (form0 form1)\n    `(let* (loop (memfix* (fn* (loop) (fn* (~(1st form0)) ~form1)))) (loop ~(2nd form0)))))\n\n  (def! -> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n            xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                forms (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~(car form) ~x ~@(cdr form)))\n                (list form x))\n              `(-> (-> ~x ~form) ~@forms))))))))\n\n  (def! ->> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n            xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                forms (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~@form  ~x))\n                (list form x))\n              `(->> (->> ~x ~form) ~@forms))))))))\n\n  (def! ->* (macro* (& xs) `(fn* (-x-) (-> -x- ~@xs))))\n\n  (def! ->>* (macro* (& xs) `(fn* (-x-) (->> -x- ~@xs))))\n\n  (def! not (fn* (x) (if x false true)))\n  (def! incr  (->* (+ 1)))\n  (def! decr  (->* (- 1)))\n  (def! zero? (->* (= 0)))\n\n  (def! identity (fn* (x) x))\n\n  (def! constant-fn (fn* (x) (fn* (y) x)))\n\n  (def! call-on (fn* (& xs) (fn* (fn) (apply fn xs))))\n\n  (def! reduce\n    (fn* (seed f xs)\n      (if (empty? xs)\n        seed\n        (reduce (f seed (car xs)) f (cdr xs)))))\n\n  (def! map\n    (fn* (fn xs)\n      (reverse (reduce '() (fn* (memo x) (cons (fn x) memo)) xs))))\n\n  (def! every?\n    (fn* (pred xs)\n      (if (empty? xs)\n        true\n        (if (pred (car xs))\n          (every? pred (cdr xs))\n          false))))\n\n  (def! some?\n    (fn* (pred xs)\n      (if (empty? xs)\n        false\n        (if (pred (car xs))\n          true\n          (some? pred (cdr xs))))))\n\n  (def! letmemrec* (macro* (alias expr)\n    `(let* (~(car alias) (memfix* (fn* (~(car alias)) ~(2nd alias)))) ~expr)))\n\n  (def! skip (fn* (nbr xs)\n    (letrec* (-skip- (fn* (ys)\n      (let* (nbr (car ys)\n            xs (2nd ys))\n        (cond\n          (= 0 nbr) xs\n          (= 1 nbr) (cdr xs)\n          \"default\" (-skip- (list (decr nbr) (cdr xs)))))))\n      (-skip- (list nbr xs)))))\n\n  (def! . (macro* (x key & xs)\n    `((get ~x ~key) ~@xs)))\n\n  (def! .. (fn* (lo hi)\n    (letrec* (-..- (fn* (ys)\n      (let* (lo     (1st ys)\n            hi     (2nd ys)\n            -list- (3rd ys))\n        (if (= lo hi)\n          (cons hi -list-)\n          (-..- (list lo (decr hi) (cons hi -list-)))))))\n      (-..- (list lo hi '())))))\n\n  (def! defrec! (macro* (fn-name fn-body)\n    `(def! ~fn-name (letrec* (~fn-name ~fn-body) ~fn-name))))\n\n)";
+
+},{}],33:[function(require,module,exports){
 var commentSignal, comment_question_, createTokenRegex, meaningful_question_, tokenize;
 
 commentSignal = require('./commentSignal');
@@ -3433,14 +3370,161 @@ tokenize = function(sourceCode) {
 
 module.exports = tokenize;
 
-},{"./commentSignal":17}],32:[function(require,module,exports){
+},{"./commentSignal":17}],34:[function(require,module,exports){
+var parse, tokenize;
+
+parse = require('./parse');
+
+tokenize = require('./tokenize');
+
+module.exports = function(sourceCode) {
+  return parse(tokenize(sourceCode));
+};
+
+},{"./parse":30,"./tokenize":33}],35:[function(require,module,exports){
+var createMalAtom, createMalBoolean, createMalCoreEffectfulFunction, createMalCorePureFunction, createMalIdentifier, createMalIgnore, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNil, createMalNumber, createMalSpecialForm, createMalString, createMalSymbol, createMalUserPureFunction, createMalValue, createPredicate, create_hyphen_factory_hyphen__ampersand__hyphen_predicate, extractJsValue, malAtomType, malAtom_question_, malBoolean_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIdentifier_question_, malIgnore, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malSpecialForm_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malTypes, malUserPureFunction_question_, _createMalAtom, _createMalBoolean, _createMalList, _createMalUnit, _malUnit_question_, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
+
+createMalList = require('./linked-list').createMalList;
+
+malAtomType = require('./types').malAtomType;
+
+malTypes = require('./types').malTypes;
+
+create_hyphen_factory_hyphen__ampersand__hyphen_predicate = function(malType) {
+  var factory, predicate;
+  factory = function(jsValue) {
+    return createMalValue(jsValue, malType);
+  };
+  predicate = function(malValue) {
+    return malValue.type === malType;
+  };
+  return [factory, predicate];
+};
+
+createMalAtom = function(malValue) {
+  return {
+    malValue: malValue,
+    type: malAtomType
+  };
+};
+
+createMalBoolean = function(jsBoolean) {
+  if (jsBoolean) {
+    return malTrue;
+  } else {
+    return malFalse;
+  }
+};
+
+createMalIgnore = function() {
+  return malIgnore;
+};
+
+createMalNil = function() {
+  return malNil;
+};
+
+createMalValue = function(jsValue, malType) {
+  return {
+    jsValue: jsValue,
+    type: malType
+  };
+};
+
+createPredicate = function(constant) {
+  return function(value) {
+    return value === constant;
+  };
+};
+
+extractJsValue = function(malValue) {
+  return malValue.jsValue;
+};
+
+_ref = malTypes.map(create_hyphen_factory_hyphen__ampersand__hyphen_predicate), (_ref1 = _ref[0], _createMalBoolean = _ref1[0], malBoolean_question_ = _ref1[1]), (_ref2 = _ref[1], createMalCoreEffectfulFunction = _ref2[0], malCoreEffectfulFunction_question_ = _ref2[1]), (_ref3 = _ref[2], createMalCorePureFunction = _ref3[0], malCorePureFunction_question_ = _ref3[1]), (_ref4 = _ref[3], createMalIdentifier = _ref4[0], malIdentifier_question_ = _ref4[1]), (_ref5 = _ref[4], createMalIndex = _ref5[0], malIndex_question_ = _ref5[1]), (_ref6 = _ref[5], createMalKeyword = _ref6[0], malKeyword_question_ = _ref6[1]), (_ref7 = _ref[6], _createMalList = _ref7[0], malList_question_ = _ref7[1]), (_ref8 = _ref[7], createMalMacro = _ref8[0], malMacro_question_ = _ref8[1]), (_ref9 = _ref[8], createMalNumber = _ref9[0], malNumber_question_ = _ref9[1]), (_ref10 = _ref[9], createMalSpecialForm = _ref10[0], malSpecialForm_question_ = _ref10[1]), (_ref11 = _ref[10], createMalString = _ref11[0], malString_question_ = _ref11[1]), (_ref12 = _ref[11], createMalSymbol = _ref12[0], malSymbol_question_ = _ref12[1]), (_ref13 = _ref[12], _createMalUnit = _ref13[0], _malUnit_question_ = _ref13[1]), (_ref14 = _ref[13], createMalUserPureFunction = _ref14[0], malUserPureFunction_question_ = _ref14[1]), (_ref15 = _ref[14], _createMalAtom = _ref15[0], malAtom_question_ = _ref15[1]);
+
+malIgnore = _createMalUnit(null);
+
+malNil = _createMalUnit(null);
+
+_ref16 = [false, true].map(_createMalBoolean), malFalse = _ref16[0], malTrue = _ref16[1];
+
+_ref17 = [malFalse, malIgnore, malNil, malTrue].map(createPredicate), malFalse_question_ = _ref17[0], malIgnore_question_ = _ref17[1], malNil_question_ = _ref17[2], malTrue_question_ = _ref17[3];
+
+module.exports = {
+  createMalAtom: createMalAtom,
+  createMalBoolean: createMalBoolean,
+  createMalCoreEffectfulFunction: createMalCoreEffectfulFunction,
+  createMalCorePureFunction: createMalCorePureFunction,
+  createMalIdentifier: createMalIdentifier,
+  createMalIgnore: createMalIgnore,
+  createMalIndex: createMalIndex,
+  createMalKeyword: createMalKeyword,
+  createMalList: createMalList,
+  createMalMacro: createMalMacro,
+  createMalNil: createMalNil,
+  createMalNumber: createMalNumber,
+  createMalSpecialForm: createMalSpecialForm,
+  createMalString: createMalString,
+  createMalSymbol: createMalSymbol,
+  createMalUserPureFunction: createMalUserPureFunction,
+  extractJsValue: extractJsValue,
+  malAtom_question_: malAtom_question_,
+  malBoolean_question_: malBoolean_question_,
+  malCoreEffectfulFunction_question_: malCoreEffectfulFunction_question_,
+  malCorePureFunction_question_: malCorePureFunction_question_,
+  malFalse: malFalse,
+  malFalse_question_: malFalse_question_,
+  malIdentifier_question_: malIdentifier_question_,
+  malIgnore: malIgnore,
+  malIgnore_question_: malIgnore_question_,
+  malIndex_question_: malIndex_question_,
+  malKeyword_question_: malKeyword_question_,
+  malList_question_: malList_question_,
+  malMacro_question_: malMacro_question_,
+  malNil: malNil,
+  malNil_question_: malNil_question_,
+  malNumber_question_: malNumber_question_,
+  malSpecialForm_question_: malSpecialForm_question_,
+  malString_question_: malString_question_,
+  malSymbol_question_: malSymbol_question_,
+  malTrue: malTrue,
+  malTrue_question_: malTrue_question_,
+  malUserPureFunction_question_: malUserPureFunction_question_
+};
+
+},{"./linked-list":29,"./types":36}],36:[function(require,module,exports){
+var malAtomType, malBooleanType, malCoreEffectfulFunctionType, malCorePureFunctionType, malIdentifierType, malIndexType, malKeywordType, malListType, malMacroType, malNumberType, malSpecialFormType, malStringType, malSymbolType, malTypes, malUnitType, malUserPureFunctionType;
+
+malTypes = [malBooleanType = 'malBooleanType', malCoreEffectfulFunctionType = 'malCoreEffectfulFunctionType', malCorePureFunctionType = 'malCorePureFunctionType', malIdentifierType = 'malIdentifierType', malIndexType = 'malIndexType', malKeywordType = 'malKeywordType', malListType = 'malListType', malMacroType = 'malMacroType', malNumberType = 'malNumberType', malSpecialFormType = 'malSpecialFormType', malStringType = 'malStringType', malSymbolType = 'malSymbolType', malUnitType = 'malUnitType', malUserPureFunctionType = 'malUserPureFunctionType', malAtomType = 'malAtomType'];
+
+module.exports = {
+  malAtomType: malAtomType,
+  malBooleanType: malBooleanType,
+  malCoreEffectfulFunctionType: malCoreEffectfulFunctionType,
+  malCorePureFunctionType: malCorePureFunctionType,
+  malIdentifierType: malIdentifierType,
+  malIndexType: malIndexType,
+  malKeywordType: malKeywordType,
+  malListType: malListType,
+  malMacroType: malMacroType,
+  malNumberType: malNumberType,
+  malSpecialFormType: malSpecialFormType,
+  malStringType: malStringType,
+  malSymbolType: malSymbolType,
+  malTypes: malTypes,
+  malUnitType: malUnitType,
+  malUserPureFunctionType: malUserPureFunctionType
+};
+
+},{}],37:[function(require,module,exports){
 module.exports = {
   children: require('./src/children'),
   elements: require('./src/elements'),
   interpreter: require('./src/interpreter')
 };
 
-},{"./src/children":33,"./src/elements":34,"./src/interpreter":35}],33:[function(require,module,exports){
+},{"./src/children":38,"./src/elements":39,"./src/interpreter":40}],38:[function(require,module,exports){
 function childById(id) {
   return { mode: 'id', key: id }; 
 }
@@ -3477,7 +3561,7 @@ module.exports = {
   childrenByTag: identifyChildren('tag')
 };
 
-},{}],34:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 function createElement(tag) {
   return function (config) {
     if (config == null) {
@@ -3546,7 +3630,7 @@ for (var tagName in tags) {
 
 module.exports = elementFactories;
 
-},{}],35:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 function createAndAttachElement(parent, config) {
   if (Object.prototype.toString.call(config) === '[object String]') {
     parent.innerText = config;
