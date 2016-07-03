@@ -133,7 +133,10 @@ var translateDisplay  = require('./interpret2').translateDisplay;
 
 var a =  97;
 var e = 101;
+var h = 104;
 var l = 108;
+var u = 117;
+var w = 119;
 
 var backspace =   8;
 var _delete   =  46;
@@ -151,10 +154,17 @@ function convertEventToCommand(event, transform) {
         return interpreter.moveCursorToStart(appState);
       case e:
         return interpreter.moveCursorToEnd(appState);
+      case h:
+        return interpreter.deleteLeftChar(appState);
       case l:
         return interpreter.clearConsole(appState);
+      case u:
+        return interpreter.deletePreCursor(appState);
+      case w:
+        return interpreter.deleteWord(appState);
+      default:
+        return interpreter.noOp(appState);
     }
-    return interpreter.noOp(appState);
   }
   if (event.altKey) {
     return interpreter.noOp(appState);
@@ -464,6 +474,17 @@ function interpretAppState(command) {
         };
       };
 
+    case 'deletePreCursor':
+      return function (appState) {
+        return {
+          history: appState.history, 
+          cursor: {
+            pre: '',
+            post: appState.cursor.post
+          }
+        };
+      };
+
     case 'deleteRightChar':
       return function (appState) {
         return {
@@ -471,6 +492,17 @@ function interpretAppState(command) {
           cursor: {
             pre: appState.cursor.pre,
             post: appState.cursor.post.slice(1)
+          }
+        };
+      };
+
+    case 'deleteWord':
+      return function (appState) {
+        return {
+          history: appState.history, 
+          cursor: {
+            pre: command.innerText,
+            post: appState.cursor.post
           }
         };
       };
@@ -692,10 +724,24 @@ function interpretUi(command) {
         }
       };
 
+    case 'deletePreCursor':
+      return {
+        cursor: {
+          pre: { erase: true }
+        }
+      };
+
     case 'deleteRightChar':
       return {
         cursor: {
           post: { slice: { start: 1 }}
+        }
+      };
+
+    case 'deleteWord':
+      return {
+        cursor: {
+          pre: { replace: command.innerText }
         }
       };
 
@@ -810,11 +856,23 @@ function deleteLeftChar(appState) {
     : { commandType: 'deleteLeftChar', end: end, innerText: innerText };
 }
 
+function deletePreCursor(appState) {
+  return { commandType: 'deletePreCursor' };
+}
+
 function deleteRightChar(appState) {
   var innerText = appState.cursor.post;
   return innerText.length == 0
     ? noOp(appState)
     : { commandType: 'deleteRightChar' };
+}
+
+function deleteWord(appState) {
+  var innerText = appState.cursor.pre;
+  return {
+    commandType: 'deleteWord',
+    innerText: innerText.slice(0, innerText.slice(0, -1).lastIndexOf(' ') + 1)
+  };
 }
 
 function display(appState, text) {
@@ -971,7 +1029,9 @@ var interpreter = {
   addChar: addChar,
   clearConsole: clearConsole,
   deleteLeftChar: deleteLeftChar,
+  deletePreCursor: deletePreCursor,
   deleteRightChar: deleteRightChar,
+  deleteWord: deleteWord,
   display: display,
   fastForwardHistory: fastForwardHistory,
   moveCursorLeft: moveCursorLeft,
