@@ -487,9 +487,9 @@ function fastForwardHistory(abstractViewPort) {
 }
 
 function getPrefix(command) {
-  //var regex = /^(.*\W)(\w*)/;
-  var regex = /^(.*\W)([^\(\)\[\]]*)/;
+  var regex = /^(.*[\s\(\)\[\]])([^\(\)\[\]]*)/;
   var match = regex.exec(command);
+  console.log('match: ', match);
   return match == null
     ? ['', command]
     : [match[1], match[2]];
