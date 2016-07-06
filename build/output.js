@@ -1,31 +1,46 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-module.exports = require('./tinkerbox').children;
-
-},{"./tinkerbox":4}],2:[function(require,module,exports){
 module.exports = require('./tinkerbox').elements;
 
-},{"./tinkerbox":4}],3:[function(require,module,exports){
+},{"./tinkerbox":3}],2:[function(require,module,exports){
 module.exports = require('./tinkerbox').interpreter;
 
-},{"./tinkerbox":4}],4:[function(require,module,exports){
+},{"./tinkerbox":3}],3:[function(require,module,exports){
 module.exports = require('../../tinkerbox/index');
 
-},{"../../tinkerbox/index":37}],5:[function(require,module,exports){
-var appState = {
-  history: {
-    past: [],
-    future: [],
-    cache: [],
-    entryCount: 0,
-    display: [],
+},{"../../tinkerbox/index":37}],4:[function(require,module,exports){
+var nothing = require('./option').nothing;
+
+var abstractViewPort = {
+  timeline: {
+    cachedPromptMaybe: nothing(),
+    entries: {
+      past: [],
+      future: []
+    },
+    prompts: {
+      past: [],
+      future: []
+    }
   },
-  cursor: {
-    pre: '',
-    post: ''
+  prompt: {
+    preCursor: '',
+    postCursor: ''
   }
 };
 
-module.exports = appState;
+module.exports = abstractViewPort;
+
+},{"./option":10}],5:[function(require,module,exports){
+var browserViewPort = {
+  displayItems: [],
+  prompt: {
+    preCursor: '',
+    postCursor: ''
+  },
+  maximumSize: 23
+};
+
+module.exports = browserViewPort;
 
 },{}],6:[function(require,module,exports){
 var SPAN = require('../lib/elements').SPAN;
@@ -76,16 +91,23 @@ function createOldPromptReply(text) {
     SPAN(null, '==> ' + text + '\n'));
 }
 
-function createPrompt(promptLabel) {
+function createPrompt(promptLabel, preCursor, postCursor) {
+  preCursor = preCursor != null ? preCursor : '';
+  postCursor = postCursor != null ? postCursor : '';
   return SPAN(
     { classes: _prompt, style: { 'color': '#0d0' }},
     emptySpan,
     SPAN(
       null,
       SPAN(null, promptLabel),
-      SPAN({ classes: promptText }),
+      SPAN({ classes: promptText }, preCursor),
       cursor,
-      relativeSpan),
+      SPAN(
+        {
+          classes: promptTextPostCursor,
+          style: { 'position': 'relative' }
+        },
+        postCursor)),
     emptySpan);
 }
 
@@ -108,7 +130,7 @@ var header = SPAN(
     { classes: _header },
     SPAN({ style: { 'color': '#0ff' }}, 'Welcome to MHLisp Console!\n'));
 
-var relativeSpan = SPAN({
+var postCursor = SPAN({
   classes: promptTextPostCursor,
   style: { 'position': 'relative' }
 });
@@ -121,15 +143,13 @@ module.exports = {
   header: header,
 };
 
-},{"../lib/elements":2}],7:[function(require,module,exports){
-var appState          = require('./appState');
+},{"../lib/elements":1}],7:[function(require,module,exports){
+var abstractViewPort  = require('./abstractViewPort');
+var browserViewPort   = require('./browserViewPort');
 var initializeUi      = require('./initializeUi');
 var interpreter       = require('./interpreter');
-var interpretAppState = require('./interpretAppState');
-var interpretUi       = require('./interpretUi');
-var modifyElement     = require('../lib/interpreter').modifyElement;
-var translate         = require('./interpret2').translate;
-var translateDisplay  = require('./interpret2').translateDisplay;
+var rerender          = require('./rerender');
+var createVariant     = require('./variant').create;
 
 var a =  97;
 var e = 101;
@@ -146,56 +166,75 @@ var left      =  37;
 var right     =  39;
 var up        =  38;
 
-function convertEventToCommand(event, transform) {
+function command(value) {
+  return createVariant('command', value);
+}
+
+function viewPort(value) {
+  return createVariant('viewPort', value);
+}
+
+function getNextAbstractViewPort(event, transform) {
   event.preventDefault();
   if (event.ctrlKey) {
     switch (event.charCode) {
       case a:
-        return interpreter.moveCursorToStart(appState);
+        return viewPort(interpreter.moveCursorToStart(abstractViewPort));
       case e:
-        return interpreter.moveCursorToEnd(appState);
+        return viewPort(interpreter.moveCursorToEnd(abstractViewPort));
       case h:
-        return interpreter.deleteLeftChar(appState);
+        return viewPort(interpreter.deleteLeftChar(abstractViewPort));
       case l:
-        return interpreter.clearConsole(appState);
+        return command({ command: 'clearConsole' });
       case u:
-        return interpreter.deletePreCursor(appState);
+        return viewPort(interpreter.deletePreCursor(abstractViewPort));
       case w:
-        return interpreter.deleteWord(appState);
+        return viewPort(interpreter.deleteWord(abstractViewPort));
       default:
-        return interpreter.noOp(appState);
+        return viewPort(interpreter.noOp(abstractViewPort));
     }
   }
   if (event.altKey) {
-    return interpreter.noOp(appState);
+    return viewPort(interpreter.noOp(abstractViewPort));
   }
   switch (event.keyCode) {
     case enter:
-      return interpreter.submit(appState, transform);
+      return viewPort(interpreter.submit(abstractViewPort, transform));
     case backspace:
-      return interpreter.deleteLeftChar(appState);
+      return viewPort(interpreter.deleteLeftChar(abstractViewPort));
     case left:
-      return interpreter.moveCursorLeft(appState);
+      return viewPort(interpreter.moveCursorLeft(abstractViewPort));
     case right:
-      return interpreter.moveCursorRight(appState);
+      return viewPort(interpreter.moveCursorRight(abstractViewPort));
     case up:
-      return interpreter.rewindHistory(appState);
+      return viewPort(interpreter.rewindHistory(abstractViewPort));
     case down:
-      return interpreter.fastForwardHistory(appState);
+      return viewPort(interpreter.fastForwardHistory(abstractViewPort));
     case _delete:
-      return interpreter.deleteRightChar(appState);
+      return viewPort(interpreter.deleteRightChar(abstractViewPort));
     default:
-      return interpreter.addChar(
-        appState,
-        String.fromCharCode(event.charCode));
+      return viewPort(interpreter.addChar(
+        abstractViewPort,
+        String.fromCharCode(event.charCode)));
   }
 }
 
 function handleEvent(promptLabel, transform) {
   return function (event) {
-    var command = convertEventToCommand(event, transform);
-    appState = interpretAppState(command)(appState);
-    transformUi(promptLabel, command);
+    viewPortOrCommand = getNextAbstractViewPort(event, transform);
+    newTerminal = createBrowserViewPort(
+      browserViewPort,
+      viewPortOrCommand,
+      abstractViewPort);
+    abstractViewPort = viewPortOrCommand.case({
+      command: function () { return abstractViewPort; },
+      viewPort: function (viewPort) { return viewPort; }
+    });
+    browserViewPort = newTerminal;
+    rerender( 
+      document.getElementById('console'),
+      { promptLabel: promptLabel },
+      browserViewPort);
   };
 }
 
@@ -206,18 +245,44 @@ function initialize(config) {
   document.addEventListener('keypress', handleEvent(promptLabel, transform));
 }
 
-function transformUi(promptLabel, command) {
-  var changes = translate(promptLabel, interpretUi(command));
-  for (var index in changes) {
-    modifyElement(
-      document.getElementById('console'),
-      changes[index]);
-  }
+function createBrowserViewPort(terminal, viewPortOrCommand, prevViewPort) {
+  return viewPortOrCommand.case({
+    command: function () {
+      return {
+        displayItems: [],
+        maximumSize: terminal.maximumSize,
+        prompt: prevViewPort.prompt
+      };
+    },
+    viewPort: function (newViewPort) {
+      var maximumSize = terminal.maximumSize;
+      var newEntries = newViewPort.timeline.entries.past;
+      var prevEntries = prevViewPort.timeline.entries.past;
+      var diffCount = newEntries.length - prevEntries.length;
+      var newDisplayItems = (diffCount === 0)
+        ? terminal.displayItems.slice()
+        : window(
+            maximumSize,
+            terminal.displayItems
+              .concat(newEntries.slice(0, diffCount).reverse()));
+      return {
+        displayItems: newDisplayItems,
+        maximumSize: maximumSize,
+        prompt: newViewPort.prompt
+      };
+    }
+  });
+}
+
+function window(size, array) {
+  return array.length <= size
+    ? array.slice()
+    : array.slice(array.length - size);
 }
 
 module.exports = initialize;
 
-},{"../lib/interpreter":3,"./appState":5,"./initializeUi":8,"./interpret2":9,"./interpretAppState":10,"./interpretUi":11,"./interpreter":12}],8:[function(require,module,exports){
+},{"./abstractViewPort":4,"./browserViewPort":5,"./initializeUi":8,"./interpreter":9,"./rerender":11,"./variant":12}],8:[function(require,module,exports){
 var components             = require('./components');
 var interpreter            = require('../lib/interpreter');
 var createAndAttachElement = interpreter.createAndAttachElement;
@@ -258,770 +323,259 @@ function initializeUi(promptLabel) {
 
 module.exports = initializeUi;
 
-},{"../lib/elements":2,"../lib/interpreter":3,"./components":6}],9:[function(require,module,exports){
-var interpreter          = require('../lib/interpreter');
-var modifyElement        = interpreter.modifyElement;
-var components           = require('./components');
-var createDisplay        = components.createDisplay;
-var createOldPrompt      = components.createOldPrompt;
-var createOldPromptReply = components.createOldPromptReply;
-var createPrompt         = components.createPrompt;
-var children             = require('../lib/children');
-var childByClass         = children.childByClass;
-var childByTag           = children.childByTag;
-var childrenByClass      = children.childrenByClass;
+},{"../lib/elements":1,"../lib/interpreter":2,"./components":6}],9:[function(require,module,exports){
+var isNothing = require('./option').isNothing;
+var nothing = require('./option').nothing;
+var something = require('./option').something;
+function extractCommand(prompt) {
+  return (prompt.preCursor + prompt.postCursor).trim();
+}
+function normalizePrompt(prompt) {
+  return {
+    preCursor: extractCommand(prompt),
+    postCursor: ''
+  };
+}
 
-var magicNumber = 23;
-
-var consoleClass              = 'jsconsole';
-var lineItemClass             = 'jsconsole-line-item';
-var oldPromptClass            = 'jsconsole-old-prompt';
-var oldPromptResponseClass    = 'jsconsole-old-prompt-response';
-var promptClass               = 'jsconsole-prompt';
-var promptTextClass           = 'jsconsole-prompt-text';
-var promptTextPostCursorClass = 'jsconsole-prompt-text-post-cursor';
-
-var firstSpanChild = childByTag('span');
-
-function translate(promptLabel, command) {
-  var cursorChanges = [];
-  var displayChanges = [];
-  var historyChanges = [{}, {}];
-  for (var outerKey in command) {
-    switch (outerKey) {
-      case 'clearConsole':
-        return translateClearConsole();
-      case 'cursor':
-        cursorChanges =
-          translateCursor(promptLabel, command.cursor);
-        break;
-      case 'display':
-        displayChanges =
-          command.display.length > 0
-            ? translateDisplay(promptLabel, command.display)
-            : [];
-        break;
-      case 'history':
-        historyChanges =
-          translateHistory(promptLabel, command.history);
-        break;
+function addChar(abstractViewPort, char) {
+  return {
+    timeline: abstractViewPort.timeline, 
+    prompt: {
+      preCursor: abstractViewPort.prompt.preCursor + char,
+      postCursor: abstractViewPort.prompt.postCursor
     }
-  }
-  return cursorChanges
-    .concat(
-      [historyChanges[0]],
-      displayChanges,
-      [historyChanges[1]]);
-};
+  };
+}
 
-function translateCursor(promptLabel, command) {
-  var changes = [];
-  for (var innerKey in command) {
-    switch (innerKey) {
-      case 'pre':
-        changes.push({
-          children: {
-            modify: [{
-              child: childByClass(promptTextClass),
-              changes: { text: command[innerKey] }
-            }]
-          }
-        });
-        break;
-      case 'post':
-        changes.push({
-          children: {
-            modify: [{
-              child: childByClass(promptTextPostCursorClass),
-              changes: { text: command[innerKey] }
-            }]
-          }
-        });
-        break;
-      default:
-        break;
+function clearConsole(abstractViewPort) {
+  return abstractViewPort;
+}
+
+function deleteLeftChar(abstractViewPort) {
+  return {
+    timeline: abstractViewPort.timeline, 
+    prompt: {
+      preCursor: abstractViewPort.prompt.preCursor.slice(0, -1),
+      postCursor: abstractViewPort.prompt.postCursor
     }
-  }
-  return changes;
+  };
 }
 
-function translateHistory(promptLabel, command) {
-  return command.submit
-    ? translateSubmit(promptLabel, command.submit)
-    : [{}, {}];
-}
-
-function translateClearConsole() {
-  return [{ children: { removeAll: childrenByClass(lineItemClass) }}, {}];
-}
-
-function translateDisplay(promptLabel, displayEffects) {
-  return [{
-    children: {
-      modify: [
-        {
-          child: childByClass(consoleClass),
-          changes: {
-            children: {
-              add: procrustate(displayEffects).map(function (displayEffect) {
-                return createDisplay(displayEffect.value);
-              })
-            }
-          }
-        }
-      ]
+function deletePreCursor(abstractViewPort) {
+  return {
+    timeline: abstractViewPort.timeline, 
+    prompt: {
+      preCursor: '',
+      postCursor: abstractViewPort.prompt.postCursor
     }
-  }];
+  };
 }
 
-function procrustate(displayEffects) {
-  return displayEffects.length >= magicNumber - 1
-    ? displayEffects.slice(
-        displayEffects.length - magicNumber + 2,
-        displayEffects.length)
-    : displayEffects;
-}
-
-function translateSubmit(promptLabel, command) {
-  var removals = [childByClass(promptClass)];
-  if (command.entryCount >= magicNumber) {
-    var count = Math.min(
-      command.entryCount,
-      magicNumber,
-      command.entryCount - command.newEntryCount > magicNumber
-        ? command.newEntryCount
-        : (command.newEntryCount < magicNumber
-            ? command.entryCount - magicNumber
-            : command.entryCount - command.newEntryCount));
-    for (var i = 0; i < count; i++) {
-      removals.push(
-        childByClass(lineItemClass));
+function deleteRightChar(abstractViewPort) {
+  return {
+    timeline: abstractViewPort.timeline, 
+    prompt: {
+      preCursor: abstractViewPort.prompt.preCursor,
+      postCursor: abstractViewPort.prompt.postCursor.slice(1)
     }
+  };
+}
+
+function deleteWord(abstractViewPort) {
+  var preCursor = abstractViewPort.prompt.preCursor;
+  return {
+    timeline: abstractViewPort.timeline, 
+    prompt: {
+      preCursor: preCursor.slice(
+        0,
+        preCursor.slice(0, -1).lastIndexOf(' ') + 1),
+      postCursor: abstractViewPort.prompt.postCursor
+    }
+  };
+}
+
+// fastForwardCommandHistory
+function fastForwardHistory(abstractViewPort) {
+  var newCachedPromptMaybe, newPast, newPrompt;
+
+  var timeline = abstractViewPort.timeline;
+  var cachedPromptMaybe = timeline.cachedPromptMaybe;
+  var promptTimeline = timeline.prompts;
+  var future = promptTimeline.future;
+
+  if (future.length <= 0 && isNothing(cachedPromptMaybe)) {
+    return abstractViewPort;
   }
-  var additions = [createPrompt(promptLabel)];
-  if (!command.response.effect || command.response.effect.type === 'error') {
-    additions.unshift(createOldPromptReply(command.response.value));
+
+  var newFuture = future.slice(1);
+  var newPast = [normalizePrompt(abstractViewPort.prompt)].concat(
+    promptTimeline.past);
+
+  if (future.length <= 0) {
+    newPrompt = cachedPromptMaybe.value;
+    newCachedPromptMaybe = nothing();
+  } else {
+    newPrompt = future[0];
+    newCachedPromptMaybe = cachedPromptMaybe;
   }
-  return [
-    {
-      children: {
-        remove: removals,
-        modify: [
-          {
-            child: childByClass(consoleClass),
-            changes: { children: { add: [
-                createOldPrompt(promptLabel + command.oldPrompt)
-              ]
-            }}
-          }
-        ]
-      }
-    },
-    {
-      children: {
-        modify: [
-          {
-            child: childByClass(consoleClass),
-            changes: { children: { add: additions }}
-          }
-        ]
+
+  return {
+    prompt: newPrompt,
+    timeline: {
+      cachedPromptMaybe: newCachedPromptMaybe,
+      entries: abstractViewPort.timeline.entries,
+      prompts: {
+        past: newPast,
+        future: newFuture
       }
     }
-  ];
-}
-
-module.exports = {
-  translate: translate,
-  translateDisplay: translateDisplay
-};
-
-},{"../lib/children":1,"../lib/interpreter":3,"./components":6}],10:[function(require,module,exports){
-function interpretAppState(command) {
-  switch (command.commandType) {
-    case 'addChar':
-      return function (appState) {
-        return {
-          history: appState.history, 
-          cursor: {
-            pre: appState.cursor.pre + command.char,
-            post: appState.cursor.post
-          }
-        };
-      };
-
-    case 'clearConsole':
-      return function (appState) {
-        return {
-          cursor : appState.cursor,
-          history: {
-            past: appState.history.past,
-            future: appState.history.future,
-            cache: appState.history.cache,
-            entryCount: 0,
-            display: []
-          }
-        };
-      };
-
-    case 'deleteLeftChar':
-      return function (appState) {
-        return {
-          history: appState.history, 
-          cursor: {
-            pre: command.innerText.slice(0, command.end),
-            post: appState.cursor.post
-          }
-        };
-      };
-
-    case 'deletePreCursor':
-      return function (appState) {
-        return {
-          history: appState.history, 
-          cursor: {
-            pre: '',
-            post: appState.cursor.post
-          }
-        };
-      };
-
-    case 'deleteRightChar':
-      return function (appState) {
-        return {
-          history: appState.history, 
-          cursor: {
-            pre: appState.cursor.pre,
-            post: appState.cursor.post.slice(1)
-          }
-        };
-      };
-
-    case 'deleteWord':
-      return function (appState) {
-        return {
-          history: appState.history, 
-          cursor: {
-            pre: command.innerText,
-            post: appState.cursor.post
-          }
-        };
-      };
-
-    case 'display':
-      return function (appState) {
-        return appState;
-      };
-
-    case 'fastForwardHistory':
-      return function (appState) {
-        var preCursorText = appState.cursor.pre;
-        var postCursorText = appState.cursor.post;
-        var cursorText = (preCursorText + postCursorText).trim();
-
-        var length = appState.history.future.length;
-        var entry = appState.history.future[length - 1];
-        var futureCopy = appState.history.future.slice(0, length - 1);
-        var pastCopy = appState.history.past.slice();
-        var cacheCopy = appState.history.cache.slice();
-
-        if (cacheCopy.length == 0) {
-          cacheCopy.push(cursorText);
-        } else {
-          pastCopy.push(cursorText);
-        }
-
-        var result = {
-          cursor: {
-            pre: entry,
-            post: ''
-          },
-          history: {
-            past: pastCopy,
-            future: futureCopy,
-            cache: cacheCopy,
-            entryCount: appState.history.entryCount,
-            display: appState.history.display
-          }
-        };
-        return result;
-      };
-
-    case 'moveCursorLeft':
-      return function (appState) {
-        return {
-          history: appState.history, 
-          cursor: {
-            pre: appState.cursor.pre.slice(0, command.index),
-            post: command.__promptText[command.index] + appState.cursor.post
-          }
-        };
-      };
-
-    case 'moveCursorRight':
-      return function (appState) {
-        var __promptText = appState.cursor.pre;
-        var index = __promptText.length - 1;
-        return {
-          history: appState.history, 
-          cursor: {
-            pre: __promptText + command.__promptTextPost[0],
-            post: command.__promptTextPost.slice(1)
-          }
-        };
-      };
-
-    case 'moveCursorToEnd':
-      return function (appState) {
-        return {
-          history: appState.history, 
-          cursor: {
-            pre: command.__promptText + command.__promptTextPost,
-            post: ''
-          }
-        };
-      };
-
-    case 'moveCursorToStart':
-      return function (appState) {
-        return {
-          history: appState.history, 
-          cursor: {
-            pre: '',
-            post: command.__promptText + command.__promptTextPost
-          }
-        };
-      };
-
-    case 'noOp':
-      return function (appState) {
-        return appState;
-      };
-
-    case 'restoreCache':
-      return function (appState) {
-        var preCursorText = appState.cursor.pre;
-        var postCursorText = appState.cursor.post;
-        var cursorText = (preCursorText + postCursorText).trim();
-
-        var entry = appState.history.cache[0];
-        var pastCopy = appState.history.past.slice();
-
-        pastCopy.push(cursorText);
-
-        var result = {
-          cursor: {
-            pre: entry,
-            post: ''
-          },
-          history: {
-            past: pastCopy,
-            future: appState.history.future,
-            cache: [],
-            entryCount: appState.history.entryCount,
-            display: appState.history.display
-          }
-        };
-        return result;
-      };
-
-    case 'rewindHistory':
-      return function (appState) {
-        var preCursorText = appState.cursor.pre;
-        var postCursorText = appState.cursor.post;
-        var cursorText = (preCursorText + postCursorText).trim();
-
-        var length = appState.history.past.length;
-        var entry = appState.history.past[length - 1];
-        var pastCopy = appState.history.past.slice(0, length - 1);
-        var futureCopy = appState.history.future.slice();
-        var cacheCopy = appState.history.cache.slice();
-
-        if (cacheCopy.length == 0) {
-          cacheCopy.push(cursorText);
-        } else {
-          futureCopy.push(cursorText);
-        }
-
-        var result = {
-          cursor: {
-            pre: entry,
-            post: ''
-          },
-          history: {
-            past: pastCopy,
-            future: futureCopy,
-            cache: cacheCopy,
-            entryCount: appState.history.entryCount,
-            display: appState.history.display
-          }
-        };
-        return result;
-      };
-
-    case 'submit':
-      return function (appState) {
-        var preCursorText = appState.cursor.pre;
-        var postCursorText = appState.cursor.post;
-        var cursorText = (preCursorText + postCursorText).trim();
-
-        var pastCopy = appState.history.past.slice();
-        var futureCopy = appState.history.future.slice();
-        var displayCopy = appState.history.display.slice();
-
-        for (var index = futureCopy.length - 1; index >= 0; index--) {
-          pastCopy.push(futureCopy[index]);
-        }
-
-        if (cursorText != '') {
-          pastCopy.push(cursorText);
-        }
-
-        // Length of displayCopy should perhaps not be accessible here.
-        if (displayCopy.length >= 11) {
-          displayCopy.shift();
-        }
-
-        displayCopy.push([command.oldPrompt, command.response]);
-
-        var result = {
-          cursor: {
-            pre: '',
-            post: ''
-          },
-          history: {
-            past: pastCopy,
-            future: [],
-            cache: [],
-            entryCount: command.entryCount,
-            display: displayCopy
-          }
-        };
-        return result;
-      };
-
-  }
-}
-
-module.exports = interpretAppState;
-
-},{}],11:[function(require,module,exports){
-function interpretUi(command) {
-  switch (command.commandType) {
-    case 'addChar':
-      return {
-        cursor: {
-          pre: { append: command.char }
-        }
-      };
-
-    case 'clearConsole':
-      return { clearConsole: true };
-
-    case 'deleteLeftChar':
-      return {
-        cursor: {
-          pre: { slice: { start: 0, end: command.end }}
-        }
-      };
-
-    case 'deletePreCursor':
-      return {
-        cursor: {
-          pre: { erase: true }
-        }
-      };
-
-    case 'deleteRightChar':
-      return {
-        cursor: {
-          post: { slice: { start: 1 }}
-        }
-      };
-
-    case 'deleteWord':
-      return {
-        cursor: {
-          pre: { replace: command.innerText }
-        }
-      };
-
-    case 'display':
-      return {
-        history: {
-          display: { text: command.text }
-        }
-      };
-
-    case 'fastForwardHistory':
-      return {
-        cursor: {
-          pre: { replace: command.cursorText },
-          post: { erase: true }},
-        history: {
-          fastForward: command.historyEntry
-        }
-      };
-
-    case 'moveCursorLeft':
-      return {
-        cursor: {
-          pre: { slice: { start: 0, end: command.index }},
-          post: { prepend: command.__promptText[command.index] }
-        }
-      };
-
-    case 'moveCursorRight':
-      return {
-        cursor: {
-          pre: { append: command.__promptTextPost[0] },
-          post: { slice: { start: 1, end: command.length }}
-        }
-      };
-
-    case 'moveCursorToEnd':
-      return {
-        cursor: {
-          pre: { append: command.__promptTextPost },
-          post: { erase: true }
-        }
-      };
-
-    case 'moveCursorToStart':
-      return {
-        cursor: {
-          pre: { erase: true },
-          post: { replace: command.__promptText + command.__promptTextPost }
-        }
-      };
-
-    case 'noOp':
-      return {};
-
-    case 'restoreCache':
-      return {
-        cursor: {
-          pre: { replace: command.cursorText },
-          post: { erase: true }},
-        history: {
-          fastForward: command.historyEntry
-        }
-      };
-
-    case 'rewindHistory':
-      return {
-        cursor: {
-          pre: { replace: command.cursorText },
-          post: { erase: true }},
-        history: {
-          rewind: command.historyEntry
-        }
-      };
-
-    case 'submit':
-      return {
-        cursor: {
-          pre: { erase: true },
-          post: { erase: true }},
-        history: {
-          submit: {
-            display: command.display,
-            entryCount: command.entryCount,
-            newEntryCount: command.newEntryCount,
-            oldPrompt: command.oldPrompt,
-            response: command.response
-          }
-        },
-        display: command.display,
-      };
-
-  }
-}
-
-module.exports = interpretUi;
-
-},{}],12:[function(require,module,exports){
-function addChar(appState, char) {
-  return { commandType: 'addChar', char: char };
-}
-
-function clearConsole(appState) {
-  return { commandType: 'clearConsole' };
-}
-
-function deleteLeftChar(appState) {
-  var innerText = appState.cursor.pre;
-  var end = innerText.length - 1;
-  return innerText.length === 0
-    ? noOp(appState)
-    : { commandType: 'deleteLeftChar', end: end, innerText: innerText };
-}
-
-function deletePreCursor(appState) {
-  return { commandType: 'deletePreCursor' };
-}
-
-function deleteRightChar(appState) {
-  var innerText = appState.cursor.post;
-  return innerText.length == 0
-    ? noOp(appState)
-    : { commandType: 'deleteRightChar' };
-}
-
-function deleteWord(appState) {
-  var innerText = appState.cursor.pre;
-  return {
-    commandType: 'deleteWord',
-    innerText: innerText.slice(0, innerText.slice(0, -1).lastIndexOf(' ') + 1)
   };
 }
 
-function display(appState, text) {
-  return { commandType: 'display', text: text };
+function moveCursorLeft(abstractViewPort) {
+  var preCursor = abstractViewPort.prompt.preCursor;
+  var preCursorLength = preCursor.length;
+  if (preCursorLength === 0) {
+    return abstractViewPort;
+  } else {
+    var postCursor = abstractViewPort.prompt.postCursor;
+    return {
+      timeline: abstractViewPort.timeline,
+      prompt: {
+        preCursor: preCursor.slice(0, -1),
+        postCursor: preCursor[preCursorLength - 1] + postCursor
+      }
+    };
+  }
 }
 
-function fastForwardHistory(appState) {
-  if (appState.history.future.length <= 0 ) {
-    if (appState.history.cache.length > 0) {
-      var preCursorText = appState.cursor.pre;
-      var postCursorText = appState.cursor.post;
-      var cursorText = (preCursorText + postCursorText).trim();
-      return {
-        commandType: 'restoreCache',
-        cursorText: appState.history.cache[0],
-        historyEntry: cursorText
-      };
-    } else {
-      return noOp(appState);
+function moveCursorRight(abstractViewPort) {
+  var postCursor = abstractViewPort.prompt.postCursor;
+  if (postCursor.length === 0) {
+    return abstractViewPort;
+  } else {
+    var preCursor = abstractViewPort.prompt.preCursor;
+    return {
+      timeline: abstractViewPort.timeline,
+      prompt: {
+        preCursor: preCursor + postCursor[0],
+        postCursor: postCursor.slice(1)
+      }
+    };
+  }
+}
+
+function moveCursorToEnd(abstractViewPort) {
+  var prompt = abstractViewPort.prompt;
+  return {
+    timeline: abstractViewPort.timeline,
+    prompt: {
+      preCursor: prompt.preCursor + prompt.postCursor,
+      postCursor: ''
     }
-  }
-
-  var preCursorText = appState.cursor.pre;
-  var postCursorText = appState.cursor.post;
-  var cursorText = (preCursorText + postCursorText).trim();
-
-  var length = appState.history.future.length;
-  var entry = appState.history.future[length - 1];
-
-  return {
-    commandType: 'fastForwardHistory',
-    cursorText: entry,
-    historyEntry: cursorText
   };
 }
 
-function moveCursorLeft(appState) {
-  var __promptText = appState.cursor.pre;
-  var __promptTextPost = appState.cursor.post;
-  var index = __promptText.length - 1;
-  var command = __promptText.length === 0
-    ? noOp(appState)
-    : {
-        commandType: 'moveCursorLeft',
-        index: index,
-        __promptText: __promptText
-      };
-  return command;
-}
-
-function moveCursorRight(appState) {
-  var __promptText = appState.cursor.pre;
-  var __promptTextPost = appState.cursor.post;
-  var length = __promptTextPost.length;
-  return length === 0
-    ? noOp(appState)
-    : {
-        commandType: 'moveCursorRight',
-        length: length,
-        __promptTextPost: __promptTextPost
-      };
-}
-
-function moveCursorToEnd(appState) {
-  var __promptText = appState.cursor.pre;
-  var __promptTextPost = appState.cursor.post;
+function moveCursorToStart(abstractViewPort) {
+  var prompt = abstractViewPort.prompt;
   return {
-      commandType: 'moveCursorToEnd',
-      __promptText: __promptText,
-      __promptTextPost: __promptTextPost
-    };
-}
-
-function moveCursorToStart(appState) {
-  var __promptText = appState.cursor.pre;
-  var __promptTextPost = appState.cursor.post;
-  return {
-      commandType: 'moveCursorToStart',
-      __promptText: __promptText,
-      __promptTextPost: __promptTextPost
-    };
-}
-
-function noOp(appState) {
-  return { commandType: 'noOp' };
-}
-
-function rewindHistory(appState) {
-  if (appState.history.past.length <= 0) {
-    return noOp(appState);
-  }
-
-  var preCursorText = appState.cursor.pre;
-  var postCursorText = appState.cursor.post;
-  var cursorText = (preCursorText + postCursorText).trim();
-
-  var length = appState.history.past.length;
-  var entry = appState.history.past[length - 1];
-
-  return {
-    commandType: 'rewindHistory',
-    cursorText: entry,
-    historyEntry: cursorText
+    timeline: abstractViewPort.timeline,
+    prompt: {
+      preCursor: '',
+      postCursor: prompt.preCursor + prompt.postCursor,
+    }
   };
 }
 
-function submit(appState, transform) {
+// Necessary?
+function noOp(abstractViewPort) {
+  return abstractViewPort;
+}
+
+// rewindCommandHistory
+function rewindHistory(abstractViewPort) {
+  var newCachedPromptMaybe, newFuture;
+
+  var timeline = abstractViewPort.timeline;
+  var cachedPromptMaybe = timeline.cachedPromptMaybe;
+  var promptTimeline = timeline.prompts;
+  var past = promptTimeline.past;
+
+  if (past.length <= 0) {
+    return abstractViewPort;
+  }
+
+  var future = promptTimeline.future;
+  var newPrompt = past[0];
+  var newPast = past.slice(1);
+
+  if (isNothing(cachedPromptMaybe)) {
+    newCachedPromptMaybe = something(abstractViewPort.prompt);
+    newFuture = future;
+  } else {
+    newCachedPromptMaybe = cachedPromptMaybe;
+    newFuture = [normalizePrompt(abstractViewPort.prompt)].concat(future);
+  }
+
+  return {
+    prompt: newPrompt,
+    timeline: {
+      cachedPromptMaybe: newCachedPromptMaybe,
+      entries: abstractViewPort.timeline.entries,
+      prompts: {
+        past: newPast,
+        future: newFuture
+      }
+    }
+  };
+}
+
+// NOTE: `submit` will be more comman than `rewind` or `fastforward`,
+// so perhaps past prompts and entries shouldn't be reversed.
+function submit(abstractViewPort, transform) {
+  var newCachedPromptMaybe, newFuture;
+
   if (transform == null) {
     transform = function (value) {
-      return value;
+      var results;
+      // TODO: [{ type: 'display'/'pure',etc., value: value }]
+      return (results = [{ effect: false, value: value }]);
     };
   }
 
-  var __promptText = appState.cursor.pre;
-  var __promptTextPost = appState.cursor.post;
-  var __text = __promptText + __promptTextPost;
-  var text = __text.trim();
+  // enum Entry { command, completion, display, error, response }
 
-  var results = transform(text);
-  var lastIndex = results.length - 1;
-
-  var wrappedResponse = results[lastIndex];
-
-  //var responseCount = wrappedResponse.effect && wrappedResponse.effect.type !== 'error' ? 0 : 2;
-  
-  if (!wrappedResponse.effect) {
-    var responseCount = 2;
-  } else if (wrappedResponse.effect.type === 'error') {
-    var responseCount = 2;
-  } else if (wrappedResponse.effect.type === 'comment') {
-    var responseCount = 1;
-  } else {
-    var responseCount = 0;
-  }
-
-  var displayEffects = results
-    .slice(0, lastIndex)
-    .filter(function (value) { return value.effect.type === 'display'; });
-
-  var newEntryCount = displayEffects.length + responseCount;
-  //var newEntryCount = displayEffects.length + 2;
+  var commandText = extractCommand(abstractViewPort.prompt);
+  var results = transform(commandText);
+  var displayEntries = results
+    .slice(0, -1)
+    .filter(function (result) { return result.effect.type === 'display'; })
+    .map(function (display) { return { type: 'display', value: display.value }});
+  var response = { type: 'response', value: results[results.length - 1].value };
+  var command = { type: 'command', value: commandText };
 
   return {
-    commandType: 'submit',
-    oldPrompt: text,
-    response: wrappedResponse,
-    display: displayEffects,
-    entryCount: appState.history.entryCount + newEntryCount,
-    newEntryCount: newEntryCount
+    timeline: {
+      cachedPromptMaybe: nothing(),
+      entries: {
+        past: [response].concat(
+          displayEntries.reverse(),
+          [command],
+          abstractViewPort.timeline.entries.future.reverse(),
+          abstractViewPort.timeline.entries.past),
+        future: []
+      },
+      prompts: {
+        past: [normalizePrompt(abstractViewPort.prompt)].concat(
+          abstractViewPort.timeline.prompts.future.reverse(),
+          abstractViewPort.timeline.prompts.past),
+        future: []
+      }
+    },
+    prompt: {
+      preCursor: '',
+      postCursor: ''
+    }
   };
 }
 
@@ -1032,7 +586,6 @@ var interpreter = {
   deletePreCursor: deletePreCursor,
   deleteRightChar: deleteRightChar,
   deleteWord: deleteWord,
-  display: display,
   fastForwardHistory: fastForwardHistory,
   moveCursorLeft: moveCursorLeft,
   moveCursorRight: moveCursorRight,
@@ -1044,6 +597,187 @@ var interpreter = {
 };
 
 module.exports = interpreter;
+
+},{"./option":10}],10:[function(require,module,exports){
+function bind(option, fn) {
+  return option === _nothing
+    ? _nothing
+    : fn(option.value);
+}
+
+function _case(option, fn0, fn1) {
+  return option === _nothing
+    ? fn1()
+    : fn0(option.value)
+}
+
+function isNothing(option) {
+  return option === _nothing;
+}
+
+function map(option, fn) {
+  return option === _nothing
+    ? _nothing
+    : something(fn(option.value));
+}
+
+function nothing() {
+  return _nothing;
+}
+
+function Option(value) {
+  Object.defineProperty(
+    this,
+    'value',
+    {
+      get: function () {
+        if (value === guard) {
+          throw new Error(
+            'The value `nothing` does not encapsulate or represent any inner value.');
+        } else {
+          return value;
+        }
+    }});
+  }
+
+function something(value) {
+  return new Option(value);
+}
+
+var guard = {};
+var _nothing = new Option(guard);
+
+Option.prototype.bind = function (fn) {
+  return bind(this, fn);
+};
+
+Option.prototype.case = function (fn0, fn1) {
+  return _case(this, fn0, fn1);
+};
+
+Option.prototype.isNothing = function () {
+  return _case(this);
+};
+
+Option.prototype.map = function (fn) {
+  return map(this, fn);
+};
+
+Option.nothing = nothing;
+Option.something = something;
+
+module.exports = {
+  bind: bind,
+  case: _case,
+  isNothing: isNothing,
+  map: map,
+  nothing: nothing,
+  something: something
+};
+
+},{}],11:[function(require,module,exports){
+var components             = require('./components');
+var interpreter            = require('../lib/interpreter');
+var createAndAttachElement = interpreter.createAndAttachElement;
+var elements               = require('../lib/elements');
+var DIV                    = elements.DIV;
+var PRE                    = elements.PRE;
+
+function rerender(node, prefixes, browserViewPort) {
+  var completionLabel = prefixes.completionLabel;
+  var displayLabel = prefixes.displayLabel;
+  var errorLabel = prefixes.errorLabel;
+  var promptLabel = prefixes.promptLabel;
+  var responseLabel = prefixes.responseLabel;
+  node.innerHTML = '';
+  createAndAttachElement(
+    node, // document.getElementById('console'),
+    DIV(
+      {
+        style: {
+          'top': '0px',
+          'left': '0px',
+          'right': '0px',
+          'bottom': '0px',
+          'position': 'absolute',
+          'overflow': 'auto'
+        }
+      },
+      PRE(
+        {
+          classes: { 'jsconsole': true },
+          style: {
+            'margin': '0px',
+            'position': 'relative',
+            'min-height': '100%',
+            'box-sizing': 'border-box',
+            'padding': '10px',
+            'padding-bottom': '10px'
+          }
+        },
+        components.header,
+        browserViewPort.displayItems.map(renderComponent.bind(null, prefixes)),
+        components.createPrompt(
+          promptLabel,
+          browserViewPort.prompt.preCursor,
+          browserViewPort.prompt.postCursor))));
+        /* + CURSOR + browserViewPort.prompt.postCursor */
+}
+
+function renderComponent(prefixes, component) {
+  var promptLabel = prefixes.promptLabel;
+  switch (component.type) {
+    case 'command':
+      return components.createOldPrompt(promptLabel + component.value);
+    case 'response':
+      return components.createOldPromptReply(component.value);
+    case 'display':
+      return components.createOldPrompt(component.value);
+    case 'completion':
+      return components.createOldPrompt('  ' + component.value);
+    case 'error':
+      return components.createOldPrompt('...> ' + component.value);
+    default:
+      throw new Error('invalid component type');
+  }
+}
+
+module.exports = rerender;
+
+},{"../lib/elements":1,"../lib/interpreter":2,"./components":6}],12:[function(require,module,exports){
+function _case(variant, fns) {
+  var fn = fns[variant.state];
+  if (fn == null) {
+    throw new TypeError(
+      "No suitable function has been provided for the state '" +
+      variant.state +
+      "'.");
+  } else {
+    return fn(variant.value);
+  }
+}
+
+function Variant(state, value) {
+  Object.defineProperties(
+    this,
+    {
+      'state': { value: state },
+      'value': { value: value }
+    });
+}
+
+function create(state, value) {
+  return new Variant(state, value);
+}
+
+Variant.prototype.case = function (fns) {
+  return _case(this, fns);
+};
+
+module.exports = {
+  case: _case,
+  create: create 
+};
 
 },{}],13:[function(require,module,exports){
 
@@ -3740,7 +3474,8 @@ function createElement(tag) {
       }
     }
     if (arguments.length > 1) {
-      element.children = Array.prototype.slice.call(arguments, 1);
+      element.children = [].concat.apply([], [].slice.call(arguments, 1))
+          
     }
     return element;
   };
