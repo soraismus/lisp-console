@@ -165,6 +165,7 @@ var enter     =  13;
 var left      =  37;
 var right     =  39;
 var up        =  38;
+var tab       =   9;
 
 function command(value) {
   return createVariant('command', value);
@@ -174,7 +175,7 @@ function viewPort(value) {
   return createVariant('viewPort', value);
 }
 
-function getNextAbstractViewPort(event, transform) {
+function getNextAbstractViewPort(event, transform, getCandidates) {
   event.preventDefault();
   if (event.ctrlKey) {
     switch (event.charCode) {
@@ -212,6 +213,11 @@ function getNextAbstractViewPort(event, transform) {
       return viewPort(interpreter.fastForwardHistory(abstractViewPort));
     case _delete:
       return viewPort(interpreter.deleteRightChar(abstractViewPort));
+    case tab:
+      return viewPort(
+        interpreter.completeWord(
+          abstractViewPort,
+          getCandidates));
     default:
       return viewPort(interpreter.addChar(
         abstractViewPort,
@@ -219,9 +225,9 @@ function getNextAbstractViewPort(event, transform) {
   }
 }
 
-function handleEvent(promptLabel, transform) {
+function handleEvent(promptLabel, transform, getCandidates) {
   return function (event) {
-    viewPortOrCommand = getNextAbstractViewPort(event, transform);
+    viewPortOrCommand = getNextAbstractViewPort(event, transform, getCandidates);
     newTerminal = createBrowserViewPort(
       browserViewPort,
       viewPortOrCommand,
@@ -239,10 +245,11 @@ function handleEvent(promptLabel, transform) {
 }
 
 function initialize(config) {
-  var promptLabel = config.promptLabel;
-  var transform   = config.transform;
+  var promptLabel   = config.promptLabel;
+  var transform     = config.transform;
+  var getCandidates = config.getCandidates;
   initializeUi(promptLabel);
-  document.addEventListener('keypress', handleEvent(promptLabel, transform));
+  document.addEventListener('keypress', handleEvent(promptLabel, transform, getCandidates));
 }
 
 function createBrowserViewPort(terminal, viewPortOrCommand, prevViewPort) {
@@ -351,6 +358,53 @@ function clearConsole(abstractViewPort) {
   return abstractViewPort;
 }
 
+function completeWord(abstractViewPort, getCandidates) {
+  var newCachedPromptMaybe, newFuture;
+
+  if (getCandidates == null) {
+    getCandidates = function (value) {
+      var results;
+      return (results = [{ effect: false, value: value }]);
+    };
+  }
+
+  var commandText = abstractViewPort.prompt.preCursor;
+  var splitCommand = getPrefix(commandText);
+  var candidates = getCandidates(splitCommand[1]);
+  console.log(candidates);
+
+  if (candidates.length === 0) {
+    return abstractViewPort;
+  } else if (candidates.length === 1) {
+    return {
+      timeline: abstractViewPort.timeline,
+      prompt: {
+        preCursor: splitCommand[0] + candidates[0] + ' ' + abstractViewPort.prompt.postCursor,
+        postCursor: abstractViewPort.prompt.postCursor
+      }
+    };
+  } else {
+    return {
+      timeline: {
+        cachedPromptMaybe: abstractViewPort.timeline.cachedPromptMaybe,
+        entries: {
+          past: [{ type: 'completion', value: candidates.join(' ') }].concat(
+            [{ type: 'command', value: extractCommand(abstractViewPort.prompt) }],
+            abstractViewPort.timeline.entries.future.reverse(),
+            abstractViewPort.timeline.entries.past),
+          future: []
+        },
+        prompts: {
+          past: abstractViewPort.timeline.prompts.future.reverse().concat(
+            abstractViewPort.timeline.prompts.past),
+          future: []
+        }
+      },
+      prompt: abstractViewPort.prompt
+    };
+  }
+}
+
 function deleteLeftChar(abstractViewPort) {
   return {
     timeline: abstractViewPort.timeline, 
@@ -430,6 +484,15 @@ function fastForwardHistory(abstractViewPort) {
       }
     }
   };
+}
+
+function getPrefix(command) {
+  //var regex = /^(.*\W)(\w*)/;
+  var regex = /^(.*\W)([^\(\)\[\]]*)/;
+  var match = regex.exec(command);
+  return match == null
+    ? ['', command]
+    : [match[1], match[2]];
 }
 
 function moveCursorLeft(abstractViewPort) {
@@ -582,6 +645,7 @@ function submit(abstractViewPort, transform) {
 var interpreter = {
   addChar: addChar,
   clearConsole: clearConsole,
+  completeWord: completeWord,
   deleteLeftChar: deleteLeftChar,
   deletePreCursor: deletePreCursor,
   deleteRightChar: deleteRightChar,
@@ -908,9 +972,34 @@ var interpretLisp = require('../../mhlisp-copy/build/interpret');
 
 var promptLabel = 'Lisp> ';
 
+function getCandidates(prefix) {
+  return getMatches(
+    prefix,
+    interpretLisp("(keys (-get-current-env-))")[0]
+      .value
+      .slice(1, -1)
+      .split(' '));
+}
+
+function getMatches(prefix, words) {
+  if (!/^[-a-zA-Z0-9]+$/.test(prefix)) {
+    return [];
+  }
+  var regex = RegExp('(^|\W):' + prefix);
+  var matches = [];
+  for (var index in words) {
+    var word = words[index];
+    if (regex.test(word)) {
+      matches.push(word.slice(1));
+    }
+  }
+  return matches;
+}
+
 initialize({
   promptLabel: promptLabel,
-  transform: interpretLisp
+  transform: interpretLisp,
+  getCandidates: getCandidates
 });
 
 },{"../../jsconsole/src/initialize":7,"../../mhlisp-copy/build/interpret":26}],16:[function(require,module,exports){
