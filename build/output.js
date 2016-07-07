@@ -191,6 +191,12 @@ function getNextAbstractViewPort(event, transform, getCandidates) {
         return viewPort(interpreter.deletePreCursor(abstractViewPort));
       case w:
         return viewPort(interpreter.deleteWord(abstractViewPort));
+    }
+    switch (event.keyCode) {
+      case down:
+        return viewPort(interpreter.scrollDown(abstractViewPort));
+      case up:
+        return viewPort(interpreter.scrollUp(abstractViewPort));
       default:
         return viewPort(interpreter.noOp(abstractViewPort));
     }
@@ -225,6 +231,7 @@ function getNextAbstractViewPort(event, transform, getCandidates) {
   }
 }
 
+function _(x) { return x == null ? x : x.value; }
 function handleEvent(promptLabel, transform, getCandidates) {
   return function (event) {
     viewPortOrCommand = getNextAbstractViewPort(event, transform, getCandidates);
@@ -232,10 +239,18 @@ function handleEvent(promptLabel, transform, getCandidates) {
       browserViewPort,
       viewPortOrCommand,
       abstractViewPort);
+    past = abstractViewPort.timeline.entries.past.map(_);
+    future = abstractViewPort.timeline.entries.future.map(_);
+    console.log('past', past)
+    console.log('future', future)
     abstractViewPort = viewPortOrCommand.case({
       command: function () { return abstractViewPort; },
       viewPort: function (viewPort) { return viewPort; }
     });
+    past = abstractViewPort.timeline.entries.past.map(_);
+    future = abstractViewPort.timeline.entries.future.map(_);
+    console.log('past', past)
+    console.log('future', future)
     browserViewPort = newTerminal;
     rerender( 
       document.getElementById('console'),
@@ -262,16 +277,41 @@ function createBrowserViewPort(terminal, viewPortOrCommand, prevViewPort) {
       };
     },
     viewPort: function (newViewPort) {
+      var newDisplayItems;
       var maximumSize = terminal.maximumSize;
       var newEntries = newViewPort.timeline.entries.past;
       var prevEntries = prevViewPort.timeline.entries.past;
       var diffCount = newEntries.length - prevEntries.length;
+      if (diffCount === 0) { // Some kind of prompt modification.
+        newDisplayItems = terminal.displayItems;
+      } else if (diffCount > 0) { // Submittal, word completion, or scrollDown.
+        newDisplayItems =
+          window(
+            maximumSize,
+            terminal.displayItems.concat(
+              newEntries.slice(0, diffCount).reverse()));
+      } else { // scrollUp.
+        var displayItems = terminal.displayItems;
+        if (displayItems.length < terminal.maximumSize) {
+          newDisplayItems = displayItems;
+        } else {
+          //newDisplayItems = displayItems;
+          newDisplayItems =
+            window(
+              maximumSize,
+              terminal.displayItems.concat(
+                newEntries.slice(0, diffCount).reverse()));
+        }
+      }
+
+      /*
       var newDisplayItems = (diffCount === 0)
-        ? terminal.displayItems.slice()
+        ? terminal.displayItems
         : window(
             maximumSize,
             terminal.displayItems
               .concat(newEntries.slice(0, diffCount).reverse()));
+      */
       return {
         displayItems: newDisplayItems,
         maximumSize: maximumSize,
@@ -334,15 +374,6 @@ module.exports = initializeUi;
 var isNothing = require('./option').isNothing;
 var nothing = require('./option').nothing;
 var something = require('./option').something;
-function extractCommand(prompt) {
-  return (prompt.preCursor + prompt.postCursor).trim();
-}
-function normalizePrompt(prompt) {
-  return {
-    preCursor: extractCommand(prompt),
-    postCursor: ''
-  };
-}
 
 function addChar(abstractViewPort, char) {
   return {
@@ -371,7 +402,6 @@ function completeWord(abstractViewPort, getCandidates) {
   var commandText = abstractViewPort.prompt.preCursor;
   var splitCommand = getPrefix(commandText);
   var candidates = getCandidates(splitCommand[1]);
-  console.log(candidates);
 
   if (candidates.length === 0) {
     return abstractViewPort;
@@ -448,6 +478,10 @@ function deleteWord(abstractViewPort) {
   };
 }
 
+function extractCommand(prompt) {
+  return (prompt.preCursor + prompt.postCursor).trim();
+}
+
 // fastForwardCommandHistory
 function fastForwardHistory(abstractViewPort) {
   var newCachedPromptMaybe, newPast, newPrompt;
@@ -489,7 +523,6 @@ function fastForwardHistory(abstractViewPort) {
 function getPrefix(command) {
   var regex = /^(.*[\s\(\)\[\]])([^\(\)\[\]]*)/;
   var match = regex.exec(command);
-  console.log('match: ', match);
   return match == null
     ? ['', command]
     : [match[1], match[2]];
@@ -555,6 +588,13 @@ function noOp(abstractViewPort) {
   return abstractViewPort;
 }
 
+function normalizePrompt(prompt) {
+  return {
+    preCursor: extractCommand(prompt),
+    postCursor: ''
+  };
+}
+
 // rewindCommandHistory
 function rewindHistory(abstractViewPort) {
   var newCachedPromptMaybe, newFuture;
@@ -590,6 +630,54 @@ function rewindHistory(abstractViewPort) {
         future: newFuture
       }
     }
+  };
+}
+
+function scrollDown(abstractViewPort) {
+  var newFuture, newPast;
+  var past = abstractViewPort.timeline.entries.past;
+  var future = abstractViewPort.timeline.entries.future;
+  if (past.length > 0) {
+    newPast = [future[0]].concat(past);
+    newFuture = future.slice(1);
+  } else {
+    newPast = past;
+    newFuture = future;
+  }
+  return {
+    timeline: {
+      cachedPromptMaybe: abstractViewPort.timeline.cachedPromptMaybe,
+      entries: {
+        past: newPast,
+        future: newFuture
+      },
+      prompts: abstractViewPort.timeline.prompts
+    },
+    prompt: abstractViewPort.prompt
+  };
+}
+
+function scrollUp(abstractViewPort) {
+  var newFuture, newPast;
+  var past = abstractViewPort.timeline.entries.past;
+  var future = abstractViewPort.timeline.entries.future;
+  if (past.length > 0) {
+    newPast = past.length > 0 ? past.slice(1) : past;
+    newFuture = [past[0]].concat(future);
+  } else {
+    newPast = past;
+    newFuture = future;
+  }
+  return {
+    timeline: {
+      cachedPromptMaybe: abstractViewPort.timeline.cachedPromptMaybe,
+      entries: {
+        past: newPast,
+        future: newFuture
+      },
+      prompts: abstractViewPort.timeline.prompts
+    },
+    prompt: abstractViewPort.prompt
   };
 }
 
@@ -642,7 +730,7 @@ function submit(abstractViewPort, transform) {
   };
 }
 
-var interpreter = {
+module.exports = {
   addChar: addChar,
   clearConsole: clearConsole,
   completeWord: completeWord,
@@ -657,10 +745,10 @@ var interpreter = {
   moveCursorToStart: moveCursorToStart,
   noOp: noOp,
   rewindHistory: rewindHistory,
+  scrollDown: scrollDown,
+  scrollUp: scrollUp,
   submit: submit,
 };
-
-module.exports = interpreter;
 
 },{"./option":10}],10:[function(require,module,exports){
 function bind(option, fn) {
