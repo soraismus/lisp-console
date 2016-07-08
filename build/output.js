@@ -266,7 +266,6 @@ function createFrame(frame, viewportOrCommand, prevViewPort) {
           return {
             maximumSize: frame.maximumSize,
             offset: 0,
-            //start: frame.start
             start: prevViewPort.timeline.entries.all.length
           };
         case 'scrollDown':
@@ -281,7 +280,6 @@ function createFrame(frame, viewportOrCommand, prevViewPort) {
         case 'scrollUp':
           return {
             maximumSize: frame.maximumSize,
-            //offset: frame.offset,
             offset: frame.offset < frame.maximumSize
               ? frame.offset + 1
               : frame.offset,
@@ -290,17 +288,15 @@ function createFrame(frame, viewportOrCommand, prevViewPort) {
       }
     },
     viewport: function (newViewPort) {
-      var newDisplayItems, offset, start;
-
+      var offset, start;
       var maximumSize = frame.maximumSize;
       var newEntries = newViewPort.timeline.entries.all;
       var prevEntries = prevViewPort.timeline.entries.all;
       var diffCount = newEntries.length - prevEntries.length;
-
-      if (diffCount === 0) { // Some kind of prompt modification.
+      if (diffCount === 0) {
         offset = frame.offset;
         start = frame.start;
-      } else if (diffCount > 0) { // Submittal, word completion, or scrollDown.
+      } else if (diffCount > 0) {
         if (frame.offset + diffCount >= maximumSize) {
           offset = maximumSize;
           start = frame.start + ((diffCount + frame.offset) - maximumSize);
@@ -308,7 +304,6 @@ function createFrame(frame, viewportOrCommand, prevViewPort) {
           offset = frame.offset + diffCount;
           start = frame.start;
         }
-
       }
       return {
         maximumSize: maximumSize,
@@ -416,9 +411,9 @@ function completeWord(abstractViewPort, getCandidates) {
       timeline: {
         cachedPromptMaybe: abstractViewPort.timeline.cachedPromptMaybe,
         entries: {
-          all: [{ type: 'completion', value: candidates.join(' ') }].concat(
+          all: abstractViewPort.timeline.entries.all.concat(
             [{ type: 'command', value: extractCommand(abstractViewPort.prompt) }],
-            abstractViewPort.timeline.entries.all),
+            [{ type: 'completion', value: candidates.join(' ') }])
         },
         prompts: {
           past: abstractViewPort.timeline.prompts.future.reverse().concat(
@@ -637,20 +632,15 @@ function scrollUp(abstractViewPort) {
   return abstractViewPort;
 }
 
-// NOTE: `submit` will be more comman than `rewind` or `fastforward`,
-// so perhaps past prompts and entries shouldn't be reversed.
 function submit(abstractViewPort, transform) {
   var newCachedPromptMaybe, newFuture;
 
   if (transform == null) {
     transform = function (value) {
       var results;
-      // TODO: [{ type: 'display'/'pure',etc., value: value }]
       return (results = [{ effect: false, value: value }]);
     };
   }
-
-  // enum Entry { command, completion, display, error, response }
 
   var commandText = extractCommand(abstractViewPort.prompt);
   var results = transform(commandText);
@@ -669,12 +659,6 @@ function submit(abstractViewPort, transform) {
           [command],
           displayEntries,
           [response])
-
-        //all: [response].concat(
-        //  displayEntries.reverse(),
-        //  [command],
-        //  abstractViewPort.timeline.entries.all),
-
       },
       prompts: {
         past: [normalizePrompt(abstractViewPort.prompt)].concat(
