@@ -8,39 +8,6 @@ module.exports = require('./tinkerbox').interpreter;
 module.exports = require('../../tinkerbox/index');
 
 },{"../../tinkerbox/index":37}],4:[function(require,module,exports){
-var nothing = require('./option').nothing;
-
-var viewport = {
-  timeline: {
-    cachedPromptMaybe: nothing(),
-    entries: {
-      all: [],
-      past: [],
-      future: []
-    },
-    prompts: {
-      past: [],
-      future: []
-    }
-  },
-  prompt: {
-    preCursor: '',
-    postCursor: ''
-  }
-};
-
-module.exports = viewport;
-
-},{"./option":10}],5:[function(require,module,exports){
-var frame = {
-  maximumSize: 23,
-  offset: 0,
-  start: 0
-};
-
-module.exports = frame;
-
-},{}],6:[function(require,module,exports){
 var SPAN = require('../lib/elements').SPAN;
 
 var emptyString = '';
@@ -141,13 +108,30 @@ module.exports = {
   header: header,
 };
 
-},{"../lib/elements":1}],7:[function(require,module,exports){
-var abstractViewPort  = require('./abstractViewPort');
-var browserViewPort   = require('./browserViewPort');
-var initializeUi      = require('./initializeUi');
-var interpreter       = require('./interpreter');
-var rerender          = require('./rerender');
-var createVariant     = require('./variant').create;
+},{"../lib/elements":1}],5:[function(require,module,exports){
+var frame = {
+  maximumSize: 23,
+  offset: 0,
+  start: 0
+};
+
+function createFrame(maximumSize, offset, start) {
+  return {
+    maximumSize: maximumSize,
+    offset: offset,
+    start: start
+  };
+}
+
+module.exports = frame;
+
+},{}],6:[function(require,module,exports){
+var terminal      = require('./terminal');
+var frame         = require('./frame');
+var initializeUi  = require('./initializeUi');
+var interpreter   = require('./interpreter');
+var rerender      = require('./rerender');
+var createVariant = require('./variant').create;
 
 var a =  97;
 var e = 101;
@@ -165,87 +149,93 @@ var right     =  39;
 var up        =  38;
 var tab       =   9;
 
-function command(value) {
+function Command(value) {
   return createVariant('command', value);
 }
 
-function viewport(value) {
-  return createVariant('viewport', value);
+function Terminal(value) {
+  return createVariant('terminal', value);
 }
 
-function getViewportOrCommand(event, transform, getCandidates) {
+function getTerminalOrCommand(event, transform, getCandidates) {
   event.preventDefault();
   if (event.ctrlKey) {
     switch (event.charCode) {
       case a:
-        return viewport(interpreter.moveCursorToStart(abstractViewPort));
+        return Terminal(interpreter.moveCursorToStart(terminal));
       case e:
-        return viewport(interpreter.moveCursorToEnd(abstractViewPort));
+        return Terminal(interpreter.moveCursorToEnd(terminal));
       case h:
-        return viewport(interpreter.deleteLeftChar(abstractViewPort));
+        return Terminal(interpreter.deleteLeftChar(terminal));
       case l:
-        return command({ command: 'clearConsole' });
+        return Command({ command: 'clearConsole' });
       case u:
-        return viewport(interpreter.deletePreCursor(abstractViewPort));
+        return Terminal(interpreter.deletePreCursor(terminal));
       case w:
-        return viewport(interpreter.deleteWord(abstractViewPort));
+        return Terminal(interpreter.deleteWord(terminal));
     }
     switch (event.keyCode) {
       case down:
-        return command({ command: 'scrollDown' });
+        return Command({ command: 'scrollDown' });
       case up:
-        return command({ command: 'scrollUp' });
+        return Command({ command: 'scrollUp' });
       default:
-        return viewport(interpreter.noOp(abstractViewPort));
+        return Terminal(interpreter.noOp(terminal));
     }
   }
   if (event.altKey) {
-    return viewport(interpreter.noOp(abstractViewPort));
+    return Terminal(interpreter.noOp(terminal));
   }
   switch (event.keyCode) {
     case enter:
-      return viewport(interpreter.submit(abstractViewPort, transform));
+      return Terminal(interpreter.submit(terminal, transform));
     case backspace:
-      return viewport(interpreter.deleteLeftChar(abstractViewPort));
+      return Terminal(interpreter.deleteLeftChar(terminal));
     case left:
-      return viewport(interpreter.moveCursorLeft(abstractViewPort));
+      return Terminal(interpreter.moveCursorLeft(terminal));
     case right:
-      return viewport(interpreter.moveCursorRight(abstractViewPort));
+      return Terminal(interpreter.moveCursorRight(terminal));
     case up:
-      return viewport(interpreter.rewindHistory(abstractViewPort));
+      return Terminal(interpreter.rewindHistory(terminal));
     case down:
-      return viewport(interpreter.fastForwardHistory(abstractViewPort));
+      return Terminal(interpreter.fastForwardHistory(terminal));
     case _delete:
-      return viewport(interpreter.deleteRightChar(abstractViewPort));
+      return Terminal(interpreter.deleteRightChar(terminal));
     case tab:
-      return viewport(
+      return Terminal(
         interpreter.completeWord(
-          abstractViewPort,
+          terminal,
           getCandidates));
     default:
-      return viewport(interpreter.addChar(
-        abstractViewPort,
+      return Terminal(interpreter.addChar(
+        terminal,
         String.fromCharCode(event.charCode)));
   }
 }
 
 function handleEvent(promptLabel, transform, getCandidates) {
   return function (event) {
-    viewportOrCommand = getViewportOrCommand(event, transform, getCandidates);
-    frame = createFrame(
-      browserViewPort,
-      viewportOrCommand,
-      abstractViewPort);
-    abstractViewPort = viewportOrCommand.case({
-      command: function () { return abstractViewPort; },
-      viewport: function (viewport) { return viewport; }
+    terminalOrCommand = getTerminalOrCommand(event, transform, getCandidates);
+    console.log('old frame: ', frame);
+    console.log('old offset: ', frame.offset);
+    console.log('old start: ', frame.start);
+    newFrame = createFrame(
+      frame,
+      terminalOrCommand,
+      terminal);
+    console.log('new frame: ', newFrame);
+    console.log('new offset: ', newFrame.offset);
+    console.log('new start: ', newFrame.start);
+    terminal = terminalOrCommand.case({
+      command: function () { return terminal; },
+      terminal: function (terminal) { return terminal; }
     });
-    browserViewPort = frame;
+    frame = newFrame;
     rerender(
       document.getElementById('console'),
       { promptLabel: promptLabel },
-      abstractViewPort,
-      frame);
+      terminal,
+      newFrame);
   };
 }
 
@@ -257,19 +247,19 @@ function initialize(config) {
   document.addEventListener('keypress', handleEvent(promptLabel, transform, getCandidates));
 }
 
-// TODO: Create factories for `frame` and `viewport` to reduce coupling.
-function createFrame(frame, viewportOrCommand, prevViewPort) {
-  return viewportOrCommand.case({
+// TODO: Create factories for `frame` and `terminal` to reduce coupling.
+function createFrame(frame, terminalOrCommand, prevViewPort) {
+  return terminalOrCommand.case({
     command: function (command) {
       switch (command.command) {
         case 'clearConsole':
           return {
             maximumSize: frame.maximumSize,
             offset: 0,
-            start: prevViewPort.timeline.entries.all.length
+            start: prevViewPort.entries.length
           };
         case 'scrollDown':
-          var length = prevViewPort.timeline.entries.all.length;
+          var length = prevViewPort.entries.length;
           return {
             maximumSize: frame.maximumSize,
             offset: frame.offset,
@@ -278,20 +268,21 @@ function createFrame(frame, viewportOrCommand, prevViewPort) {
               : frame.start + 1
           };
         case 'scrollUp':
+          var newStart = frame.start - 1 < 0 ? 0 : frame.start - 1;
           return {
             maximumSize: frame.maximumSize,
-            offset: frame.offset < frame.maximumSize
+            offset: frame.offset < frame.maximumSize && (frame.offset < (prevViewPort.entries.length - newStart))
               ? frame.offset + 1
               : frame.offset,
-            start: frame.start - 1 < 0 ? 0 : frame.start - 1
+            start: newStart
           };
       }
     },
-    viewport: function (newViewPort) {
+    terminal: function (newViewPort) {
       var offset, start;
       var maximumSize = frame.maximumSize;
-      var newEntries = newViewPort.timeline.entries.all;
-      var prevEntries = prevViewPort.timeline.entries.all;
+      var newEntries = newViewPort.entries
+      var prevEntries = prevViewPort.entries
       var diffCount = newEntries.length - prevEntries.length;
       if (diffCount === 0) {
         offset = frame.offset;
@@ -314,15 +305,9 @@ function createFrame(frame, viewportOrCommand, prevViewPort) {
   });
 }
 
-function window(size, array) {
-  return array.length <= size
-    ? array.slice()
-    : array.slice(array.length - size);
-}
-
 module.exports = initialize;
 
-},{"./abstractViewPort":4,"./browserViewPort":5,"./initializeUi":8,"./interpreter":9,"./rerender":11,"./variant":12}],8:[function(require,module,exports){
+},{"./frame":5,"./initializeUi":7,"./interpreter":8,"./rerender":10,"./terminal":11,"./variant":12}],7:[function(require,module,exports){
 var components             = require('./components');
 var interpreter            = require('../lib/interpreter');
 var createAndAttachElement = interpreter.createAndAttachElement;
@@ -363,13 +348,14 @@ function initializeUi(promptLabel) {
 
 module.exports = initializeUi;
 
-},{"../lib/elements":1,"../lib/interpreter":2,"./components":6}],9:[function(require,module,exports){
+},{"../lib/elements":1,"../lib/interpreter":2,"./components":4}],8:[function(require,module,exports){
 var isNothing = require('./option').isNothing;
 var nothing = require('./option').nothing;
 var something = require('./option').something;
 
 function addChar(abstractViewPort, char) {
   return {
+    entries: abstractViewPort.entries, 
     timeline: abstractViewPort.timeline, 
     prompt: {
       preCursor: abstractViewPort.prompt.preCursor + char,
@@ -400,6 +386,7 @@ function completeWord(abstractViewPort, getCandidates) {
     return abstractViewPort;
   } else if (candidates.length === 1) {
     return {
+      entries: abstractViewPort.entries,
       timeline: abstractViewPort.timeline,
       prompt: {
         preCursor: splitCommand[0] + candidates[0] + ' ' + abstractViewPort.prompt.postCursor,
@@ -408,13 +395,11 @@ function completeWord(abstractViewPort, getCandidates) {
     };
   } else {
     return {
+      entries: abstractViewPort.entries.concat(
+          [{ type: 'command', value: extractCommand(abstractViewPort.prompt) }],
+          [{ type: 'completion', value: candidates.join(' ') }]),
       timeline: {
         cachedPromptMaybe: abstractViewPort.timeline.cachedPromptMaybe,
-        entries: {
-          all: abstractViewPort.timeline.entries.all.concat(
-            [{ type: 'command', value: extractCommand(abstractViewPort.prompt) }],
-            [{ type: 'completion', value: candidates.join(' ') }])
-        },
         prompts: {
           past: abstractViewPort.timeline.prompts.future.reverse().concat(
             abstractViewPort.timeline.prompts.past),
@@ -428,6 +413,7 @@ function completeWord(abstractViewPort, getCandidates) {
 
 function deleteLeftChar(abstractViewPort) {
   return {
+    entries: abstractViewPort.entries, 
     timeline: abstractViewPort.timeline, 
     prompt: {
       preCursor: abstractViewPort.prompt.preCursor.slice(0, -1),
@@ -438,6 +424,7 @@ function deleteLeftChar(abstractViewPort) {
 
 function deletePreCursor(abstractViewPort) {
   return {
+    entries: abstractViewPort.entries, 
     timeline: abstractViewPort.timeline, 
     prompt: {
       preCursor: '',
@@ -448,6 +435,7 @@ function deletePreCursor(abstractViewPort) {
 
 function deleteRightChar(abstractViewPort) {
   return {
+    entries: abstractViewPort.entries, 
     timeline: abstractViewPort.timeline, 
     prompt: {
       preCursor: abstractViewPort.prompt.preCursor,
@@ -459,6 +447,7 @@ function deleteRightChar(abstractViewPort) {
 function deleteWord(abstractViewPort) {
   var preCursor = abstractViewPort.prompt.preCursor;
   return {
+    entries: abstractViewPort.entries, 
     timeline: abstractViewPort.timeline, 
     prompt: {
       preCursor: preCursor.slice(
@@ -500,9 +489,9 @@ function fastForwardHistory(abstractViewPort) {
 
   return {
     prompt: newPrompt,
+    entries: abstractViewPort.entries,
     timeline: {
       cachedPromptMaybe: newCachedPromptMaybe,
-      entries: abstractViewPort.timeline.entries,
       prompts: {
         past: newPast,
         future: newFuture
@@ -527,6 +516,7 @@ function moveCursorLeft(abstractViewPort) {
   } else {
     var postCursor = abstractViewPort.prompt.postCursor;
     return {
+      entries: abstractViewPort.entries,
       timeline: abstractViewPort.timeline,
       prompt: {
         preCursor: preCursor.slice(0, -1),
@@ -543,6 +533,7 @@ function moveCursorRight(abstractViewPort) {
   } else {
     var preCursor = abstractViewPort.prompt.preCursor;
     return {
+      entries: abstractViewPort.entries,
       timeline: abstractViewPort.timeline,
       prompt: {
         preCursor: preCursor + postCursor[0],
@@ -555,6 +546,7 @@ function moveCursorRight(abstractViewPort) {
 function moveCursorToEnd(abstractViewPort) {
   var prompt = abstractViewPort.prompt;
   return {
+    entries: abstractViewPort.entries,
     timeline: abstractViewPort.timeline,
     prompt: {
       preCursor: prompt.preCursor + prompt.postCursor,
@@ -566,6 +558,7 @@ function moveCursorToEnd(abstractViewPort) {
 function moveCursorToStart(abstractViewPort) {
   var prompt = abstractViewPort.prompt;
   return {
+    entries: abstractViewPort.entries,
     timeline: abstractViewPort.timeline,
     prompt: {
       preCursor: '',
@@ -613,23 +606,15 @@ function rewindHistory(abstractViewPort) {
 
   return {
     prompt: newPrompt,
+    entries: abstractViewPort.entries,
     timeline: {
       cachedPromptMaybe: newCachedPromptMaybe,
-      entries: abstractViewPort.timeline.entries,
       prompts: {
         past: newPast,
         future: newFuture
       }
     }
   };
-}
-
-function scrollDown(abstractViewPort) {
-  return abstractViewPort;
-}
-
-function scrollUp(abstractViewPort) {
-  return abstractViewPort;
 }
 
 function submit(abstractViewPort, transform) {
@@ -650,19 +635,20 @@ function submit(abstractViewPort, transform) {
     .map(function (display) { return { type: 'display', value: display.value }});
   var response = { type: 'response', value: results[results.length - 1].value };
   var command = { type: 'command', value: commandText };
+  var future = abstractViewPort.timeline.prompts.future.reverse();
+  var prompt = normalizePrompt(abstractViewPort.prompt);
 
   return {
+    entries: abstractViewPort.entries.concat(
+        [command],
+        displayEntries,
+        [response]),
     timeline: {
       cachedPromptMaybe: nothing(),
-      entries: {
-        all: abstractViewPort.timeline.entries.all.concat(
-          [command],
-          displayEntries,
-          [response])
-      },
       prompts: {
         past: [normalizePrompt(abstractViewPort.prompt)].concat(
-          abstractViewPort.timeline.prompts.future.reverse(),
+          future,
+          future.length > 0 ?  [prompt] : [],
           abstractViewPort.timeline.prompts.past),
         future: []
       }
@@ -689,12 +675,10 @@ module.exports = {
   moveCursorToStart: moveCursorToStart,
   noOp: noOp,
   rewindHistory: rewindHistory,
-  scrollDown: scrollDown,
-  scrollUp: scrollUp,
   submit: submit,
 };
 
-},{"./option":10}],10:[function(require,module,exports){
+},{"./option":9}],9:[function(require,module,exports){
 function bind(option, fn) {
   return option === _nothing
     ? _nothing
@@ -771,7 +755,7 @@ module.exports = {
   something: something
 };
 
-},{}],11:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 var components             = require('./components');
 var interpreter            = require('../lib/interpreter');
 var createAndAttachElement = interpreter.createAndAttachElement;
@@ -812,7 +796,7 @@ function rerender(node, prefixes, viewPort, frame) {
           }
         },
         components.header,
-        viewPort.timeline.entries.all.slice(frame.start, frame.start + frame.offset).map(renderComponent.bind(null, prefixes)),
+        viewPort.entries.slice(frame.start, frame.start + frame.offset).map(renderComponent.bind(null, prefixes)),
         components.createPrompt(
           promptLabel,
           viewPort.prompt.preCursor,
@@ -839,7 +823,59 @@ function renderComponent(prefixes, component) {
 
 module.exports = rerender;
 
-},{"../lib/elements":1,"../lib/interpreter":2,"./components":6}],12:[function(require,module,exports){
+},{"../lib/elements":1,"../lib/interpreter":2,"./components":4}],11:[function(require,module,exports){
+var nothing = require('./option').nothing;
+
+function createTimeline(cachedPromptMaybe, past, future) {
+  return {
+    cachedPromptMaybe: cachedPromptMaybe,
+    prompts: {
+      past: past,
+      future: future
+    }
+  };
+}
+
+function createPrompt(preCursor, postCursor) {
+  return {
+    preCursor: preCursor,
+    postCursor: postCursor
+  };
+}
+
+function createTerminal(entries, timeline, prompt) {
+  return  {
+    entries: entries,
+    timeline: timeline,
+    prompt: prompt
+  };
+}
+
+var terminal;
+
+terminal = createTerminal(
+  [],
+  createTimeline(nothing(), [], []),
+  createPrompt('', ''));
+
+terminal = {
+  entries: [],
+  timeline: {
+    cachedPromptMaybe: nothing(),
+    prompts: {
+      past: [],
+      future: []
+    }
+  },
+  prompt: {
+    preCursor: '',
+    postCursor: ''
+  }
+};
+
+module.exports = terminal;
+
+},{"./option":9}],12:[function(require,module,exports){
 function _case(variant, fns) {
   var fn = fns[variant.state];
   if (fn == null) {
@@ -1033,7 +1069,7 @@ initialize({
   getCandidates: getCandidates
 });
 
-},{"../../jsconsole/src/initialize":7,"../../mhlisp-copy/build/interpret":26}],16:[function(require,module,exports){
+},{"../../jsconsole/src/initialize":6,"../../mhlisp-copy/build/interpret":26}],16:[function(require,module,exports){
 var commentSignal, evaluate, _process;
 
 commentSignal = require('./commentSignal');
@@ -1383,7 +1419,7 @@ module.exports = getEnvironment;
 
 },{"./js-utilities":27,"./linked-list":29,"./type-utilities":35}],20:[function(require,module,exports){
 (function (process){
-var append, areEqual, atom, atom_question_, boolean_question_, car, cdr, circumpendQuotes, concat, cons, coreFn_question_, count, createMalAtom, createMalBoolean, createMalCoreEffectfulFunction, createMalCorePureFunction, createMalList, createMalNumber, createMalString, createMalSymbol, createPredicate, deref, drop, empty_question_, equal_question_, extractJsValue, false_question_, first, fromArray, function_question_, functionsOnMalValues, getEnvironment, ignoreIfTrue, ignoreUnlessTrue, ignore_bang_, interpret, last, list, list_question_, macro_question_, malAtom_question_, malBoolean_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIgnore, malIndex_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malUserPureFunction_question_, meta, next, nil_question_, nth, number_question_, prStr, prepend, read, reduce, reset, rest, reverse, serialize, set, setCoreFnsOnMalValues_bang_, slurp, str, string_question_, stripQuotes, symbol, symbol_question_, take, time_hyphen_ms, toArray, toPartialArray, true_question_, typeOf, userFn_question_, withMeta, write, _car, _cdr, _concat, _drop, _empty_question_, _interpret, _last, _not, _prStr, _quit_, _ref, _reverse, _take, _throw,
+var append, areEqual, atom, atom_question_, boolean_question_, car, cdr, circumpendQuotes, concat, cons, coreFn_question_, count, createMalAtom, createMalBoolean, createMalCorePureFunction, createMalList, createMalNumber, createMalString, createMalSymbol, createPredicate, deref, drop, empty_question_, equal_question_, extractJsValue, false_question_, first, fromArray, function_question_, functionsOnMalValues, getEnvironment, ignoreIfTrue, ignoreUnlessTrue, ignore_bang_, interpret, last, list, list_question_, macro_question_, malAtom_question_, malBoolean_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIgnore, malIndex_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malUserPureFunction_question_, meta, next, nil_question_, nth, number_question_, prepend, prettyString, read, reduce, reset, rest, reverse, serialize, set, setCoreFnsOnMalValues_bang_, slurp, string, string_question_, stripQuotes, symbol, symbol_question_, take, time_hyphen_ms, toArray, toPartialArray, true_question_, typeOf, userFn_question_, withMeta, write, _car, _cdr, _concat, _drop, _empty_question_, _interpret, _last, _not, _prStr, _quit_, _ref, _reverse, _take, _throw,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
 
@@ -1398,8 +1434,6 @@ concat = require('./linked-list').concat;
 createMalAtom = require('./type-utilities').createMalAtom;
 
 createMalBoolean = require('./type-utilities').createMalBoolean;
-
-createMalCoreEffectfulFunction = require('./type-utilities').createMalCoreEffectfulFunction;
 
 createMalCorePureFunction = require('./type-utilities').createMalCorePureFunction;
 
@@ -1671,13 +1705,13 @@ prepend = function(malArgs) {
 };
 
 _prStr = function(malArgs, printReadably_question_) {
-  return (toArray(malArgs)).map(function(malArg) {
+  return ((toArray(malArgs)).map(function(malArg) {
     return serialize(malArg, printReadably_question_);
-  });
+  })).join('');
 };
 
-prStr = function(malArgs) {
-  return createMalString('"' + (_prStr(malArgs, true)).join('') + '"');
+prettyString = function(malArgs) {
+  return createMalString(circumpendQuotes(_prStr(malArgs, true)));
 };
 
 _quit_ = function() {
@@ -1745,8 +1779,8 @@ slurp = function(malArgs) {
   return createMalString(circumpendQuotes(require('fs').readFileSync(jsFileName).toString()));
 };
 
-str = function(malArgs) {
-  return createMalString('"' + (_prStr(malArgs, false)).join('') + '"');
+string = function(malArgs) {
+  return createMalString(circumpendQuotes(_prStr(malArgs, false)));
 };
 
 stripQuotes = function(jsString) {
@@ -1842,10 +1876,10 @@ functionsOnMalValues = {
   'number?': number_question_,
   'parse': _interpret,
   'prepend': prepend,
-  'pr-str': prStr,
+  'pretty-string': prettyString,
   'rest': _cdr,
   'reverse': _reverse,
-  'str': str,
+  'string': string,
   'string?': string_question_,
   'symbol': symbol,
   'symbol?': symbol_question_,
@@ -1906,18 +1940,18 @@ setCoreEffectfulFnsOnMalValues_bang_ = function(represent) {
 };
 
 displayEffectsOnMalValues = {
-  'prn': function(malArgs) {
-    return _prStr(malArgs, true);
-  },
-  'println': function(malArgs) {
+  'print': function(malArgs) {
     return _prStr(malArgs, false);
+  },
+  'pretty-print': function(malArgs) {
+    return _prStr(malArgs, true);
   }
 };
 
 module.exports = getEnvironment;
 
 },{"./linked-list":29,"./serialize":31,"./type-utilities":35}],22:[function(require,module,exports){
-var car, createMalCorePureFunction, createMalList, createMalSymbol, extractJsValue, fromArray, fromMalIndex, getEnvironment, identity, malList_question_, setCoreFnsOnMalValues_bang_, stripQuotes, toArray, toPartialArray, tokenizeAndParse, _process, _process_,
+var car, createMalCorePureFunction, createMalList, createMalSymbol, extractJsValue, fromArray, fromMalIndex, getEnvironment, malList_question_, setCoreFnsOnMalValues_bang_, stripQuotes, toArray, toPartialArray, tokenizeAndParse, _process, _process_,
   __hasProp = {}.hasOwnProperty;
 
 car = require('./linked-list').car;
@@ -1988,16 +2022,6 @@ getEnvironment = function(config) {
   return environment;
 };
 
-identity = function(malVal) {
-  return malVal;
-};
-
-_process_ = function(envs) {
-  return function(malVal) {
-    return _process(identity)(envs)(malVal);
-  };
-};
-
 setCoreFnsOnMalValues_bang_ = function(env, fns) {
   var fn, fnName, _results;
   _results = [];
@@ -2012,6 +2036,10 @@ setCoreFnsOnMalValues_bang_ = function(env, fns) {
 stripQuotes = function(jsString) {
   return jsString.slice(1, -1);
 };
+
+_process_ = _process(function(malVal) {
+  return malVal;
+});
 
 module.exports = getEnvironment;
 
