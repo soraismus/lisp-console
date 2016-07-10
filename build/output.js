@@ -7,7 +7,7 @@ module.exports = require('./tinkerbox').interpreter;
 },{"./tinkerbox":3}],3:[function(require,module,exports){
 module.exports = require('../../tinkerbox/index');
 
-},{"../../tinkerbox/index":37}],4:[function(require,module,exports){
+},{"../../tinkerbox/index":41}],4:[function(require,module,exports){
 var SPAN = require('../lib/elements').SPAN;
 
 var emptyString = '';
@@ -109,29 +109,15 @@ module.exports = {
 };
 
 },{"../lib/elements":1}],5:[function(require,module,exports){
-var frame = {
-  maximumSize: 23,
-  offset: 0,
-  start: 0
-};
-
-function createFrame(maximumSize, offset, start) {
-  return {
-    maximumSize: maximumSize,
-    offset: offset,
-    start: start
-  };
-}
-
-module.exports = frame;
-
-},{}],6:[function(require,module,exports){
-var terminal      = require('./terminal');
-var frame         = require('./frame');
-var initializeUi  = require('./initializeUi');
-var interpreter   = require('./interpreter');
-var rerender      = require('./rerender');
-var createVariant = require('./variant').create;
+var createFrame    = require('./models/createFrame');
+var createPrompt   = require('./models/createPrompt');
+var createTerminal = require('./models/createTerminal');
+var createTimeline = require('./models/createTimeline');
+var createViewport = require('./models/createViewport');
+var initializeUi   = require('./initializeUi');
+var nothing        = require('./option').nothing;
+var rerender       = require('./rerender');
+var Viewport       = require('./models/viewport');
 
 var a =  97;
 var e = 101;
@@ -149,165 +135,89 @@ var right     =  39;
 var up        =  38;
 var tab       =   9;
 
-function Command(value) {
-  return createVariant('command', value);
-}
+var viewport = createViewport(
+  createTerminal(
+    [],
+    createTimeline(nothing(), [], []),
+    createPrompt('', '')),
+  createFrame(23, 0, 0));
 
-function Terminal(value) {
-  return createVariant('terminal', value);
-}
-
-function getTerminalOrCommand(event, transform, getCandidates) {
+function getViewport(event, transform, getCandidates) {
   event.preventDefault();
   if (event.ctrlKey) {
     switch (event.charCode) {
       case a:
-        return Terminal(interpreter.moveCursorToStart(terminal));
+        return Viewport.moveCursorToStart(viewport);
       case e:
-        return Terminal(interpreter.moveCursorToEnd(terminal));
+        return Viewport.moveCursorToEnd(viewport);
       case h:
-        return Terminal(interpreter.deleteLeftChar(terminal));
+        return Viewport.deleteLeftChar(viewport);
       case l:
-        return Command({ command: 'clearConsole' });
+        return Viewport.clearViewport(viewport);
       case u:
-        return Terminal(interpreter.deletePreCursor(terminal));
+        return Viewport.deletePreCursor(viewport);
       case w:
-        return Terminal(interpreter.deleteWord(terminal));
+        return Viewport.deleteWord(viewport);
     }
     switch (event.keyCode) {
       case down:
-        return Command({ command: 'scrollDown' });
+        return Viewport.scrollDown(viewport);
       case up:
-        return Command({ command: 'scrollUp' });
+        return Viewport.scrollUp(viewport);
       default:
-        return Terminal(interpreter.noOp(terminal));
+        return Viewport.noOp(viewport);
     }
   }
   if (event.altKey) {
-    return Terminal(interpreter.noOp(terminal));
+    return Viewport.noOp(viewport);
   }
   switch (event.keyCode) {
     case enter:
-      return Terminal(interpreter.submit(terminal, transform));
+      return Viewport.submit(viewport, transform);
     case backspace:
-      return Terminal(interpreter.deleteLeftChar(terminal));
+      return Viewport.deleteLeftChar(viewport);
     case left:
-      return Terminal(interpreter.moveCursorLeft(terminal));
+      return Viewport.moveCursorLeft(viewport);
     case right:
-      return Terminal(interpreter.moveCursorRight(terminal));
+      return Viewport.moveCursorRight(viewport);
     case up:
-      return Terminal(interpreter.rewindHistory(terminal));
+      return Viewport.rewindHistory(viewport);
     case down:
-      return Terminal(interpreter.fastForwardHistory(terminal));
+      return Viewport.fastForwardHistory(viewport);
     case _delete:
-      return Terminal(interpreter.deleteRightChar(terminal));
+      return Viewport.deleteRightChar(viewport);
     case tab:
-      return Terminal(
-        interpreter.completeWord(
-          terminal,
-          getCandidates));
+      return Viewport.completeWord(viewport, getCandidates);
     default:
-      return Terminal(interpreter.addChar(
-        terminal,
-        String.fromCharCode(event.charCode)));
+      return Viewport.addChar(
+        viewport,
+        String.fromCharCode(event.charCode));
   }
 }
 
-function handleEvent(promptLabel, transform, getCandidates) {
+function handleEvent(config) {
+  var nodeId        = config.nodeId;
+  var promptLabel   = config.promptLabel;
+  var transform     = config.transform;
+  var getCandidates = config.getCandidates;
   return function (event) {
-    terminalOrCommand = getTerminalOrCommand(event, transform, getCandidates);
-    console.log('old frame: ', frame);
-    console.log('old offset: ', frame.offset);
-    console.log('old start: ', frame.start);
-    newFrame = createFrame(
-      frame,
-      terminalOrCommand,
-      terminal);
-    console.log('new frame: ', newFrame);
-    console.log('new offset: ', newFrame.offset);
-    console.log('new start: ', newFrame.start);
-    terminal = terminalOrCommand.case({
-      command: function () { return terminal; },
-      terminal: function (terminal) { return terminal; }
-    });
-    frame = newFrame;
+    viewport = getViewport(event, transform, getCandidates);
     rerender(
-      document.getElementById('console'),
+      document.getElementById(nodeId),
       { promptLabel: promptLabel },
-      terminal,
-      newFrame);
+      viewport);
   };
 }
 
 function initialize(config) {
-  var promptLabel   = config.promptLabel;
-  var transform     = config.transform;
-  var getCandidates = config.getCandidates;
+  var promptLabel = config.promptLabel;
   initializeUi(promptLabel);
-  document.addEventListener('keypress', handleEvent(promptLabel, transform, getCandidates));
-}
-
-// TODO: Create factories for `frame` and `terminal` to reduce coupling.
-function createFrame(frame, terminalOrCommand, prevViewPort) {
-  return terminalOrCommand.case({
-    command: function (command) {
-      switch (command.command) {
-        case 'clearConsole':
-          return {
-            maximumSize: frame.maximumSize,
-            offset: 0,
-            start: prevViewPort.entries.length
-          };
-        case 'scrollDown':
-          var length = prevViewPort.entries.length;
-          return {
-            maximumSize: frame.maximumSize,
-            offset: frame.offset,
-            start: length - frame.start <= frame.maximumSize
-              ? frame.start
-              : frame.start + 1
-          };
-        case 'scrollUp':
-          var newStart = frame.start - 1 < 0 ? 0 : frame.start - 1;
-          return {
-            maximumSize: frame.maximumSize,
-            offset: frame.offset < frame.maximumSize && (frame.offset < (prevViewPort.entries.length - newStart))
-              ? frame.offset + 1
-              : frame.offset,
-            start: newStart
-          };
-      }
-    },
-    terminal: function (newViewPort) {
-      var offset, start;
-      var maximumSize = frame.maximumSize;
-      var newEntries = newViewPort.entries
-      var prevEntries = prevViewPort.entries
-      var diffCount = newEntries.length - prevEntries.length;
-      if (diffCount === 0) {
-        offset = frame.offset;
-        start = frame.start;
-      } else if (diffCount > 0) {
-        if (frame.offset + diffCount >= maximumSize) {
-          offset = maximumSize;
-          start = frame.start + ((diffCount + frame.offset) - maximumSize);
-        } else {
-          offset = frame.offset + diffCount;
-          start = frame.start;
-        }
-      }
-      return {
-        maximumSize: maximumSize,
-        offset: offset,
-        start: start
-      };
-    }
-  });
+  document.addEventListener('keypress', handleEvent(config));
 }
 
 module.exports = initialize;
 
-},{"./frame":5,"./initializeUi":7,"./interpreter":8,"./rerender":10,"./terminal":11,"./variant":12}],7:[function(require,module,exports){
+},{"./initializeUi":6,"./models/createFrame":7,"./models/createPrompt":8,"./models/createTerminal":9,"./models/createTimeline":10,"./models/createViewport":11,"./models/viewport":14,"./option":15,"./rerender":16}],6:[function(require,module,exports){
 var components             = require('./components');
 var interpreter            = require('../lib/interpreter');
 var createAndAttachElement = interpreter.createAndAttachElement;
@@ -318,7 +228,7 @@ var PRE                    = elements.PRE;
 
 function initializeUi(promptLabel) {
   createAndAttachElement(
-    document.getElementById('console'),
+    document.getElementById('viewport'),
     DIV(
       {
         style: {
@@ -348,136 +258,195 @@ function initializeUi(promptLabel) {
 
 module.exports = initializeUi;
 
-},{"../lib/elements":1,"../lib/interpreter":2,"./components":4}],8:[function(require,module,exports){
-var isNothing = require('./option').isNothing;
-var nothing = require('./option').nothing;
-var something = require('./option').something;
-
-function addChar(abstractViewPort, char) {
+},{"../lib/elements":1,"../lib/interpreter":2,"./components":4}],7:[function(require,module,exports){
+module.exports = function (maximumSize, offset, start) {
   return {
-    entries: abstractViewPort.entries, 
-    timeline: abstractViewPort.timeline, 
-    prompt: {
-      preCursor: abstractViewPort.prompt.preCursor + char,
-      postCursor: abstractViewPort.prompt.postCursor
+    maximumSize: maximumSize,
+    offset: offset,
+    start: start
+  };
+};
+
+},{}],8:[function(require,module,exports){
+module.exports = function (preCursor, postCursor) {
+  return {
+    preCursor: preCursor,
+    postCursor: postCursor
+  };
+};
+
+},{}],9:[function(require,module,exports){
+module.exports = function (entries, timeline, prompt) {
+  return  {
+    entries: entries,
+    timeline: timeline,
+    prompt: prompt
+  };
+};
+
+},{}],10:[function(require,module,exports){
+module.exports = function (cachedPromptMaybe, past, future) {
+  return {
+    cachedPromptMaybe: cachedPromptMaybe,
+    prompts: {
+      past: past,
+      future: future
     }
   };
+};
+
+},{}],11:[function(require,module,exports){
+module.exports = function (terminal, frame) {
+  return {
+    terminal: terminal,
+    frame: frame
+  };
+};
+
+},{}],12:[function(require,module,exports){
+var create = require('./createFrame');
+
+function clear(frame, terminal) {
+  return create(frame.maximumSize, 0, terminal.entries.length);
 }
 
-function clearConsole(abstractViewPort) {
-  return abstractViewPort;
+function scrollDown(frame, terminal) {
+  return create(
+    frame.maximumSize,
+    frame.offset,
+    terminal.entries.length - frame.start <= frame.maximumSize
+      ? frame.start
+      : frame.start + 1);
 }
 
-function completeWord(abstractViewPort, getCandidates) {
-  var newCachedPromptMaybe, newFuture;
+function scrollUp(frame, terminal) {
+  var maximumSize = frame.maximumSize;
+  var offset = frame.offset;
+  var newStart = frame.start - 1 < 0 ? 0 : frame.start - 1;
 
+  var canIncrement =
+    offset < maximumSize &&
+    offset < terminal.entries.length - newStart;
+
+  return create(
+    maximumSize,
+    canIncrement ? offset + 1 : offset,
+    newStart);
+}
+
+module.exports = {
+  clear: clear,
+  scrollDown: scrollDown,
+  scrollUp: scrollUp,
+};
+
+},{"./createFrame":7}],13:[function(require,module,exports){
+var create         = require('./createTerminal');
+var createPrompt   = require('./createPrompt');
+var createTimeline = require('./createTimeline');
+var isNothing      = require('../option').isNothing;
+var nothing        = require('../option').nothing;
+var something      = require('../option').something;
+
+function addChar(terminal, char) {
+  return create(
+    terminal.entries,
+    terminal.timeline,
+    createPrompt(
+      terminal.prompt.preCursor + char,
+      terminal.prompt.postCursor));
+}
+
+function completeWord(terminal, getCandidates) {
   if (getCandidates == null) {
     getCandidates = function (value) {
       var results;
-      return (results = [{ effect: false, value: value }]);
+      return (results = [{ effect: false, value: value }]); // coupling to lisp implementation
     };
   }
 
-  var commandText = abstractViewPort.prompt.preCursor;
+  var commandText = terminal.prompt.preCursor;
   var splitCommand = getPrefix(commandText);
   var candidates = getCandidates(splitCommand[1]);
+  var length = candidates.length;
 
-  if (candidates.length === 0) {
-    return abstractViewPort;
-  } else if (candidates.length === 1) {
-    return {
-      entries: abstractViewPort.entries,
-      timeline: abstractViewPort.timeline,
-      prompt: {
-        preCursor: splitCommand[0] + candidates[0] + ' ' + abstractViewPort.prompt.postCursor,
-        postCursor: abstractViewPort.prompt.postCursor
-      }
-    };
-  } else {
-    return {
-      entries: abstractViewPort.entries.concat(
-          [{ type: 'command', value: extractCommand(abstractViewPort.prompt) }],
-          [{ type: 'completion', value: candidates.join(' ') }]),
-      timeline: {
-        cachedPromptMaybe: abstractViewPort.timeline.cachedPromptMaybe,
-        prompts: {
-          past: abstractViewPort.timeline.prompts.future.reverse().concat(
-            abstractViewPort.timeline.prompts.past),
-          future: []
-        }
-      },
-      prompt: abstractViewPort.prompt
-    };
+  if (length === 0) {
+    return terminal;
   }
+
+  var entries, timeline, prompt;
+
+  if (length === 1) {
+    entries = terminal.entries;
+    timeline = terminal.timeline;
+    prompt = createPrompt(
+      splitCommand[0] + candidates[0] + ' ' + terminal.prompt.postCursor,
+      terminal.prompt.postCursor);
+  } else {
+    entries = terminal.entries.concat(
+      [{ type: 'command', value: extractCommand(terminal.prompt) }],
+      [{ type: 'completion', value: candidates.join(' ') }]);
+    timeline = createTimeline(
+      terminal.timeline.cachedPromptMaybe,
+      terminal.timeline.prompts.future.reverse().concat(
+          terminal.timeline.prompts.past),
+      []);
+    prompt = terminal.prompt;
+  }
+
+  return create(entries, timeline, prompt);
 }
 
-function deleteLeftChar(abstractViewPort) {
-  return {
-    entries: abstractViewPort.entries, 
-    timeline: abstractViewPort.timeline, 
-    prompt: {
-      preCursor: abstractViewPort.prompt.preCursor.slice(0, -1),
-      postCursor: abstractViewPort.prompt.postCursor
-    }
-  };
+function deleteLeftChar(terminal) {
+  return create(
+    terminal.entries, 
+    terminal.timeline, 
+    createPrompt(
+      terminal.prompt.preCursor.slice(0, -1),
+      terminal.prompt.postCursor));
 }
 
-function deletePreCursor(abstractViewPort) {
-  return {
-    entries: abstractViewPort.entries, 
-    timeline: abstractViewPort.timeline, 
-    prompt: {
-      preCursor: '',
-      postCursor: abstractViewPort.prompt.postCursor
-    }
-  };
+function deletePreCursor(terminal) {
+  return create(
+    terminal.entries, 
+    terminal.timeline, 
+    createPrompt('', terminal.prompt.postCursor));
 }
 
-function deleteRightChar(abstractViewPort) {
-  return {
-    entries: abstractViewPort.entries, 
-    timeline: abstractViewPort.timeline, 
-    prompt: {
-      preCursor: abstractViewPort.prompt.preCursor,
-      postCursor: abstractViewPort.prompt.postCursor.slice(1)
-    }
-  };
+function deleteRightChar(terminal) {
+  return create(
+    terminal.entries, 
+    terminal.timeline, 
+    createPrompt(
+      terminal.prompt.preCursor,
+      terminal.prompt.postCursor.slice(1)));
 }
 
-function deleteWord(abstractViewPort) {
-  var preCursor = abstractViewPort.prompt.preCursor;
-  return {
-    entries: abstractViewPort.entries, 
-    timeline: abstractViewPort.timeline, 
-    prompt: {
-      preCursor: preCursor.slice(
-        0,
-        preCursor.slice(0, -1).lastIndexOf(' ') + 1),
-      postCursor: abstractViewPort.prompt.postCursor
-    }
-  };
+function deleteWord(terminal) {
+  var preCursor = terminal.prompt.preCursor;
+  return create(
+    terminal.entries, 
+    terminal.timeline, 
+    createPrompt(
+      preCursor.slice(0, preCursor.slice(0, -1).lastIndexOf(' ') + 1),
+      terminal.prompt.postCursor));
 }
 
 function extractCommand(prompt) {
   return (prompt.preCursor + prompt.postCursor).trim();
 }
 
-// fastForwardCommandHistory
-function fastForwardHistory(abstractViewPort) {
-  var newCachedPromptMaybe, newPast, newPrompt;
+function fastForwardHistory(terminal) {
+  var newCachedPromptMaybe, newPrompt;
 
-  var timeline = abstractViewPort.timeline;
+  var timeline = terminal.timeline;
   var cachedPromptMaybe = timeline.cachedPromptMaybe;
   var promptTimeline = timeline.prompts;
   var future = promptTimeline.future;
 
   if (future.length <= 0 && isNothing(cachedPromptMaybe)) {
-    return abstractViewPort;
+    return terminal;
   }
-
-  var newFuture = future.slice(1);
-  var newPast = [normalizePrompt(abstractViewPort.prompt)].concat(
-    promptTimeline.past);
 
   if (future.length <= 0) {
     newPrompt = cachedPromptMaybe.value;
@@ -487,17 +456,13 @@ function fastForwardHistory(abstractViewPort) {
     newCachedPromptMaybe = cachedPromptMaybe;
   }
 
-  return {
-    prompt: newPrompt,
-    entries: abstractViewPort.entries,
-    timeline: {
-      cachedPromptMaybe: newCachedPromptMaybe,
-      prompts: {
-        past: newPast,
-        future: newFuture
-      }
-    }
-  };
+  return create(
+    terminal.entries,
+    createTimeline(
+      newCachedPromptMaybe,
+      [normalizePrompt(terminal.prompt)].concat(promptTimeline.past),
+      future.slice(1)),
+    newPrompt);
 }
 
 function getPrefix(command) {
@@ -508,126 +473,98 @@ function getPrefix(command) {
     : [match[1], match[2]];
 }
 
-function moveCursorLeft(abstractViewPort) {
-  var preCursor = abstractViewPort.prompt.preCursor;
+function moveCursorLeft(terminal) {
+  var preCursor = terminal.prompt.preCursor;
   var preCursorLength = preCursor.length;
   if (preCursorLength === 0) {
-    return abstractViewPort;
+    return terminal;
   } else {
-    var postCursor = abstractViewPort.prompt.postCursor;
-    return {
-      entries: abstractViewPort.entries,
-      timeline: abstractViewPort.timeline,
-      prompt: {
-        preCursor: preCursor.slice(0, -1),
-        postCursor: preCursor[preCursorLength - 1] + postCursor
-      }
-    };
+    var postCursor = terminal.prompt.postCursor;
+    return create(
+      terminal.entries,
+      terminal.timeline,
+      createPrompt(
+        preCursor.slice(0, -1),
+        preCursor[preCursorLength - 1] + postCursor));
   }
 }
 
-function moveCursorRight(abstractViewPort) {
-  var postCursor = abstractViewPort.prompt.postCursor;
+function moveCursorRight(terminal) {
+  var postCursor = terminal.prompt.postCursor;
   if (postCursor.length === 0) {
-    return abstractViewPort;
+    return terminal;
   } else {
-    var preCursor = abstractViewPort.prompt.preCursor;
-    return {
-      entries: abstractViewPort.entries,
-      timeline: abstractViewPort.timeline,
-      prompt: {
-        preCursor: preCursor + postCursor[0],
-        postCursor: postCursor.slice(1)
-      }
-    };
+    var preCursor = terminal.prompt.preCursor;
+    return create(
+      terminal.entries,
+      terminal.timeline,
+      createPrompt(
+        preCursor + postCursor[0],
+        postCursor.slice(1)));
   }
 }
 
-function moveCursorToEnd(abstractViewPort) {
-  var prompt = abstractViewPort.prompt;
-  return {
-    entries: abstractViewPort.entries,
-    timeline: abstractViewPort.timeline,
-    prompt: {
-      preCursor: prompt.preCursor + prompt.postCursor,
-      postCursor: ''
-    }
-  };
+function moveCursorToEnd(terminal) {
+  var prompt = terminal.prompt;
+  return create(
+    terminal.entries,
+    terminal.timeline,
+    createPrompt(prompt.preCursor + prompt.postCursor, ''));
 }
 
-function moveCursorToStart(abstractViewPort) {
-  var prompt = abstractViewPort.prompt;
-  return {
-    entries: abstractViewPort.entries,
-    timeline: abstractViewPort.timeline,
-    prompt: {
-      preCursor: '',
-      postCursor: prompt.preCursor + prompt.postCursor,
-    }
-  };
-}
-
-// Necessary?
-function noOp(abstractViewPort) {
-  return abstractViewPort;
+function moveCursorToStart(terminal) {
+  var prompt = terminal.prompt;
+  return create(
+    terminal.entries,
+    terminal.timeline,
+    createPrompt('', prompt.preCursor + prompt.postCursor));
 }
 
 function normalizePrompt(prompt) {
-  return {
-    preCursor: extractCommand(prompt),
-    postCursor: ''
-  };
+  return createPrompt(extractCommand(prompt), '');
 }
 
-// rewindCommandHistory
-function rewindHistory(abstractViewPort) {
+function rewindHistory(terminal) {
   var newCachedPromptMaybe, newFuture;
 
-  var timeline = abstractViewPort.timeline;
+  var timeline = terminal.timeline;
   var cachedPromptMaybe = timeline.cachedPromptMaybe;
   var promptTimeline = timeline.prompts;
   var past = promptTimeline.past;
+  var future = promptTimeline.future;
 
   if (past.length <= 0) {
-    return abstractViewPort;
+    return terminal;
   }
 
-  var future = promptTimeline.future;
-  var newPrompt = past[0];
-  var newPast = past.slice(1);
-
   if (isNothing(cachedPromptMaybe)) {
-    newCachedPromptMaybe = something(abstractViewPort.prompt);
+    newCachedPromptMaybe = something(terminal.prompt);
     newFuture = future;
   } else {
     newCachedPromptMaybe = cachedPromptMaybe;
-    newFuture = [normalizePrompt(abstractViewPort.prompt)].concat(future);
+    newFuture = [normalizePrompt(terminal.prompt)].concat(future);
   }
 
-  return {
-    prompt: newPrompt,
-    entries: abstractViewPort.entries,
-    timeline: {
-      cachedPromptMaybe: newCachedPromptMaybe,
-      prompts: {
-        past: newPast,
-        future: newFuture
-      }
-    }
-  };
+  return create(
+    terminal.entries,
+    createTimeline(
+      newCachedPromptMaybe,
+      past.slice(1),
+      newFuture),
+    past[0]);
 }
 
-function submit(abstractViewPort, transform) {
+function submit(terminal, transform) {
   var newCachedPromptMaybe, newFuture;
 
   if (transform == null) {
     transform = function (value) {
       var results;
-      return (results = [{ effect: false, value: value }]);
+      return (results = [{ effect: false, value: value }]); // coupling to lisp implementation
     };
   }
 
-  var commandText = extractCommand(abstractViewPort.prompt);
+  var commandText = extractCommand(terminal.prompt);
   var results = transform(commandText);
   var displayEntries = results
     .slice(0, -1)
@@ -635,36 +572,25 @@ function submit(abstractViewPort, transform) {
     .map(function (display) { return { type: 'display', value: display.value }});
   var response = { type: 'response', value: results[results.length - 1].value };
   var command = { type: 'command', value: commandText };
-  var future = abstractViewPort.timeline.prompts.future.reverse();
-  var prompt = normalizePrompt(abstractViewPort.prompt);
+  var future = terminal.timeline.prompts.future.reverse();
+  var prompt = normalizePrompt(terminal.prompt);
 
-  return {
-    entries: abstractViewPort.entries.concat(
-        [command],
-        displayEntries,
-        [response]),
-    timeline: {
-      cachedPromptMaybe: nothing(),
-      prompts: {
-        past: [normalizePrompt(abstractViewPort.prompt)].concat(
-          future,
-          future.length > 0 ?  [prompt] : [],
-          abstractViewPort.timeline.prompts.past),
-        future: []
-      }
-    },
-    prompt: {
-      preCursor: '',
-      postCursor: ''
-    }
-  };
+  return create(
+    terminal.entries.concat([command], displayEntries, [response]),
+    createTimeline(
+      nothing(),
+      [normalizePrompt(terminal.prompt)].concat(
+        future,
+        future.length > 0 ?  [prompt] : [],
+        terminal.timeline.prompts.past),
+      []),
+    createPrompt('', ''));
 }
 
 module.exports = {
   addChar: addChar,
-  clearConsole: clearConsole,
   completeWord: completeWord,
-  deleteLeftChar: deleteLeftChar,
+  deleteLeftChar, deleteLeftChar,
   deletePreCursor: deletePreCursor,
   deleteRightChar: deleteRightChar,
   deleteWord: deleteWord,
@@ -673,12 +599,115 @@ module.exports = {
   moveCursorRight: moveCursorRight,
   moveCursorToEnd: moveCursorToEnd,
   moveCursorToStart: moveCursorToStart,
-  noOp: noOp,
   rewindHistory: rewindHistory,
-  submit: submit,
+  submit: submit
 };
 
-},{"./option":9}],9:[function(require,module,exports){
+},{"../option":15,"./createPrompt":8,"./createTerminal":9,"./createTimeline":10}],14:[function(require,module,exports){
+var create      = require('./createViewport');
+var createFrame = require('./createFrame');
+var Frame       = require('./frame');
+var Terminal    = require('./terminal');
+
+function addChar(viewport, char) {
+  return create(
+    Terminal.addChar(viewport.terminal, char),
+    viewport.frame);
+}
+
+function clearViewport(viewport) {
+  var terminal = viewport.terminal;
+  return create(
+    terminal,
+    Frame.clear(viewport.frame, terminal));
+}
+
+function completeWord(viewport, getCandidates) {
+  var terminal = viewport.terminal;
+  return resize(
+    viewport.frame, 
+    terminal,
+    Terminal.completeWord(terminal, getCandidates));
+}
+
+function modifyTerminal(fnName) {
+  return function (viewport) {
+    return create(
+      Terminal[fnName](viewport.terminal),
+      viewport.frame);
+  };
+}
+
+function resize(frame, oldTerminal, newTerminal) {
+  var offset, start;
+  var newEntries = newTerminal.entries
+  var oldEntries = oldTerminal.entries
+  var diffCount = newEntries.length - oldEntries.length;
+  var maximumSize = frame.maximumSize;
+
+  if (diffCount < 0) {
+    return viewport;
+  }
+
+  if (diffCount === 0) {
+    return create(newTerminal, frame);
+  }
+
+  if (frame.offset + diffCount >= maximumSize) {
+    offset = maximumSize;
+    start = frame.start + ((diffCount + frame.offset) - maximumSize);
+  } else {
+    offset = frame.offset + diffCount;
+    start = frame.start;
+  }
+
+  return create(
+    newTerminal,
+    createFrame(maximumSize, offset, start));
+}
+
+function scrollDown(viewport) {
+  var terminal = viewport.terminal;
+  return create(
+    terminal,
+    Frame.scrollDown(viewport.frame, terminal));
+}
+
+function scrollUp(viewport) {
+  var terminal = viewport.terminal;
+  return create(
+    terminal,
+    Frame.scrollUp(viewport.frame, terminal));
+}
+
+function submit(viewport, transform) {
+  var terminal = viewport.terminal;
+  return resize(
+    viewport.frame,
+    terminal,
+    Terminal.submit(terminal, transform));
+}
+
+module.exports = {
+  addChar             : addChar,
+  clearViewport       : clearViewport,
+  completeWord        : completeWord,
+  deleteLeftChar      : modifyTerminal('deleteLeftChar'),
+  deletePreCursor     : modifyTerminal('deletePreCursor'),
+  deleteRightChar     : modifyTerminal('deleteRightChar'),
+  deleteWord          : modifyTerminal('deleteWord'),
+  fastForwardHistory  : modifyTerminal('fastForwardHistory'),
+  moveCursorLeft      : modifyTerminal('moveCursorLeft'),
+  moveCursorRight     : modifyTerminal('moveCursorRight'),
+  moveCursorToEnd     : modifyTerminal('moveCursorToEnd'),
+  moveCursorToStart   : modifyTerminal('moveCursorToStart'),
+  rewindHistory       : modifyTerminal('rewindHistory'),
+  scrollDown          : scrollDown,
+  scrollUp            : scrollUp,
+  submit              : submit
+};
+
+},{"./createFrame":7,"./createViewport":11,"./frame":12,"./terminal":13}],15:[function(require,module,exports){
 function bind(option, fn) {
   return option === _nothing
     ? _nothing
@@ -755,7 +784,7 @@ module.exports = {
   something: something
 };
 
-},{}],10:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 var components             = require('./components');
 var interpreter            = require('../lib/interpreter');
 var createAndAttachElement = interpreter.createAndAttachElement;
@@ -763,7 +792,10 @@ var elements               = require('../lib/elements');
 var DIV                    = elements.DIV;
 var PRE                    = elements.PRE;
 
-function rerender(node, prefixes, viewPort, frame) {
+function rerender(node, prefixes, viewport) {
+  var terminal = viewport.terminal;
+  var frame = viewport.frame;
+
   var completionLabel = prefixes.completionLabel;
   var displayLabel = prefixes.displayLabel;
   var errorLabel = prefixes.errorLabel;
@@ -771,7 +803,7 @@ function rerender(node, prefixes, viewPort, frame) {
   var responseLabel = prefixes.responseLabel;
   node.innerHTML = '';
   createAndAttachElement(
-    node, // document.getElementById('console'),
+    node,
     DIV(
       {
         style: {
@@ -796,11 +828,11 @@ function rerender(node, prefixes, viewPort, frame) {
           }
         },
         components.header,
-        viewPort.entries.slice(frame.start, frame.start + frame.offset).map(renderComponent.bind(null, prefixes)),
+        terminal.entries.slice(frame.start, frame.start + frame.offset).map(renderComponent.bind(null, prefixes)),
         components.createPrompt(
           promptLabel,
-          viewPort.prompt.preCursor,
-          viewPort.prompt.postCursor))));
+          terminal.prompt.preCursor,
+          terminal.prompt.postCursor))));
 }
 
 function renderComponent(prefixes, component) {
@@ -823,96 +855,9 @@ function renderComponent(prefixes, component) {
 
 module.exports = rerender;
 
-},{"../lib/elements":1,"../lib/interpreter":2,"./components":4}],11:[function(require,module,exports){
-var nothing = require('./option').nothing;
+},{"../lib/elements":1,"../lib/interpreter":2,"./components":4}],17:[function(require,module,exports){
 
-function createTimeline(cachedPromptMaybe, past, future) {
-  return {
-    cachedPromptMaybe: cachedPromptMaybe,
-    prompts: {
-      past: past,
-      future: future
-    }
-  };
-}
-
-function createPrompt(preCursor, postCursor) {
-  return {
-    preCursor: preCursor,
-    postCursor: postCursor
-  };
-}
-
-function createTerminal(entries, timeline, prompt) {
-  return  {
-    entries: entries,
-    timeline: timeline,
-    prompt: prompt
-  };
-}
-
-var terminal;
-
-terminal = createTerminal(
-  [],
-  createTimeline(nothing(), [], []),
-  createPrompt('', ''));
-
-terminal = {
-  entries: [],
-  timeline: {
-    cachedPromptMaybe: nothing(),
-    prompts: {
-      past: [],
-      future: []
-    }
-  },
-  prompt: {
-    preCursor: '',
-    postCursor: ''
-  }
-};
-
-module.exports = terminal;
-
-},{"./option":9}],12:[function(require,module,exports){
-function _case(variant, fns) {
-  var fn = fns[variant.state];
-  if (fn == null) {
-    throw new TypeError(
-      "No suitable function has been provided for the state '" +
-      variant.state +
-      "'.");
-  } else {
-    return fn(variant.value);
-  }
-}
-
-function Variant(state, value) {
-  Object.defineProperties(
-    this,
-    {
-      'state': { value: state },
-      'value': { value: value }
-    });
-}
-
-function create(state, value) {
-  return new Variant(state, value);
-}
-
-Variant.prototype.case = function (fns) {
-  return _case(this, fns);
-};
-
-module.exports = {
-  case: _case,
-  create: create 
-};
-
-},{}],13:[function(require,module,exports){
-
-},{}],14:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1033,7 +978,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],15:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 var initialize    = require('../../jsconsole/src/initialize');
 var interpretLisp = require('../../mhlisp-copy/build/interpret');
 
@@ -1064,12 +1009,13 @@ function getMatches(prefix, words) {
 }
 
 initialize({
+  nodeId: 'viewport',
   promptLabel: promptLabel,
   transform: interpretLisp,
   getCandidates: getCandidates
 });
 
-},{"../../jsconsole/src/initialize":6,"../../mhlisp-copy/build/interpret":26}],16:[function(require,module,exports){
+},{"../../jsconsole/src/initialize":5,"../../mhlisp-copy/build/interpret":30}],20:[function(require,module,exports){
 var commentSignal, evaluate, _process;
 
 commentSignal = require('./commentSignal');
@@ -1101,14 +1047,14 @@ _process = function(transform) {
 
 module.exports = _process;
 
-},{"./commentSignal":17,"./evaluate":23}],17:[function(require,module,exports){
+},{"./commentSignal":21,"./evaluate":27}],21:[function(require,module,exports){
 var comment;
 
 comment = {};
 
 module.exports = comment;
 
-},{}],18:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 var addEnv, getLast, lookup, set, setMainEnv, unset, unsetMainEnv;
 
 addEnv = function(envStack, newEnv) {
@@ -1163,8 +1109,8 @@ module.exports = {
   unsetMainEnv: unsetMainEnv
 };
 
-},{}],19:[function(require,module,exports){
-var add, assoc, contains_question_, createMalBoolean, createMalCorePureFunction, createMalIdentifier, createMalIndex, createMalNumber, createMalString, dissoc, divide, exponentiate, extractJsValue, fromArray, functionsOnJsValues, get, getEnvironment, greaterThan, greaterThanOrEqual, index, jsNaN_question_, jsNumber_question_, jsString_question_, keys, length, lessThan, lessThanOrEqual, lift, malNil, mod, multiply, negate, parseNumber, reduce, setCoreFnsOnJsValues_bang_, subtract, toArray, vals,
+},{}],23:[function(require,module,exports){
+var add, contains_question_, createMalBoolean, createMalCorePureFunction, createMalIdentifier, createMalIndex, createMalNumber, createMalString, dissoc, divide, exponentiate, extractJsValue, fromArray, functionsOnJsValues, get, getEnvironment, greaterThan, greaterThanOrEqual, index, jsNaN_question_, jsNumber_question_, jsString_question_, keys, length, lessThan, lessThanOrEqual, lift, malNil, mod, multiply, negate, parseNumber, reduce, setCoreFnsOnJsValues_bang_, subtract, toArray, vals,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
 
@@ -1202,24 +1148,6 @@ add = function() {
   return createMalNumber(nbrs.reduce(function(x, nbr) {
     return x += nbr;
   }));
-};
-
-assoc = function() {
-  var args, copy, i, index, k, key, value, _i, _len;
-  index = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-  copy = {};
-  for (key in index) {
-    if (!__hasProp.call(index, key)) continue;
-    value = index[key];
-    copy[key] = value;
-  }
-  for (i = _i = 0, _len = args.length; _i < _len; i = ++_i) {
-    k = args[i];
-    if (i % 2 === 0) {
-      copy[k] = args[i + 1];
-    }
-  }
-  return createMalIndex(copy);
 };
 
 contains_question_ = function(index, key) {
@@ -1394,7 +1322,6 @@ vals = function(index) {
 
 functionsOnJsValues = {
   '+': add,
-  'assoc': assoc,
   'contains?': contains_question_,
   'dissoc': dissoc,
   '/': divide,
@@ -1417,9 +1344,9 @@ functionsOnJsValues = {
 
 module.exports = getEnvironment;
 
-},{"./js-utilities":27,"./linked-list":29,"./type-utilities":35}],20:[function(require,module,exports){
+},{"./js-utilities":31,"./linked-list":33,"./type-utilities":39}],24:[function(require,module,exports){
 (function (process){
-var append, areEqual, atom, atom_question_, boolean_question_, car, cdr, circumpendQuotes, concat, cons, coreFn_question_, count, createMalAtom, createMalBoolean, createMalCorePureFunction, createMalList, createMalNumber, createMalString, createMalSymbol, createPredicate, deref, drop, empty_question_, equal_question_, extractJsValue, false_question_, first, fromArray, function_question_, functionsOnMalValues, getEnvironment, ignoreIfTrue, ignoreUnlessTrue, ignore_bang_, interpret, last, list, list_question_, macro_question_, malAtom_question_, malBoolean_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIgnore, malIndex_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malUserPureFunction_question_, meta, next, nil_question_, nth, number_question_, prepend, prettyString, read, reduce, reset, rest, reverse, serialize, set, setCoreFnsOnMalValues_bang_, slurp, string, string_question_, stripQuotes, symbol, symbol_question_, take, time_hyphen_ms, toArray, toPartialArray, true_question_, typeOf, userFn_question_, withMeta, write, _car, _cdr, _concat, _drop, _empty_question_, _interpret, _last, _not, _prStr, _quit_, _ref, _reverse, _take, _throw,
+var append, areEqual, assoc, atom, atom_question_, boolean_question_, car, cdr, circumpendQuotes, concat, cons, coreFn_question_, count, createMalAtom, createMalBoolean, createMalCorePureFunction, createMalIndex, createMalList, createMalNumber, createMalString, createMalSymbol, createPredicate, deref, drop, empty_question_, equal_question_, extractJsValue, false_question_, first, fromArray, function_question_, functionsOnMalValues, getEnvironment, ignoreIfTrue, ignoreUnlessTrue, ignore_bang_, interpret, last, list, list_question_, macro_question_, malAtom_question_, malBoolean_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIgnore, malIndex_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malUserPureFunction_question_, meta, next, nil_question_, nth, number_question_, prepend, prettyString, read, recurse, reduce, reset, rest, reverse, serialize, set, setCoreFnsOnMalValues_bang_, slurp, string, string_question_, stripQuotes, symbol, symbol_question_, take, time_hyphen_ms, toArray, toPartialArray, true_question_, typeOf, userFn_question_, withMeta, write, _car, _cdr, _concat, _drop, _empty_question_, _interpret, _last, _not, _prStr, _quit_, _ref, _reverse, _take, _throw,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
 
@@ -1436,6 +1363,8 @@ createMalAtom = require('./type-utilities').createMalAtom;
 createMalBoolean = require('./type-utilities').createMalBoolean;
 
 createMalCorePureFunction = require('./type-utilities').createMalCorePureFunction;
+
+createMalIndex = require('./type-utilities').createMalIndex;
 
 createMalList = require('./type-utilities').createMalList;
 
@@ -1495,6 +1424,8 @@ malUserPureFunction_question_ = require('./type-utilities').malUserPureFunction_
 
 next = require('./linked-list').next;
 
+recurse = require('./linked-list').recurse;
+
 reduce = require('./linked-list').reduce;
 
 reverse = require('./linked-list').reverse;
@@ -1529,6 +1460,25 @@ areEqual = function(malArgs) {
     }
   };
   return createMalBoolean(_areEqual(malValue0, malValue1));
+};
+
+assoc = function(malArgs) {
+  var args, copy, jsIndex, k, key, v, value;
+  jsIndex = extractJsValue(car(malArgs));
+  args = cdr(malArgs);
+  copy = {};
+  for (key in jsIndex) {
+    if (!__hasProp.call(jsIndex, key)) continue;
+    value = jsIndex[key];
+    copy[key] = value;
+  }
+  while (!empty_question_(args)) {
+    k = car(args);
+    v = next(args);
+    args = recurse(recurse(args));
+    copy[extractJsValue(k)] = v;
+  }
+  return createMalIndex(copy);
 };
 
 atom = function(malArgs) {
@@ -1847,6 +1797,7 @@ _ref = [malAtom_question_, malBoolean_question_, malCorePureFunction_question_, 
 functionsOnMalValues = {
   '=': areEqual,
   'append': append,
+  'assoc': assoc,
   'atom': atom,
   'atom?': atom_question_,
   'boolean?': boolean_question_,
@@ -1901,7 +1852,7 @@ functionsOnMalValues = {
 module.exports = getEnvironment;
 
 }).call(this,require('_process'))
-},{"./interpret":26,"./js-utilities":27,"./linked-list":29,"./serialize":31,"./type-utilities":35,"_process":14,"fs":13}],21:[function(require,module,exports){
+},{"./interpret":30,"./js-utilities":31,"./linked-list":33,"./serialize":35,"./type-utilities":39,"_process":18,"fs":17}],25:[function(require,module,exports){
 var createMalCoreEffectfulFunction, displayEffectsOnMalValues, getEnvironment, serialize, setCoreEffectfulFnsOnMalValues_bang_, toArray, _prStr,
   __hasProp = {}.hasOwnProperty;
 
@@ -1950,7 +1901,7 @@ displayEffectsOnMalValues = {
 
 module.exports = getEnvironment;
 
-},{"./linked-list":29,"./serialize":31,"./type-utilities":35}],22:[function(require,module,exports){
+},{"./linked-list":33,"./serialize":35,"./type-utilities":39}],26:[function(require,module,exports){
 var car, createMalCorePureFunction, createMalList, createMalSymbol, extractJsValue, fromArray, fromMalIndex, getEnvironment, malList_question_, setCoreFnsOnMalValues_bang_, stripQuotes, toArray, toPartialArray, tokenizeAndParse, _process, _process_,
   __hasProp = {}.hasOwnProperty;
 
@@ -1979,7 +1930,7 @@ tokenizeAndParse = require('./tokenizeAndParse');
 toPartialArray = require('./linked-list').toPartialArray;
 
 getEnvironment = function(config) {
-  var apply, call, environment, evalString, evalWithBareEnv, evalWithEnv, functionsOnMalValues, _eval, _evalListHead;
+  var apply, call, environment, evalString, evalWithBareEnv, evalWithEnv, functionsOnMalValues, parse, _eval, _evalListHead;
   environment = config.environment;
   apply = function(malArgs) {
     var malArgList, malFn, _ref;
@@ -2010,13 +1961,11 @@ getEnvironment = function(config) {
     _ref = toPartialArray(2, malArgs), expr = _ref[0], localEnv = _ref[1];
     return _process_([fromMalIndex(localEnv), environment])(expr);
   };
+  parse = function(malArgs) {
+    return tokenizeAndParse(stripQuotes(extractJsValue(car(malArgs))));
+  };
   functionsOnMalValues = {
-    'apply': apply,
-    'call': call,
-    'eval': _evalListHead,
-    'eval-string': evalString,
-    'eval-with-bare-env': evalWithBareEnv,
-    'eval-with-env': evalWithEnv
+    parse: parse
   };
   setCoreFnsOnMalValues_bang_(environment, functionsOnMalValues);
   return environment;
@@ -2043,8 +1992,8 @@ _process_ = _process(function(malVal) {
 
 module.exports = getEnvironment;
 
-},{"./_process":16,"./index-utilities":25,"./linked-list":29,"./tokenizeAndParse":34,"./type-utilities":35}],23:[function(require,module,exports){
-var addEnv, car, catch_asterisk_, cdr, circumpendQuotes, commentSignal, createFn, createLocalEnv, createMacro, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNumber, createMalString, createMalSymbol, createMalUserPureFunction, def_bang_, defineNewValue, empty_question_, evalQuasiquotedExpr, evaluate, expandMacro, expand_hyphen_macro, extractJsValue, filter, fn_asterisk_, forEach, fromArray, fromJsObjects, ignorable_question_, jsString_question_, keyword_question_, let_asterisk_, letrec_asterisk_, lookup, macro_asterisk_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIgnore_question_, malIndex_question_, malList_question_, malMacro_question_, malNil, malSymbol_question_, malUserPureFunction_question_, map, next, quasiquote, quote, recurse, reduce, reduceBy2, reduceLet_asterisk_, reduceLetrec_asterisk_, reverse, setMainEnv, splat, spliceUnquote, spliceUnquote_question_, spliceUnquotedExpr_question_, toPartialArray, try_asterisk_, undef_bang_, undefineValue, unquote, unquote_question_, unquotedExpr_question_, unsetMainEnv, _do, _evaluate, _getCurrentEnv, _getDefaultEnv, _if,
+},{"./_process":20,"./index-utilities":29,"./linked-list":33,"./tokenizeAndParse":38,"./type-utilities":39}],27:[function(require,module,exports){
+var addEnv, car, catch_asterisk_, cdr, circumpendQuotes, commentSignal, createFn, createLocalEnv, createMacro, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNumber, createMalString, createMalSymbol, createMalUserPureFunction, def_bang_, defineNewValue, empty_question_, evalQuasiquotedExpr, evaluate, expandMacro, expand_hyphen_macro, extractJsValue, filter, fn_asterisk_, forEach, fromArray, fromJsObjects, fromMalIndex, ignorable_question_, jsString_question_, keyword_question_, let_asterisk_, letrec_asterisk_, lookup, macro_asterisk_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malSymbol_question_, malUserPureFunction_question_, map, next, quasiquote, quote, recurse, reduce, reduceBy2, reduceLet_asterisk_, reduceLetrec_asterisk_, reverse, setMainEnv, splat, spliceUnquote, spliceUnquote_question_, spliceUnquotedExpr_question_, toPartialArray, try_asterisk_, undef_bang_, undefineValue, unquote, unquote_question_, unquotedExpr_question_, unsetMainEnv, _do, _eval, _evalWithEnv, _evaluate, _getCurrentEnv, _getDefaultEnv, _if,
   __hasProp = {}.hasOwnProperty;
 
 addEnv = require('./env-utilities').addEnv;
@@ -2081,6 +2030,10 @@ _do = require('./keyTokens')._do;
 
 empty_question_ = require('./linked-list').empty_question_;
 
+_eval = require('./keyTokens')._eval;
+
+_evalWithEnv = require('./keyTokens')._evalWithEnv;
+
 expand_hyphen_macro = require('./keyTokens').expand_hyphen_macro;
 
 extractJsValue = require('./type-utilities').extractJsValue;
@@ -2094,6 +2047,8 @@ forEach = require('./linked-list').forEach;
 fromArray = require('./linked-list').fromArray;
 
 fromJsObjects = require('./index-utilities').fromJsObjects;
+
+fromMalIndex = require('./index-utilities').fromMalIndex;
 
 _getCurrentEnv = require('./keyTokens')._getCurrentEnv;
 
@@ -2120,6 +2075,8 @@ malCorePureFunction_question_ = require('./type-utilities').malCorePureFunction_
 malIgnore_question_ = require('./type-utilities').malIgnore_question_;
 
 malIndex_question_ = require('./type-utilities').malIndex_question_;
+
+malKeyword_question_ = require('./type-utilities').malKeyword_question_;
 
 malList_question_ = require('./type-utilities').malList_question_;
 
@@ -2261,6 +2218,13 @@ _evaluate = function(malExpr, envs, addResult) {
             return defineNewValue(tailList, envs, addResult);
           case undef_bang_:
             return undefineValue(tailList, envs);
+          case _eval:
+            malExpr = _evaluate(arg1, envs, addResult);
+            break;
+          case _evalWithEnv:
+            envs = [fromMalIndex(_evaluate(arg1, envs, addResult))];
+            malExpr = _evaluate(car(remainingArgs), envs, addResult);
+            break;
           case let_asterisk_:
             malExpr = car(remainingArgs);
             envs = addEnv(envs, reduceLet_asterisk_(envs, arg1, addResult));
@@ -2314,6 +2278,9 @@ _evaluate = function(malExpr, envs, addResult) {
             malExpr = tailList;
             malInvokable = _evaluate(malSymbol, envs, addResult);
             switch (false) {
+              case !malKeyword_question_(malInvokable):
+                malExpr = createMalList(malInvokable, tailList);
+                break;
               case !malMacro_question_(malInvokable):
                 malExpr = expandMacro(head, tailList, envs, addResult);
                 break;
@@ -2334,7 +2301,7 @@ _evaluate = function(malExpr, envs, addResult) {
                 envs = addEnv(localEnvs, newEnv);
                 break;
               default:
-                throw 'Value is not a function';
+                throw "" + (extractJsValue(malSymbol)) + " does not evaluate to a function, macro, or keyword.";
             }
         }
     }
@@ -2417,7 +2384,7 @@ unquotedExpr_question_ = function(malValue) {
 
 module.exports = evaluate;
 
-},{"./commentSignal":17,"./env-utilities":18,"./index-utilities":25,"./js-utilities":27,"./keyTokens":28,"./linked-list":29,"./type-utilities":35}],24:[function(require,module,exports){
+},{"./commentSignal":21,"./env-utilities":22,"./index-utilities":29,"./js-utilities":31,"./keyTokens":32,"./linked-list":33,"./type-utilities":39}],28:[function(require,module,exports){
 var getLispEnvironment, setEnv0_bang_, setEnv1_bang_, setEnv2_bang_, setEnv3_bang_;
 
 setEnv0_bang_ = require('./env0');
@@ -2445,8 +2412,8 @@ getLispEnvironment = function(config) {
 
 module.exports = getLispEnvironment;
 
-},{"./env0":19,"./env1":20,"./env2":21,"./env3":22}],25:[function(require,module,exports){
-var createMalIndex, fromJsObjects, fromMalIndex, jsString_question_, stripQuotes,
+},{"./env0":23,"./env1":24,"./env2":25,"./env3":26}],29:[function(require,module,exports){
+var createMalIndex, fromJsObjects, fromMalIndex, jsString_question_,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
 
@@ -2474,24 +2441,29 @@ fromJsObjects = function() {
 };
 
 fromMalIndex = function(malIndex) {
-  var key, localEnv, value, _ref;
-  localEnv = {};
+  var key, newKey, result, value, _ref;
+  result = {};
   _ref = malIndex.jsValue;
   for (key in _ref) {
     if (!__hasProp.call(_ref, key)) continue;
     value = _ref[key];
     if (jsString_question_(key)) {
-      stripQuotes(key);
-      localEnv[stripQuotes(key)] = value;
+      newKey = (function() {
+        switch (key[0]) {
+          case ':':
+            return key.slice(1);
+          case '"':
+            return key.slice(1, -1);
+          default:
+            return key;
+        }
+      })();
+      result[newKey] = value;
     } else {
-      localEnv[key] = value;
+      result[key] = value;
     }
   }
-  return localEnv;
-};
-
-stripQuotes = function(jsString) {
-  return jsString.slice(1, -1);
+  return result;
 };
 
 module.exports = {
@@ -2499,7 +2471,7 @@ module.exports = {
   fromMalIndex: fromMalIndex
 };
 
-},{"./js-utilities":27,"./type-utilities":35}],26:[function(require,module,exports){
+},{"./js-utilities":31,"./type-utilities":39}],30:[function(require,module,exports){
 var circumpendQuotes, createMalString, encapsulate, environment, error, flattenIfNecessary, fromArray, getLispEnvironment, interpret, serialize, standardFnsAndMacros, tokenizeAndParse, _createMalString, _interpret, _process, _serialize,
   __hasProp = {}.hasOwnProperty;
 
@@ -2594,7 +2566,7 @@ interpret(standardFnsAndMacros);
 
 module.exports = interpret;
 
-},{"./_process":16,"./getLispEnvironment":24,"./js-utilities":27,"./linked-list":29,"./serialize":31,"./standard-fns-and-macros":32,"./tokenizeAndParse":34,"./type-utilities":35}],27:[function(require,module,exports){
+},{"./_process":20,"./getLispEnvironment":28,"./js-utilities":31,"./linked-list":33,"./serialize":35,"./standard-fns-and-macros":36,"./tokenizeAndParse":38,"./type-utilities":39}],31:[function(require,module,exports){
 var circumpendQuotes, jsNaN_question_, jsNumber_question_, jsString_question_;
 
 circumpendQuotes = function(jsString) {
@@ -2620,17 +2592,17 @@ module.exports = {
   jsString_question_: jsString_question_
 };
 
-},{}],28:[function(require,module,exports){
-var binaryGlyphTokens, catch_asterisk_, def_bang_, deref, derefGlyph, expand_hyphen_macro, fn_asterisk_, glyphTokens, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, indexEnd, indexStart, keyTokens, keyword_question_, keywords, let_asterisk_, letrec_asterisk_, listEnd, listStart, macroTokens, macro_asterisk_, nil, quasiquote, quasiquoteGlyph, quote, quoteGlyph, splat, spliceUnquote, spliceUnquoteGlyph, try_asterisk_, undef_bang_, unquote, unquoteGlyph, _do, _false, _getCurrentEnv, _getDefaultEnv, _if, _process, _true,
+},{}],32:[function(require,module,exports){
+var binaryGlyphTokens, catch_asterisk_, def_bang_, deref, derefGlyph, expand_hyphen_macro, fn_asterisk_, glyphTokens, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, indexEnd, indexStart, keyTokens, keyword_question_, keywords, let_asterisk_, letrec_asterisk_, listEnd, listStart, macroTokens, macro_asterisk_, nil, quasiquote, quasiquoteGlyph, quote, quoteGlyph, splat, spliceUnquote, spliceUnquoteGlyph, try_asterisk_, undef_bang_, unquote, unquoteGlyph, _do, _eval, _evalWithEnv, _false, _getCurrentEnv, _getDefaultEnv, _if, _process, _true,
   __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
 keyword_question_ = function(jsString) {
   return __indexOf.call(keywords, jsString) >= 0;
 };
 
-keyTokens = [deref = 'deref', derefGlyph = '@', catch_asterisk_ = 'catch*', def_bang_ = 'def!', _do = 'do', expand_hyphen_macro = 'expand-macro', _false = 'false', fn_asterisk_ = 'fn*', _getCurrentEnv = '-get-current-env-', _getDefaultEnv = '-get-default-env-', _if = 'if', ignore_bang_ = 'ignore!', ignore_bang_Glyph = '#!', ignoreIfTrue = 'ignoreIfTrue', ignoreIfTrueGlyph = '#-', ignoreUnlessTrue = 'ignoreUnlessTrue', ignoreUnlessTrueGlyph = '#+', ignore = 'ignore', indexEnd = '}', indexStart = '{', let_asterisk_ = 'let*', letrec_asterisk_ = 'letrec*', listEnd = ')', listStart = '(', macro_asterisk_ = 'macro*', nil = 'nil', _process = '-process-', quasiquote = 'quasiquote', quasiquoteGlyph = '`', quote = 'quote', quoteGlyph = '\'', splat = '&', spliceUnquote = 'splice-unquote', spliceUnquoteGlyph = '~@', _true = 'true', try_asterisk_ = 'try*', undef_bang_ = 'undef!', unquote = 'unquote', unquoteGlyph = '~'];
+keyTokens = [deref = 'deref', derefGlyph = '@', catch_asterisk_ = 'catch*', def_bang_ = 'def!', _do = 'do', _eval = 'eval', _evalWithEnv = 'eval-with-env', expand_hyphen_macro = 'expand-macro', _false = 'false', fn_asterisk_ = 'fn*', _getCurrentEnv = '-get-current-env-', _getDefaultEnv = '-get-default-env-', _if = 'if', ignore_bang_ = 'ignore!', ignore_bang_Glyph = '#!', ignoreIfTrue = 'ignoreIfTrue', ignoreIfTrueGlyph = '#-', ignoreUnlessTrue = 'ignoreUnlessTrue', ignoreUnlessTrueGlyph = '#+', ignore = 'ignore', indexEnd = '}', indexStart = '{', let_asterisk_ = 'let*', letrec_asterisk_ = 'letrec*', listEnd = ')', listStart = '(', macro_asterisk_ = 'macro*', nil = 'nil', _process = '-process-', quasiquote = 'quasiquote', quasiquoteGlyph = '`', quote = 'quote', quoteGlyph = '\'', splat = '&', spliceUnquote = 'splice-unquote', spliceUnquoteGlyph = '~@', _true = 'true', try_asterisk_ = 'try*', undef_bang_ = 'undef!', unquote = 'unquote', unquoteGlyph = '~'];
 
-keywords = [catch_asterisk_, def_bang_, _do, expand_hyphen_macro, _false, fn_asterisk_, _getCurrentEnv, _getDefaultEnv, _if, ignore, let_asterisk_, letrec_asterisk_, macro_asterisk_, nil, _process, quasiquote, quote, spliceUnquote, _true, try_asterisk_, undef_bang_, unquote];
+keywords = [catch_asterisk_, def_bang_, _do, _eval, _evalWithEnv, expand_hyphen_macro, _false, fn_asterisk_, _getCurrentEnv, _getDefaultEnv, _if, ignore, let_asterisk_, letrec_asterisk_, macro_asterisk_, nil, _process, quasiquote, quote, spliceUnquote, _true, try_asterisk_, undef_bang_, unquote];
 
 macroTokens = [quasiquote, quote, spliceUnquote, unquote];
 
@@ -2645,6 +2617,8 @@ module.exports = {
   catch_asterisk_: catch_asterisk_,
   def_bang_: def_bang_,
   _do: _do,
+  _eval: _eval,
+  _evalWithEnv: _evalWithEnv,
   expand_hyphen_macro: expand_hyphen_macro,
   _false: _false,
   fn_asterisk_: fn_asterisk_,
@@ -2685,7 +2659,7 @@ module.exports = {
   unquoteGlyph: unquoteGlyph
 };
 
-},{}],29:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 var EOL, car, cdr, concat, cons, copy, createMalList, createNode, drop, empty_question_, equal_question_, filter, forEach, fromArray, last, lastTail, malListType, malTypes, map, next, recurse, reduce, reduceBy2, reverse, take, toArray, toPartialArray, zip, _EOL,
   __slice = [].slice;
 
@@ -2955,7 +2929,7 @@ module.exports = {
   toPartialArray: toPartialArray
 };
 
-},{"./types":36}],30:[function(require,module,exports){
+},{"./types":40}],34:[function(require,module,exports){
 var atomize, binaryGlyphIndex, binaryGlyphTokens, binaryGlyph_question_, boolean_question_, comment, createMalBoolean, createMalIdentifier, createMalIgnore, createMalIndex, createMalList, createMalNil, createMalNumber, createMalString, createMalSymbol, deref, derefGlyph, extractJsValue, float_question_, glyphIndex, glyphTokens, glyph_question_, identifer_question_, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, ignore_question_, indexEnd, indexStart, indexStart_question_, integer_question_, keyTokens, listEnd, listStart, listStart_question_, nil, nil_question_, parse, parseBinaryGlyph, parseBoolean, parseFloat10, parseGlyph, parseIndex, parseInt10, parseList, quasiquote, quasiquoteGlyph, quote, quoteGlyph, reverse, spliceUnquote, spliceUnquoteGlyph, startsWith_question_, string_question_, stripUnderscores, unquote, unquoteGlyph, _false, _parse, _true,
   __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
@@ -3208,7 +3182,7 @@ identifer_question_ = startsWith_question_(':');
 
 module.exports = parse;
 
-},{"./commentSignal":17,"./keyTokens":28,"./linked-list":29,"./type-utilities":35}],31:[function(require,module,exports){
+},{"./commentSignal":21,"./keyTokens":32,"./linked-list":33,"./type-utilities":39}],35:[function(require,module,exports){
 var adjoinMalValue, commentSignal, coreEffectfulFunctionLabel, corePureFunctionLabel, extractJsValue, ignoreLabel, indexEnd, indexStart, keywordLabel, listEnd, listStart, macroLabel, malAtom_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIdentifier_question_, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil_question_, malString_question_, malUserPureFunction_question_, nilLabel, reduce, serialize, serializeAtom, serializeIdentifier, serializeIndex, serializeList, serializeString, stripQuotes, userPureFunctionLabel,
   __hasProp = {}.hasOwnProperty;
 
@@ -3373,10 +3347,10 @@ userPureFunctionLabel = '<function>';
 
 module.exports = serialize;
 
-},{"./commentSignal":17,"./keyTokens":28,"./linked-list":29,"./type-utilities":35}],32:[function(require,module,exports){
-module.exports = "(do\n  (def! fix*\n    (fn* (f)\n      ( (fn* (x) (f (fn* (& ys) (apply (x x) ys))))\n        (fn* (x) (f (fn* (& ys) (apply (x x) ys)))))))\n\n  (def! memfix*\n    (fn* (f)\n      (let* (cache {})\n        (\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          cache))))\n\n  (def! _0 car)\n  (def! _1 (fn* (xs) (nth 1 xs)))\n  (def! _2 (fn* (xs) (nth 2 xs)))\n\n  (def! swap! (macro* (atom & xs)\n    (if (empty? xs)\n      atom\n      `(let* (-atom- ~atom)\n        (do\n          (reset! -atom- (~(car xs) (deref -atom-) ~@(cdr xs)))\n          (deref -atom-))))))\n\n  (def! *gensym-counter* (atom 0))\n\n  (def! gensym (fn* ()\n    (symbol (str \"G__\" (swap! *gensym-counter* incr)))))\n\n  (def! or (macro* (& xs)\n    (if (empty? xs)\n      false\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query- \n            ~-query-\n            (or ~@(cdr xs))))))))\n\n  (def! and (macro* (& xs)\n    (if (empty? xs)\n      true\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query-\n            (and ~@(cdr xs))\n            false))))))\n\n  (def! cond (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (if (empty? (cdr xs))\n        (throw \"`cond` requires an even number of forms.\")\n        (let* (-query- (gensym))\n          `(let* (~-query- ~(car xs))\n            (if ~-query-\n              ~(_1 xs)\n              (cond ~@(cdr (cdr xs))))))))))\n\n  (def! loop (macro* (form0 form1)\n    `(let* (loop (memfix* (fn* (loop) (fn* (~(_0 form0)) ~form1)))) (loop ~(_1 form0)))))\n\n  (def! -> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                forms  (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~(car form) ~x ~@(cdr form)))\n                (list form x))\n              `(-> (-> ~x ~form) ~@forms))))))))\n\n  (def! ->> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                 forms (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~@form  ~x))\n                (list form x))\n              `(->> (->> ~x ~form) ~@forms))))))))\n\n  (def! ->* (macro* (& xs) `(fn* (-x-) (-> -x- ~@xs))))\n\n  (def! ->>* (macro* (& xs) `(fn* (-x-) (->> -x- ~@xs))))\n\n  (def! not (fn* (x) (if x false true)))\n  (def! incr  (->* (+ 1)))\n  (def! decr  (->* (- 1)))\n  (def! zero? (->* (= 0)))\n\n  (def! identity (fn* (x) x))\n\n  (def! constant-fn (fn* (x) (fn* (y) x)))\n\n  (def! call-on (fn* (& xs) (fn* (fn) (apply fn xs))))\n\n  (def! step-into-list (fn* (xs fn0 fn1)\n    (let* (x   (car xs)\n          -xs- (cdr xs))\n      (if (empty? -xs-)\n        (fn1 x)\n        (fn0 x -xs-)))))\n\n  (def! apply-on (fn* (& xs)\n    (step-into-list\n      xs\n      (fn* (arguments -xs-) (apply (car -xs-) arguments))\n      (fn* (arguments) (fn* (f) (apply f arguments))))))\n\n  (def! reduce (fn* (f seed xs)\n      (if (empty? xs)\n        seed\n        (reduce f (f seed (car xs)) (cdr xs)))))\n\n  (def! filter (fn* (predicate xs)\n    (reverse\n      (reduce\n        (fn* (memo x)\n          (if (predicate x)\n            (cons x memo)\n            memo))\n        '()\n        xs))))\n\n  (def! map (fn* (f xs)\n      (reverse (reduce (fn* (memo x) (cons (f x) memo)) '() xs))))\n\n  (def! every?  (fn* (pred xs)\n      (if (empty? xs)\n        true\n        (if (pred (car xs))\n          (every? pred (cdr xs))\n          false))))\n\n  (def! some?  (fn* (pred xs)\n      (if (empty? xs)\n        false\n        (if (pred (car xs))\n          true\n          (some? pred (cdr xs))))))\n\n  (def! letmemrec* (macro* (alias expr)\n    `(let* (~(car alias) (memfix* (fn* (~(car alias)) ~(_1 alias)))) ~expr)))\n\n  (def! skip (fn* (nbr xs)\n    (letrec* (-skip- (fn* (ys)\n      (let* (nbr (car ys)\n             xs  (_1 ys))\n        (cond\n          (= 0 nbr) xs\n          (= 1 nbr) (cdr xs)\n          \"default\" (-skip- (list (decr nbr) (cdr xs)))))))\n      (-skip- (list nbr xs)))))\n\n  (def! . (macro* (x key & xs)\n    `((get ~x ~key) ~@xs)))\n\n  (def! .. (fn* (lo hi)\n    (letrec* (-..- (fn* (xs)\n      (let* (lo     (_0 xs)\n             hi     (_1 xs)\n             -list- (_2 xs))\n        (if (= lo hi)\n          (cons hi -list-)\n          (-..- (list lo (decr hi) (cons hi -list-)))))))\n      (-..- (list lo hi '())))))\n\n  (def! defrec! (macro* (fn-name fn-body)\n    `(def! ~fn-name (letrec* (~fn-name ~fn-body) ~fn-name))))\n\n  (def! for* (macro* (loop-parameters body)\n    `(loop\n      ~(_0 loop-parameters)\n      (if ~(_1 loop-parameters)\n        nil\n        (do ~body (loop ~(_2 loop-parameters)))))))\n\n  (def! for-each (fn* (f xs)\n    (reduce\n      (fn* (memo x) (do (f x) memo))\n      nil\n      xs)))\n\n  (def! n-times (fn* (n f)\n    (loop (i 0)\n      (if (= i n)\n        nil\n        (do (f i) (loop (+ i 1)))))))\n\n  (def! tap (fn* (f x)\n    (do (f x) x)))\n\n  (def! with-side-effect (fn* (thunk x)\n    (do (thunk) x)))\n\n\n  (def! thunk (macro* (form)\n    `(fn* () ~form)))\n\n)";
+},{"./commentSignal":21,"./keyTokens":32,"./linked-list":33,"./type-utilities":39}],36:[function(require,module,exports){
+module.exports = "(do\n  (def! fix*\n    (fn* (f)\n      ( (fn* (x) (f (fn* (& ys) (apply (x x) ys))))\n        (fn* (x) (f (fn* (& ys) (apply (x x) ys)))))))\n\n  (def! memfix*\n    (fn* (f)\n      (let* (cache {})\n        (\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          cache))))\n\n  (def! _0 car)\n  (def! _1 (fn* (xs) (nth 1 xs)))\n  (def! _2 (fn* (xs) (nth 2 xs)))\n\n  (def! swap! (macro* (atom & xs)\n    (if (empty? xs)\n      atom\n      `(let* (-atom- ~atom)\n        (do\n          (reset! -atom- (~(car xs) (deref -atom-) ~@(cdr xs)))\n          (deref -atom-))))))\n\n  (def! *gensym-counter* (atom 0))\n\n  (def! gensym (fn* ()\n    (symbol (str \"G__\" (swap! *gensym-counter* incr)))))\n\n  (def! or (macro* (& xs)\n    (if (empty? xs)\n      false\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query- \n            ~-query-\n            (or ~@(cdr xs))))))))\n\n  (def! and (macro* (& xs)\n    (if (empty? xs)\n      true\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query-\n            (and ~@(cdr xs))\n            false))))))\n\n  (def! cond (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (if (empty? (cdr xs))\n        (throw \"`cond` requires an even number of forms.\")\n        (let* (-query- (gensym))\n          `(let* (~-query- ~(car xs))\n            (if ~-query-\n              ~(_1 xs)\n              (cond ~@(cdr (cdr xs))))))))))\n\n  (def! loop (macro* (form0 form1)\n    `(let* (loop (memfix* (fn* (loop) (fn* (~(_0 form0)) ~form1)))) (loop ~(_1 form0)))))\n\n  (def! -> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                forms  (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~(car form) ~x ~@(cdr form)))\n                (list form x))\n              `(-> (-> ~x ~form) ~@forms))))))))\n\n  (def! ->> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                 forms (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~@form  ~x))\n                (list form x))\n              `(->> (->> ~x ~form) ~@forms))))))))\n\n  (def! ->* (macro* (& xs) `(fn* (-x-) (-> -x- ~@xs))))\n\n  (def! ->>* (macro* (& xs) `(fn* (-x-) (->> -x- ~@xs))))\n\n  (def! not (fn* (x) (if x false true)))\n  (def! incr  (->* (+ 1)))\n  (def! decr  (->* (- 1)))\n  (def! zero? (->* (= 0)))\n\n  (def! identity (fn* (x) x))\n\n  (def! constant-fn (fn* (x) (fn* (y) x)))\n\n  (def! call-on (fn* (& xs) (fn* (fn) (apply fn xs))))\n\n  (def! step-into-list (fn* (xs fn0 fn1)\n    (let* (x   (car xs)\n          -xs- (cdr xs))\n      (if (empty? -xs-)\n        (fn1 x)\n        (fn0 x -xs-)))))\n\n  (def! apply-on (fn* (& xs)\n    (step-into-list\n      xs\n      (fn* (arguments -xs-) (apply (car -xs-) arguments))\n      (fn* (arguments) (fn* (f) (apply f arguments))))))\n\n  (def! reduce (fn* (f seed xs)\n      (if (empty? xs)\n        seed\n        (reduce f (f seed (car xs)) (cdr xs)))))\n\n  (def! filter (fn* (predicate xs)\n    (reverse\n      (reduce\n        (fn* (memo x)\n          (if (predicate x)\n            (cons x memo)\n            memo))\n        '()\n        xs))))\n\n  (def! map (fn* (f xs)\n    (reverse (reduce (fn* (memo x) (cons (f x) memo)) '() xs))))\n\n  (def! every?  (fn* (pred xs)\n    (if (empty? xs)\n      true\n      (if (pred (car xs))\n        (every? pred (cdr xs))\n        false))))\n\n  (def! some?  (fn* (pred xs)\n    (if (empty? xs)\n      false\n      (if (pred (car xs))\n        true\n        (some? pred (cdr xs))))))\n\n  (def! letmemrec* (macro* (alias expr)\n    `(let* (~(car alias) (memfix* (fn* (~(car alias)) ~(_1 alias)))) ~expr)))\n\n  (def! skip (fn* (nbr xs)\n    (letrec* (-skip- (fn* (ys)\n      (let* (nbr (car ys)\n             xs  (_1 ys))\n        (cond\n          (= 0 nbr) xs\n          (= 1 nbr) (cdr xs)\n          \"default\" (-skip- (list (decr nbr) (cdr xs)))))))\n      (-skip- (list nbr xs)))))\n\n  (def! invokable? (fn* (x) (or (function? x) (macro? x))))\n\n  (def! . (macro* (x key & xs)\n    (if (empty? xs)\n      `(get ~x ~key)\n      `((get ~x ~key) ~@xs))))\n\n  (def! .. (fn* (lo hi)\n    (letrec* (-..- (fn* (xs)\n      (let* (lo     (_0 xs)\n             hi     (_1 xs)\n             -list- (_2 xs))\n        (if (= lo hi)\n          (cons hi -list-)\n          (-..- (list lo (decr hi) (cons hi -list-)))))))\n      (-..- (list lo hi '())))))\n\n  (def! defrec! (macro* (fn-name fn-body)\n    `(def! ~fn-name (letrec* (~fn-name ~fn-body) ~fn-name))))\n\n  (def! for* (macro* (loop-parameters body)\n    `(loop\n      ~(_0 loop-parameters)\n      (if ~(_1 loop-parameters)\n        nil\n        (do ~body (loop ~(_2 loop-parameters)))))))\n\n  (def! for-each (fn* (f xs)\n    (reduce\n      (fn* (memo x) (do (f x) memo))\n      nil\n      xs)))\n\n  (def! n-times (fn* (n f)\n    (loop (i 0)\n      (if (= i n)\n        nil\n        (do (f i) (loop (+ i 1)))))))\n\n  (def! tap (fn* (f x) (do (f x) x)))\n\n  (def! with-side-effect (fn* (thunk x)\n    (do (thunk) x)))\n\n  (def! thunk (macro* (form)\n    `(fn* () ~form)))\n\n  (def! call (macro* (f & xs) `(~f ~@xs)))\n\n  (def! apply (macro* (f xs) `(eval (cons ~f ~xs))))\n\n  (def! eval-string (fn* (malString) (eval (parse malString))))\n\n)";
 
-},{}],33:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 var commentSignal, comment_question_, createTokenRegex, meaningful_question_, tokenize;
 
 commentSignal = require('./commentSignal');
@@ -3412,7 +3386,7 @@ tokenize = function(sourceCode) {
 
 module.exports = tokenize;
 
-},{"./commentSignal":17}],34:[function(require,module,exports){
+},{"./commentSignal":21}],38:[function(require,module,exports){
 var parse, tokenize;
 
 parse = require('./parse');
@@ -3423,7 +3397,7 @@ module.exports = function(sourceCode) {
   return parse(tokenize(sourceCode));
 };
 
-},{"./parse":30,"./tokenize":33}],35:[function(require,module,exports){
+},{"./parse":34,"./tokenize":37}],39:[function(require,module,exports){
 var createMalAtom, createMalBoolean, createMalCoreEffectfulFunction, createMalCorePureFunction, createMalIdentifier, createMalIgnore, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNil, createMalNumber, createMalSpecialForm, createMalString, createMalSymbol, createMalUserPureFunction, createMalValue, createPredicate, create_hyphen_factory_hyphen__ampersand__hyphen_predicate, extractJsValue, malAtomType, malAtom_question_, malBoolean_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIdentifier_question_, malIgnore, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malSpecialForm_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malTypes, malUserPureFunction_question_, _createMalAtom, _createMalBoolean, _createMalList, _createMalUnit, _malUnit_question_, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
 
 createMalList = require('./linked-list').createMalList;
@@ -3535,7 +3509,7 @@ module.exports = {
   malUserPureFunction_question_: malUserPureFunction_question_
 };
 
-},{"./linked-list":29,"./types":36}],36:[function(require,module,exports){
+},{"./linked-list":33,"./types":40}],40:[function(require,module,exports){
 var malAtomType, malBooleanType, malCoreEffectfulFunctionType, malCorePureFunctionType, malIdentifierType, malIndexType, malKeywordType, malListType, malMacroType, malNumberType, malSpecialFormType, malStringType, malSymbolType, malTypes, malUnitType, malUserPureFunctionType;
 
 malTypes = [malBooleanType = 'malBooleanType', malCoreEffectfulFunctionType = 'malCoreEffectfulFunctionType', malCorePureFunctionType = 'malCorePureFunctionType', malIdentifierType = 'malIdentifierType', malIndexType = 'malIndexType', malKeywordType = 'malKeywordType', malListType = 'malListType', malMacroType = 'malMacroType', malNumberType = 'malNumberType', malSpecialFormType = 'malSpecialFormType', malStringType = 'malStringType', malSymbolType = 'malSymbolType', malUnitType = 'malUnitType', malUserPureFunctionType = 'malUserPureFunctionType', malAtomType = 'malAtomType'];
@@ -3559,14 +3533,14 @@ module.exports = {
   malUserPureFunctionType: malUserPureFunctionType
 };
 
-},{}],37:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 module.exports = {
   children: require('./src/children'),
   elements: require('./src/elements'),
   interpreter: require('./src/interpreter')
 };
 
-},{"./src/children":38,"./src/elements":39,"./src/interpreter":40}],38:[function(require,module,exports){
+},{"./src/children":42,"./src/elements":43,"./src/interpreter":44}],42:[function(require,module,exports){
 function childById(id) {
   return { mode: 'id', key: id }; 
 }
@@ -3603,7 +3577,7 @@ module.exports = {
   childrenByTag: identifyChildren('tag')
 };
 
-},{}],39:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 function createElement(tag) {
   return function (config) {
     if (config == null) {
@@ -3673,7 +3647,7 @@ for (var tagName in tags) {
 
 module.exports = elementFactories;
 
-},{}],40:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 function createAndAttachElement(parent, config) {
   if (Object.prototype.toString.call(config) === '[object String]') {
     parent.innerText = config;
@@ -3867,4 +3841,4 @@ module.exports = {
   modifyElement: modifyElement,
 };
 
-},{}]},{},[15]);
+},{}]},{},[19]);

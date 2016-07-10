@@ -28,6 +28,7 @@ function getMatches(prefix, words) {
 }
 
 initialize({
+  nodeId: 'viewport',
   promptLabel: promptLabel,
   transform: interpretLisp,
   getCandidates: getCandidates
