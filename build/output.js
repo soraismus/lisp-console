@@ -7,115 +7,19 @@ module.exports = require('./tinkerbox').interpreter;
 },{"./tinkerbox":3}],3:[function(require,module,exports){
 module.exports = require('../../tinkerbox/index');
 
-},{"../../tinkerbox/index":39}],4:[function(require,module,exports){
-var SPAN = require('../lib/elements').SPAN;
+},{"../../tinkerbox/index":45}],4:[function(require,module,exports){
+var createFrame    = require('../models/types/createFrame');
+var createPane     = require('../models/types/createPane');
+var createPrompt   = require('../models/types/createPrompt');
+var createTerminal = require('../models/types/createTerminal');
+var createViewport = require('../models/types/createViewport');
+var rerender       = require('../view/control/rerender');
+var Viewport       = require('../models/actions/viewport');
 
-var emptyString = '';
+var diff = require('../diff');
+var recreateConsole = require('../view/control/recreateConsole');
 
-var space = ' ';
-
-var _cursor = { 'jsconsole-cursor': true };
-var _header = { 'jsconsole-header': true };
-var promptText = { 'jsconsole-prompt-text': true };
-var promptTextPostCursor = { 'jsconsole-prompt-text-post-cursor': true };
-
-var display = {
-  'jsconsole-display': true,
-  'jsconsole-line-item': true
-};
-
-var oldPrompt = {
-  'jsconsole-old-prompt': true,
-  'jsconsole-line-item': true
-};
-
-var oldPromptResponse = {
-  'jsconsole-old-prompt-response': true,
-  'jsconsole-line-item': true
-};
-
-var _prompt = {
-  'jsconsole-prompt': true
-};
-
-function createDisplay(text) {
-  return SPAN(
-    { classes: display, style: { 'font-weight': 'normal' }},
-    SPAN(null, text + '\n'));
-}
-
-function createOldPrompt(text) {
-  return SPAN(
-    { classes: oldPrompt, style: { 'font-weight': 'normal' }},
-    SPAN(null, text + '\n'));
-}
-
-function createOldPromptReply(text) {
-  return SPAN(
-    { classes: oldPromptResponse },
-    SPAN(null, '==> ' + text + '\n'));
-}
-
-function createPrompt(promptLabel, preCursor, postCursor) {
-  preCursor = preCursor != null ? preCursor : '';
-  postCursor = postCursor != null ? postCursor : '';
-  return SPAN(
-    { classes: _prompt, style: { 'color': '#0d0' }},
-    emptySpan,
-    SPAN(
-      null,
-      SPAN(null, promptLabel),
-      SPAN({ classes: promptText }, preCursor),
-      cursor,
-      SPAN(
-        {
-          classes: promptTextPostCursor,
-          style: { 'position': 'relative' }
-        },
-        postCursor)),
-    emptySpan);
-}
-
-var cursor = SPAN(
-  {
-    classes: _cursor,
-    style: {
-      'background-color': '#999',
-      'color': 'transparent',
-      'display': 'inline',
-      'z-index': 0,
-      'position': 'absolute'
-    }
-  },
-  space);
-
-var emptySpan = SPAN(null, emptyString);
-
-var header = SPAN(
-    { classes: _header },
-    SPAN({ style: { 'color': '#0ff' }}, 'Welcome to MHLisp Console!\n'));
-
-var postCursor = SPAN({
-  classes: promptTextPostCursor,
-  style: { 'position': 'relative' }
-});
-
-module.exports = {
-  createDisplay: createDisplay,
-  createOldPrompt: createOldPrompt,
-  createOldPromptReply: createOldPromptReply,
-  createPrompt: createPrompt,
-  header: header,
-};
-
-},{"../lib/elements":1}],5:[function(require,module,exports){
-var createFrame    = require('./models/createFrame');
-var createPrompt   = require('./models/createPrompt');
-var createTerminal = require('./models/createTerminal');
-var createViewport = require('./models/createViewport');
-var initializeUi   = require('./initializeUi');
-var rerender       = require('./rerender');
-var Viewport       = require('./models/viewport');
+var interpreter = require('../../lib/interpreter');
 
 var a =  97;
 var e = 101;
@@ -136,6 +40,8 @@ var tab       =   9;
 var viewport = createViewport(
   createTerminal([], [], createPrompt('', '')),
   createFrame(23, 0, 0, 0));
+
+var pane = createPane(viewport);
 
 function getViewport(event, transform, getCandidates) {
   event.preventDefault();
@@ -190,113 +96,176 @@ function getViewport(event, transform, getCandidates) {
   }
 }
 
-function handleEvent(config) {
+function handleKeypress(config) {
   var nodeId        = config.nodeId;
   var promptLabel   = config.promptLabel;
   var transform     = config.transform;
   var getCandidates = config.getCandidates;
   return function (event) {
+
+    var c0 = recreateConsole({ promptLabel: promptLabel }, viewport);
+
     viewport = getViewport(event, transform, getCandidates);
-    rerender(
-      document.getElementById(nodeId),
-      { promptLabel: promptLabel },
-      viewport);
+
+    var c1 = recreateConsole({ promptLabel: promptLabel }, viewport);
+    var patch = diff(c1, c0);
+
+    interpreter.modifyElement(
+      document.getElementById('viewport').childNodes[0],
+      patch);
+
+
+    //var p0 = pane;
+    //pane = createPane(viewport);
+    //rerender( config.getRoot(), { promptLabel: promptLabel }, viewport);
+
+    
+  };
+}
+
+module.exports = handleKeypress;
+
+},{"../../lib/interpreter":2,"../diff":6,"../models/actions/viewport":10,"../models/types/createFrame":11,"../models/types/createPane":12,"../models/types/createPrompt":13,"../models/types/createTerminal":14,"../models/types/createViewport":15,"../view/control/recreateConsole":18,"../view/control/rerender":19}],5:[function(require,module,exports){
+var handleKeypress = require('./handleKeypress');
+
+module.exports = function (subscribe, config) {
+  subscribe('keypress', handleKeypress(config));
+};
+
+},{"./handleKeypress":4}],6:[function(require,module,exports){
+function copy(object) {
+  var result = {};
+  for (var key in object) {
+    if (!object.hasOwnProperty(key)) continue;
+    result[key] = object[key];
+  }
+  return result;
+}
+
+function _diff(value1, value0, index) {
+  if (value1 === value0) {
+    return { tree: [], commands: [], index: index };
+  }
+
+  var _patch;
+  var tree = [];
+  var commands = [];
+
+  if (Array.isArray(value1)) {
+    if (!Array.isArray(value0)) {
+      return {
+        tree: index,
+        commands: [['replace', value1]],
+        index: index + 1
+      };
+    }
+
+    var i = 0;
+
+    for (; i < value1.length && i < value0.length; i++) {
+      if (value1[i] !== value0[i]) {
+        _patch = _diff(value1[i], value0[i], index);
+        if (_patch.commands.length > 0) {
+          tree.push({ index: i, value: _patch.tree });
+          commands = commands.concat(_patch.commands);
+          index = index + _patch.commands.length;
+        }
+      }
+    }
+
+    for (; i < value1.length; i++) {
+      tree.push({ index: i, value: index });
+      commands.push(['insertAtEnd', value1[i]]);
+      index++;
+    }
+
+    var removals = [];
+    for (; i < value0.length; i++) {
+      removals.unshift({ index: i, value: index });
+      commands.push(['remove']);
+      index++;
+    }
+    tree = tree.concat(removals);
+
+    return { tree: tree, commands: commands, index: index + 1};
+  }
+
+  if (isObject(value1)) {
+    if (!isObject(value0)) {
+      return {
+        tree: index,
+        commands: [['replace', value1]],
+        index: index + 1
+      };
+    }
+
+    for (var key in value1) {
+      if (!value1.hasOwnProperty(key)) continue;
+      if (value0.hasOwnProperty(key)) {
+        if (value1[key] !== value0[key]) {
+          _patch = _diff(value1[key], value0[key], index);
+          if (_patch.commands.length > 0) {
+            tree.push({ index: key, value: _patch.tree });
+            commands = commands.concat(_patch.commands);
+            index = index + _patch.commands.length;
+          }
+        }
+      } else {
+        tree.push({ index: key, value: index });
+        commands.push(['setAtKey', value1[key]]);
+        index++;
+      }
+    }
+
+    for (var key in value0) {
+      if (!value1.hasOwnProperty(key)) {
+        tree.push({ index: key, value: index });
+        commands.push(['delete']);
+        index++;
+      }
+    }
+
+    return { tree: tree, commands: commands, index: index + 1};
+  }
+
+  return { tree: index, commands: [['replace', value1]], index: index + 1 };
+}
+
+function isObject(value) {
+  return {}.toString.call(value) === '[object Object]';
+}
+
+var diff = function(value1, value0) {
+  var patch = _diff(value1, value0, 0);
+  return { value: patch.tree, commands: patch.commands };
+};
+
+module.exports = diff;
+
+},{}],7:[function(require,module,exports){
+var initializeControl = require('./control/initializeControl');
+var initializeView    = require('./view/initializeView');
+
+function getRoot(nodeId) {
+  return function () {
+    return document.getElementById(nodeId);
   };
 }
 
 function initialize(config) {
-  var promptLabel = config.promptLabel;
-  initializeUi(promptLabel);
-  document.addEventListener('keypress', handleEvent(config));
+  config.getRoot = getRoot(config.nodeId);
+  initializeView(config);
+  initializeControl(subscribe, config);
+}
+
+function subscribe(eventType, eventHandler) {
+  document.addEventListener(eventType, eventHandler);
 }
 
 module.exports = initialize;
 
-},{"./initializeUi":6,"./models/createFrame":7,"./models/createPrompt":8,"./models/createTerminal":9,"./models/createViewport":10,"./models/viewport":13,"./rerender":14}],6:[function(require,module,exports){
-var components             = require('./components');
-var interpreter            = require('../lib/interpreter');
-var createAndAttachElement = interpreter.createAndAttachElement;
-var modifyElement          = interpreter.modifyElement;
-var elements               = require('../lib/elements');
-var DIV                    = elements.DIV;
-var PRE                    = elements.PRE;
-
-function initializeUi(promptLabel) {
-  createAndAttachElement(
-    document.getElementById('viewport'),
-    DIV(
-      {
-        style: {
-          'top': '0px',
-          'left': '0px',
-          'right': '0px',
-          'bottom': '0px',
-          'position': 'absolute',
-          'overflow': 'auto'
-        }
-      },
-      PRE(
-        {
-          classes: { 'jsconsole': true },
-          style: {
-            'margin': '0px',
-            'position': 'relative',
-            'min-height': '100%',
-            'box-sizing': 'border-box',
-            'padding': '10px',
-            'padding-bottom': '10px'
-          }
-        },
-        components.header,
-        components.createPrompt(promptLabel))));
-}
-
-module.exports = initializeUi;
-
-},{"../lib/elements":1,"../lib/interpreter":2,"./components":4}],7:[function(require,module,exports){
-module.exports = function (maximumSize, offset, start, promptIndex) {
-  return {
-    maximumSize: maximumSize,
-    offset: offset,
-    start: start,
-    promptIndex: promptIndex
-  };
-};
-
-},{}],8:[function(require,module,exports){
-module.exports = function (preCursor, postCursor) {
-  return {
-    preCursor: preCursor,
-    postCursor: postCursor
-  };
-};
-
-},{}],9:[function(require,module,exports){
-module.exports = function (entries, prompts, currentPrompt) {
-  return  {
-    entries: entries,
-    prompts: prompts,
-    prompt: currentPrompt
-  };
-};
-
-},{}],10:[function(require,module,exports){
-function getPrompt(terminal, frame) {
-  return frame.promptIndex === 0
-    ? terminal.prompt
-    : terminal.prompts[frame.promptIndex - 1];
-}
-
-module.exports = function (terminal, frame) {
-  return {
-    terminal: terminal,
-    frame: frame,
-    prompt: getPrompt(terminal, frame)
-  };
-};
-
-},{}],11:[function(require,module,exports){
-var create = require('./createFrame');
+},{"./control/initializeControl":5,"./view/initializeView":20}],8:[function(require,module,exports){
+var create = require('../types/createFrame');
 
 function clear(frame, terminal) {
   return create(
@@ -369,9 +338,9 @@ module.exports = {
   scrollUp: scrollUp,
 };
 
-},{"./createFrame":7}],12:[function(require,module,exports){
-var create       = require('./createTerminal');
-var createPrompt = require('./createPrompt');
+},{"../types/createFrame":11}],9:[function(require,module,exports){
+var create       = require('../types/createTerminal');
+var createPrompt = require('../types/createPrompt');
 
 function addChar(terminal, char) {
   return create(
@@ -554,10 +523,10 @@ module.exports = {
   submit: submit
 };
 
-},{"./createPrompt":8,"./createTerminal":9}],13:[function(require,module,exports){
-var create         = require('./createViewport');
-var createFrame    = require('./createFrame');
-var createTerminal = require('./createTerminal');
+},{"../types/createPrompt":13,"../types/createTerminal":14}],10:[function(require,module,exports){
+var create         = require('../types/createViewport');
+var createFrame    = require('../types/createFrame');
+var createTerminal = require('../types/createTerminal');
 var Frame          = require('./frame');
 var Terminal       = require('./terminal');
 
@@ -677,15 +646,202 @@ module.exports = {
   submit              : submit
 };
 
-},{"./createFrame":7,"./createTerminal":9,"./createViewport":10,"./frame":11,"./terminal":12}],14:[function(require,module,exports){
-var components             = require('./components');
-var interpreter            = require('../lib/interpreter');
-var createAndAttachElement = interpreter.createAndAttachElement;
-var elements               = require('../lib/elements');
-var DIV                    = elements.DIV;
-var PRE                    = elements.PRE;
+},{"../types/createFrame":11,"../types/createTerminal":14,"../types/createViewport":15,"./frame":8,"./terminal":9}],11:[function(require,module,exports){
+module.exports = function (maximumSize, offset, start, promptIndex) {
+  return {
+    maximumSize: maximumSize,
+    offset: offset,
+    start: start,
+    promptIndex: promptIndex
+  };
+};
 
-function rerender(node, prefixes, viewport) {
+},{}],12:[function(require,module,exports){
+module.exports = function (buffer, prefixes) {
+  var prompt = buffer.prompt;
+  var frame = buffer.frame;
+  var start = frame.start;
+  return {
+    entries: buffer.terminal.entries.slice(start, start + frame.offset),
+    preCursor: prompt.preCursor,
+    postCursor: prompt.postCursor
+  };
+};
+
+},{}],13:[function(require,module,exports){
+module.exports = function (preCursor, postCursor) {
+  return {
+    preCursor: preCursor,
+    postCursor: postCursor
+  };
+};
+
+},{}],14:[function(require,module,exports){
+module.exports = function (entries, prompts, currentPrompt) {
+  return  {
+    entries: entries,
+    prompts: prompts,
+    prompt: currentPrompt
+  };
+};
+
+},{}],15:[function(require,module,exports){
+function getPrompt(terminal, frame) {
+  return frame.promptIndex === 0
+    ? terminal.prompt
+    : terminal.prompts[frame.promptIndex - 1];
+}
+
+module.exports = function (terminal, frame) {
+  return {
+    terminal: terminal,
+    frame: frame,
+    prompt: getPrompt(terminal, frame)
+  };
+};
+
+},{}],16:[function(require,module,exports){
+var SPAN = require('../../../lib/elements').SPAN;
+
+var emptyString = '';
+
+var space = ' ';
+
+var _cursor = { 'jsconsole-cursor': true };
+var _header = { 'jsconsole-header': true };
+var promptText = { 'jsconsole-prompt-text': true };
+var promptTextPostCursor = { 'jsconsole-prompt-text-post-cursor': true };
+
+var display = {
+  'jsconsole-display': true,
+  'jsconsole-line-item': true
+};
+
+var oldPrompt = {
+  'jsconsole-old-prompt': true,
+  'jsconsole-line-item': true
+};
+
+var oldPromptResponse = {
+  'jsconsole-old-prompt-response': true,
+  'jsconsole-line-item': true
+};
+
+var _prompt = {
+  'jsconsole-prompt': true
+};
+
+function createDisplay(text) {
+  return SPAN(
+    { classes: display, style: { 'font-weight': 'normal' }},
+    SPAN(null, text + '\n'));
+}
+
+function createOldPrompt(text) {
+  return SPAN(
+    { classes: oldPrompt, style: { 'font-weight': 'normal' }},
+    SPAN(null, text + '\n'));
+}
+
+function createOldPromptReply(text) {
+  return SPAN(
+    { classes: oldPromptResponse },
+    SPAN(null, '==> ' + text + '\n'));
+}
+
+function createPrompt(promptLabel, preCursor, postCursor) {
+  preCursor = preCursor != null ? preCursor : '';
+  postCursor = postCursor != null ? postCursor : '';
+  return SPAN(
+    { classes: _prompt, style: { 'color': '#0d0' }},
+    emptySpan,
+    SPAN(
+      null,
+      SPAN(null, promptLabel),
+      SPAN({ classes: promptText }, preCursor),
+      cursor,
+      SPAN(
+        {
+          classes: promptTextPostCursor,
+          style: { 'position': 'relative' }
+        },
+        postCursor)),
+    emptySpan);
+}
+
+var cursor = SPAN(
+  {
+    classes: _cursor,
+    style: {
+      'background-color': '#999',
+      'color': 'transparent',
+      'display': 'inline',
+      'z-index': 0,
+      'position': 'absolute'
+    }
+  },
+  space);
+
+var emptySpan = SPAN(null, emptyString);
+
+var header = SPAN(
+    { classes: _header },
+    SPAN({ style: { 'color': '#0ff' }}, 'Welcome to MHLisp Console!\n'));
+
+var postCursor = SPAN({
+  classes: promptTextPostCursor,
+  style: { 'position': 'relative' }
+});
+
+module.exports = {
+  createDisplay: createDisplay,
+  createOldPrompt: createOldPrompt,
+  createOldPromptReply: createOldPromptReply,
+  createPrompt: createPrompt,
+  header: header,
+};
+
+},{"../../../lib/elements":1}],17:[function(require,module,exports){
+var components = require('./components');
+var elements   = require('../../../lib/elements');
+var DIV        = elements.DIV;
+var PRE        = elements.PRE;
+
+module.exports = function (promptLabel) {
+  return DIV(
+    {
+      style: {
+        'top': '0px',
+        'left': '0px',
+        'right': '0px',
+        'bottom': '0px',
+        'position': 'absolute',
+        'overflow': 'auto'
+      }
+    },
+    PRE(
+      {
+        classes: { 'jsconsole': true },
+        style: {
+          'margin': '0px',
+          'position': 'relative',
+          'min-height': '100%',
+          'box-sizing': 'border-box',
+          'padding': '10px',
+          'padding-bottom': '10px'
+        }
+      },
+      components.header,
+      components.createPrompt(promptLabel)));
+};
+
+},{"../../../lib/elements":1,"./components":16}],18:[function(require,module,exports){
+var components = require('../components/components');
+var elements   = require('../../../lib/elements');
+var DIV        = elements.DIV;
+var PRE        = elements.PRE;
+
+function recreateConsole (prefixes, viewport) {
   var entries = viewport.terminal.entries;
   var prompt = viewport.prompt;
   var frame = viewport.frame;
@@ -695,38 +851,36 @@ function rerender(node, prefixes, viewport) {
   var errorLabel = prefixes.errorLabel;
   var promptLabel = prefixes.promptLabel;
   var responseLabel = prefixes.responseLabel;
-  node.innerHTML = '';
-  createAndAttachElement(
-    node,
-    DIV(
+
+  return DIV(
+    {
+      style: {
+        'top': '0px',
+        'left': '0px',
+        'right': '0px',
+        'bottom': '0px',
+        'position': 'absolute',
+        'overflow': 'auto'
+      }
+    },
+    PRE(
       {
+        classes: { 'jsconsole': true },
         style: {
-          'top': '0px',
-          'left': '0px',
-          'right': '0px',
-          'bottom': '0px',
-          'position': 'absolute',
-          'overflow': 'auto'
+          'margin': '0px',
+          'position': 'relative',
+          'min-height': '100%',
+          'box-sizing': 'border-box',
+          'padding': '10px',
+          'padding-bottom': '10px'
         }
       },
-      PRE(
-        {
-          classes: { 'jsconsole': true },
-          style: {
-            'margin': '0px',
-            'position': 'relative',
-            'min-height': '100%',
-            'box-sizing': 'border-box',
-            'padding': '10px',
-            'padding-bottom': '10px'
-          }
-        },
-        components.header,
-        entries.slice(frame.start, frame.start + frame.offset).map(renderComponent.bind(null, prefixes)),
-        components.createPrompt(
-          promptLabel,
-          prompt.preCursor,
-          prompt.postCursor))));
+      components.header,
+      entries.slice(frame.start, frame.start + frame.offset).map(renderComponent.bind(null, prefixes)),
+      components.createPrompt(
+        promptLabel,
+        prompt.preCursor,
+        prompt.postCursor)));
 }
 
 function renderComponent(prefixes, component) {
@@ -747,11 +901,39 @@ function renderComponent(prefixes, component) {
   }
 }
 
+module.exports = recreateConsole;
+
+},{"../../../lib/elements":1,"../components/components":16}],19:[function(require,module,exports){
+var interpreter            = require('../../../lib/interpreter');
+var createAndAttachElement = interpreter.createAndAttachElement;
+var recreateConsole        = require('./recreateConsole');
+
+function rerender(node, prefixes, viewport) {
+  node.innerHTML = '';
+  createAndAttachElement(
+    node,
+    recreateConsole(prefixes, viewport));
+}
+
 module.exports = rerender;
 
-},{"../lib/elements":1,"../lib/interpreter":2,"./components":4}],15:[function(require,module,exports){
+},{"../../../lib/interpreter":2,"./recreateConsole":18}],20:[function(require,module,exports){
+var createConsole          = require('./components/createConsole');
+var interpreter            = require('../../lib/interpreter');
+var createAndAttachElement = interpreter.createAndAttachElement;
 
-},{}],16:[function(require,module,exports){
+function initializeView(config) {
+  createAndAttachElement(
+    config.getRoot(),
+    createConsole(config.promptLabel));
+}
+
+module.exports = initializeView;
+
+
+},{"../../lib/interpreter":2,"./components/createConsole":17}],21:[function(require,module,exports){
+
+},{}],22:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -872,7 +1054,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],17:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 var initialize    = require('../../jsconsole/src/initialize');
 var interpretLisp = require('../../mhlisp-copy/build/interpret');
 
@@ -909,7 +1091,7 @@ initialize({
   getCandidates: getCandidates
 });
 
-},{"../../jsconsole/src/initialize":5,"../../mhlisp-copy/build/interpret":28}],18:[function(require,module,exports){
+},{"../../jsconsole/src/initialize":7,"../../mhlisp-copy/build/interpret":34}],24:[function(require,module,exports){
 var commentSignal, evaluate, _process;
 
 commentSignal = require('./commentSignal');
@@ -941,14 +1123,14 @@ _process = function(transform) {
 
 module.exports = _process;
 
-},{"./commentSignal":19,"./evaluate":25}],19:[function(require,module,exports){
+},{"./commentSignal":25,"./evaluate":31}],25:[function(require,module,exports){
 var comment;
 
 comment = {};
 
 module.exports = comment;
 
-},{}],20:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 var addEnv, getLast, lookup, set, setMainEnv, unset, unsetMainEnv;
 
 addEnv = function(envStack, newEnv) {
@@ -1003,7 +1185,7 @@ module.exports = {
   unsetMainEnv: unsetMainEnv
 };
 
-},{}],21:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 var add, contains_question_, createMalBoolean, createMalCorePureFunction, createMalIdentifier, createMalIndex, createMalNumber, createMalString, dissoc, divide, exponentiate, extractJsValue, fromArray, functionsOnJsValues, get, getEnvironment, greaterThan, greaterThanOrEqual, index, jsNaN_question_, jsNumber_question_, jsString_question_, keys, length, lessThan, lessThanOrEqual, lift, malNil, mod, multiply, negate, parseNumber, reduce, setCoreFnsOnJsValues_bang_, subtract, toArray, vals,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
@@ -1238,7 +1420,7 @@ functionsOnJsValues = {
 
 module.exports = getEnvironment;
 
-},{"./js-utilities":29,"./linked-list":31,"./type-utilities":37}],22:[function(require,module,exports){
+},{"./js-utilities":35,"./linked-list":37,"./type-utilities":43}],28:[function(require,module,exports){
 (function (process){
 var append, areEqual, assoc, atom, atom_question_, boolean_question_, car, cdr, circumpendQuotes, concat, cons, coreFn_question_, count, createMalAtom, createMalBoolean, createMalCorePureFunction, createMalIndex, createMalList, createMalNumber, createMalString, createMalSymbol, createPredicate, deref, drop, empty_question_, equal_question_, extractJsValue, false_question_, first, fromArray, function_question_, functionsOnMalValues, getEnvironment, ignoreIfTrue, ignoreUnlessTrue, ignore_bang_, interpret, last, list, list_question_, macro_question_, malAtom_question_, malBoolean_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIgnore, malIndex_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malUserPureFunction_question_, meta, next, nil_question_, nth, number_question_, prepend, prettyString, read, recurse, reduce, reset, rest, reverse, serialize, set, setCoreFnsOnMalValues_bang_, slurp, string, string_question_, stripQuotes, symbol, symbol_question_, take, time_hyphen_ms, toArray, toPartialArray, true_question_, typeOf, userFn_question_, withMeta, write, _car, _cdr, _concat, _drop, _empty_question_, _interpret, _last, _not, _prStr, _quit_, _ref, _reverse, _take, _throw,
   __slice = [].slice,
@@ -1746,7 +1928,7 @@ functionsOnMalValues = {
 module.exports = getEnvironment;
 
 }).call(this,require('_process'))
-},{"./interpret":28,"./js-utilities":29,"./linked-list":31,"./serialize":33,"./type-utilities":37,"_process":16,"fs":15}],23:[function(require,module,exports){
+},{"./interpret":34,"./js-utilities":35,"./linked-list":37,"./serialize":39,"./type-utilities":43,"_process":22,"fs":21}],29:[function(require,module,exports){
 var createMalCoreEffectfulFunction, displayEffectsOnMalValues, getEnvironment, serialize, setCoreEffectfulFnsOnMalValues_bang_, toArray, _prStr,
   __hasProp = {}.hasOwnProperty;
 
@@ -1795,7 +1977,7 @@ displayEffectsOnMalValues = {
 
 module.exports = getEnvironment;
 
-},{"./linked-list":31,"./serialize":33,"./type-utilities":37}],24:[function(require,module,exports){
+},{"./linked-list":37,"./serialize":39,"./type-utilities":43}],30:[function(require,module,exports){
 var car, createMalCorePureFunction, createMalList, createMalSymbol, extractJsValue, fromArray, fromMalIndex, getEnvironment, malList_question_, setCoreFnsOnMalValues_bang_, stripQuotes, toArray, toPartialArray, tokenizeAndParse, _process, _process_,
   __hasProp = {}.hasOwnProperty;
 
@@ -1886,7 +2068,7 @@ _process_ = _process(function(malVal) {
 
 module.exports = getEnvironment;
 
-},{"./_process":18,"./index-utilities":27,"./linked-list":31,"./tokenizeAndParse":36,"./type-utilities":37}],25:[function(require,module,exports){
+},{"./_process":24,"./index-utilities":33,"./linked-list":37,"./tokenizeAndParse":42,"./type-utilities":43}],31:[function(require,module,exports){
 var addEnv, car, catch_asterisk_, cdr, circumpendQuotes, commentSignal, createFn, createLocalEnv, createMacro, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNumber, createMalString, createMalSymbol, createMalUserPureFunction, def_bang_, defineNewValue, empty_question_, evalQuasiquotedExpr, evaluate, expandMacro, expand_hyphen_macro, extractJsValue, filter, fn_asterisk_, forEach, fromArray, fromJsObjects, fromMalIndex, ignorable_question_, jsString_question_, keyword_question_, let_asterisk_, letrec_asterisk_, lookup, macro_asterisk_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malSymbol_question_, malUserPureFunction_question_, map, next, quasiquote, quote, recurse, reduce, reduceBy2, reduceLet_asterisk_, reduceLetrec_asterisk_, reverse, setMainEnv, splat, spliceUnquote, spliceUnquote_question_, spliceUnquotedExpr_question_, toPartialArray, try_asterisk_, undef_bang_, undefineValue, unquote, unquote_question_, unquotedExpr_question_, unsetMainEnv, _do, _eval, _evalWithEnv, _evaluate, _getCurrentEnv, _getDefaultEnv, _if,
   __hasProp = {}.hasOwnProperty;
 
@@ -2278,7 +2460,7 @@ unquotedExpr_question_ = function(malValue) {
 
 module.exports = evaluate;
 
-},{"./commentSignal":19,"./env-utilities":20,"./index-utilities":27,"./js-utilities":29,"./keyTokens":30,"./linked-list":31,"./type-utilities":37}],26:[function(require,module,exports){
+},{"./commentSignal":25,"./env-utilities":26,"./index-utilities":33,"./js-utilities":35,"./keyTokens":36,"./linked-list":37,"./type-utilities":43}],32:[function(require,module,exports){
 var getLispEnvironment, setEnv0_bang_, setEnv1_bang_, setEnv2_bang_, setEnv3_bang_;
 
 setEnv0_bang_ = require('./env0');
@@ -2306,7 +2488,7 @@ getLispEnvironment = function(config) {
 
 module.exports = getLispEnvironment;
 
-},{"./env0":21,"./env1":22,"./env2":23,"./env3":24}],27:[function(require,module,exports){
+},{"./env0":27,"./env1":28,"./env2":29,"./env3":30}],33:[function(require,module,exports){
 var createMalIndex, fromJsObjects, fromMalIndex, jsString_question_,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
@@ -2365,7 +2547,7 @@ module.exports = {
   fromMalIndex: fromMalIndex
 };
 
-},{"./js-utilities":29,"./type-utilities":37}],28:[function(require,module,exports){
+},{"./js-utilities":35,"./type-utilities":43}],34:[function(require,module,exports){
 var circumpendQuotes, createMalString, encapsulate, environment, error, flattenIfNecessary, fromArray, getLispEnvironment, interpret, serialize, standardFnsAndMacros, tokenizeAndParse, _createMalString, _interpret, _process, _serialize,
   __hasProp = {}.hasOwnProperty;
 
@@ -2460,7 +2642,7 @@ interpret(standardFnsAndMacros);
 
 module.exports = interpret;
 
-},{"./_process":18,"./getLispEnvironment":26,"./js-utilities":29,"./linked-list":31,"./serialize":33,"./standard-fns-and-macros":34,"./tokenizeAndParse":36,"./type-utilities":37}],29:[function(require,module,exports){
+},{"./_process":24,"./getLispEnvironment":32,"./js-utilities":35,"./linked-list":37,"./serialize":39,"./standard-fns-and-macros":40,"./tokenizeAndParse":42,"./type-utilities":43}],35:[function(require,module,exports){
 var circumpendQuotes, jsNaN_question_, jsNumber_question_, jsString_question_;
 
 circumpendQuotes = function(jsString) {
@@ -2486,7 +2668,7 @@ module.exports = {
   jsString_question_: jsString_question_
 };
 
-},{}],30:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 var binaryGlyphTokens, catch_asterisk_, def_bang_, deref, derefGlyph, expand_hyphen_macro, fn_asterisk_, glyphTokens, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, indexEnd, indexStart, keyTokens, keyword_question_, keywords, let_asterisk_, letrec_asterisk_, listEnd, listStart, macroTokens, macro_asterisk_, nil, quasiquote, quasiquoteGlyph, quote, quoteGlyph, splat, spliceUnquote, spliceUnquoteGlyph, try_asterisk_, undef_bang_, unquote, unquoteGlyph, _do, _eval, _evalWithEnv, _false, _getCurrentEnv, _getDefaultEnv, _if, _process, _true,
   __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
@@ -2553,7 +2735,7 @@ module.exports = {
   unquoteGlyph: unquoteGlyph
 };
 
-},{}],31:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 var EOL, car, cdr, concat, cons, copy, createMalList, createNode, drop, empty_question_, equal_question_, filter, forEach, fromArray, last, lastTail, malListType, malTypes, map, next, recurse, reduce, reduceBy2, reverse, take, toArray, toPartialArray, zip, _EOL,
   __slice = [].slice;
 
@@ -2823,7 +3005,7 @@ module.exports = {
   toPartialArray: toPartialArray
 };
 
-},{"./types":38}],32:[function(require,module,exports){
+},{"./types":44}],38:[function(require,module,exports){
 var atomize, binaryGlyphIndex, binaryGlyphTokens, binaryGlyph_question_, boolean_question_, comment, createMalBoolean, createMalIdentifier, createMalIgnore, createMalIndex, createMalList, createMalNil, createMalNumber, createMalString, createMalSymbol, deref, derefGlyph, extractJsValue, float_question_, glyphIndex, glyphTokens, glyph_question_, identifer_question_, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, ignore_question_, indexEnd, indexStart, indexStart_question_, integer_question_, keyTokens, listEnd, listStart, listStart_question_, nil, nil_question_, parse, parseBinaryGlyph, parseBoolean, parseFloat10, parseGlyph, parseIndex, parseInt10, parseList, quasiquote, quasiquoteGlyph, quote, quoteGlyph, reverse, spliceUnquote, spliceUnquoteGlyph, startsWith_question_, string_question_, stripUnderscores, unquote, unquoteGlyph, _false, _parse, _true,
   __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
@@ -3076,7 +3258,7 @@ identifer_question_ = startsWith_question_(':');
 
 module.exports = parse;
 
-},{"./commentSignal":19,"./keyTokens":30,"./linked-list":31,"./type-utilities":37}],33:[function(require,module,exports){
+},{"./commentSignal":25,"./keyTokens":36,"./linked-list":37,"./type-utilities":43}],39:[function(require,module,exports){
 var adjoinMalValue, commentSignal, coreEffectfulFunctionLabel, corePureFunctionLabel, extractJsValue, ignoreLabel, indexEnd, indexStart, keywordLabel, listEnd, listStart, macroLabel, malAtom_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIdentifier_question_, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil_question_, malString_question_, malUserPureFunction_question_, nilLabel, reduce, serialize, serializeAtom, serializeIdentifier, serializeIndex, serializeList, serializeString, stripQuotes, userPureFunctionLabel,
   __hasProp = {}.hasOwnProperty;
 
@@ -3241,10 +3423,10 @@ userPureFunctionLabel = '<function>';
 
 module.exports = serialize;
 
-},{"./commentSignal":19,"./keyTokens":30,"./linked-list":31,"./type-utilities":37}],34:[function(require,module,exports){
+},{"./commentSignal":25,"./keyTokens":36,"./linked-list":37,"./type-utilities":43}],40:[function(require,module,exports){
 module.exports = "(do\n  (def! fix*\n    (fn* (f)\n      ( (fn* (x) (f (fn* (& ys) (apply (x x) ys))))\n        (fn* (x) (f (fn* (& ys) (apply (x x) ys)))))))\n\n  (def! memfix*\n    (fn* (f)\n      (let* (cache {})\n        (\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          cache))))\n\n  (def! _0 car)\n  (def! _1 (fn* (xs) (nth 1 xs)))\n  (def! _2 (fn* (xs) (nth 2 xs)))\n\n  (def! swap! (macro* (atom & xs)\n    (if (empty? xs)\n      atom\n      `(let* (-atom- ~atom)\n        (do\n          (reset! -atom- (~(car xs) (deref -atom-) ~@(cdr xs)))\n          (deref -atom-))))))\n\n  (def! *gensym-counter* (atom 0))\n\n  (def! gensym (fn* ()\n    (symbol (str \"G__\" (swap! *gensym-counter* incr)))))\n\n  (def! or (macro* (& xs)\n    (if (empty? xs)\n      false\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query- \n            ~-query-\n            (or ~@(cdr xs))))))))\n\n  (def! and (macro* (& xs)\n    (if (empty? xs)\n      true\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query-\n            (and ~@(cdr xs))\n            false))))))\n\n  (def! cond (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (if (empty? (cdr xs))\n        (throw \"`cond` requires an even number of forms.\")\n        (let* (-query- (gensym))\n          `(let* (~-query- ~(car xs))\n            (if ~-query-\n              ~(_1 xs)\n              (cond ~@(cdr (cdr xs))))))))))\n\n  (def! loop (macro* (form0 form1)\n    `(let* (loop (memfix* (fn* (loop) (fn* (~(_0 form0)) ~form1)))) (loop ~(_1 form0)))))\n\n  (def! -> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                forms  (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~(car form) ~x ~@(cdr form)))\n                (list form x))\n              `(-> (-> ~x ~form) ~@forms))))))))\n\n  (def! ->> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                 forms (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~@form  ~x))\n                (list form x))\n              `(->> (->> ~x ~form) ~@forms))))))))\n\n  (def! ->* (macro* (& xs) `(fn* (-x-) (-> -x- ~@xs))))\n\n  (def! ->>* (macro* (& xs) `(fn* (-x-) (->> -x- ~@xs))))\n\n  (def! not (fn* (x) (if x false true)))\n  (def! incr  (->* (+ 1)))\n  (def! decr  (->* (- 1)))\n  (def! zero? (->* (= 0)))\n\n  (def! identity (fn* (x) x))\n\n  (def! constant-fn (fn* (x) (fn* (y) x)))\n\n  (def! call-on (fn* (& xs) (fn* (fn) (apply fn xs))))\n\n  (def! step-into-list (fn* (xs fn0 fn1)\n    (let* (x   (car xs)\n          -xs- (cdr xs))\n      (if (empty? -xs-)\n        (fn1 x)\n        (fn0 x -xs-)))))\n\n  (def! apply-on (fn* (& xs)\n    (step-into-list\n      xs\n      (fn* (arguments -xs-) (apply (car -xs-) arguments))\n      (fn* (arguments) (fn* (f) (apply f arguments))))))\n\n  (def! reduce (fn* (f seed xs)\n      (if (empty? xs)\n        seed\n        (reduce f (f seed (car xs)) (cdr xs)))))\n\n  (def! filter (fn* (predicate xs)\n    (reverse\n      (reduce\n        (fn* (memo x)\n          (if (predicate x)\n            (cons x memo)\n            memo))\n        '()\n        xs))))\n\n  (def! map (fn* (f xs)\n    (reverse (reduce (fn* (memo x) (cons (f x) memo)) '() xs))))\n\n  (def! every?  (fn* (pred xs)\n    (if (empty? xs)\n      true\n      (if (pred (car xs))\n        (every? pred (cdr xs))\n        false))))\n\n  (def! some?  (fn* (pred xs)\n    (if (empty? xs)\n      false\n      (if (pred (car xs))\n        true\n        (some? pred (cdr xs))))))\n\n  (def! letmemrec* (macro* (alias expr)\n    `(let* (~(car alias) (memfix* (fn* (~(car alias)) ~(_1 alias)))) ~expr)))\n\n  (def! skip (fn* (nbr xs)\n    (letrec* (-skip- (fn* (ys)\n      (let* (nbr (car ys)\n             xs  (_1 ys))\n        (cond\n          (= 0 nbr) xs\n          (= 1 nbr) (cdr xs)\n          \"default\" (-skip- (list (decr nbr) (cdr xs)))))))\n      (-skip- (list nbr xs)))))\n\n  (def! invokable? (fn* (x) (or (function? x) (macro? x))))\n\n  (def! . (macro* (x key & xs)\n    (if (empty? xs)\n      `(get ~x ~key)\n      `((get ~x ~key) ~@xs))))\n\n  (def! .. (fn* (lo hi)\n    (letrec* (-..- (fn* (xs)\n      (let* (lo     (_0 xs)\n             hi     (_1 xs)\n             -list- (_2 xs))\n        (if (= lo hi)\n          (cons hi -list-)\n          (-..- (list lo (decr hi) (cons hi -list-)))))))\n      (-..- (list lo hi '())))))\n\n  (def! defrec! (macro* (fn-name fn-body)\n    `(def! ~fn-name (letrec* (~fn-name ~fn-body) ~fn-name))))\n\n  (def! for* (macro* (loop-parameters body)\n    `(loop\n      ~(_0 loop-parameters)\n      (if ~(_1 loop-parameters)\n        nil\n        (do ~body (loop ~(_2 loop-parameters)))))))\n\n  (def! for-each (fn* (f xs)\n    (reduce\n      (fn* (memo x) (do (f x) memo))\n      nil\n      xs)))\n\n  (def! n-times (fn* (n f)\n    (loop (i 0)\n      (if (= i n)\n        nil\n        (do (f i) (loop (+ i 1)))))))\n\n  (def! tap (fn* (f x) (do (f x) x)))\n\n  (def! with-side-effect (fn* (thunk x)\n    (do (thunk) x)))\n\n  (def! thunk (macro* (form)\n    `(fn* () ~form)))\n\n  (def! call (macro* (f & xs) `(~f ~@xs)))\n\n  (def! apply (macro* (f xs) `(eval (cons ~f ~xs))))\n\n  (def! eval-string (fn* (malString) (eval (parse malString))))\n\n)";
 
-},{}],35:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 var commentSignal, comment_question_, createTokenRegex, meaningful_question_, tokenize;
 
 commentSignal = require('./commentSignal');
@@ -3280,7 +3462,7 @@ tokenize = function(sourceCode) {
 
 module.exports = tokenize;
 
-},{"./commentSignal":19}],36:[function(require,module,exports){
+},{"./commentSignal":25}],42:[function(require,module,exports){
 var parse, tokenize;
 
 parse = require('./parse');
@@ -3291,7 +3473,7 @@ module.exports = function(sourceCode) {
   return parse(tokenize(sourceCode));
 };
 
-},{"./parse":32,"./tokenize":35}],37:[function(require,module,exports){
+},{"./parse":38,"./tokenize":41}],43:[function(require,module,exports){
 var createMalAtom, createMalBoolean, createMalCoreEffectfulFunction, createMalCorePureFunction, createMalIdentifier, createMalIgnore, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNil, createMalNumber, createMalSpecialForm, createMalString, createMalSymbol, createMalUserPureFunction, createMalValue, createPredicate, create_hyphen_factory_hyphen__ampersand__hyphen_predicate, extractJsValue, malAtomType, malAtom_question_, malBoolean_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIdentifier_question_, malIgnore, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malSpecialForm_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malTypes, malUserPureFunction_question_, _createMalAtom, _createMalBoolean, _createMalList, _createMalUnit, _malUnit_question_, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
 
 createMalList = require('./linked-list').createMalList;
@@ -3403,7 +3585,7 @@ module.exports = {
   malUserPureFunction_question_: malUserPureFunction_question_
 };
 
-},{"./linked-list":31,"./types":38}],38:[function(require,module,exports){
+},{"./linked-list":37,"./types":44}],44:[function(require,module,exports){
 var malAtomType, malBooleanType, malCoreEffectfulFunctionType, malCorePureFunctionType, malIdentifierType, malIndexType, malKeywordType, malListType, malMacroType, malNumberType, malSpecialFormType, malStringType, malSymbolType, malTypes, malUnitType, malUserPureFunctionType;
 
 malTypes = [malBooleanType = 'malBooleanType', malCoreEffectfulFunctionType = 'malCoreEffectfulFunctionType', malCorePureFunctionType = 'malCorePureFunctionType', malIdentifierType = 'malIdentifierType', malIndexType = 'malIndexType', malKeywordType = 'malKeywordType', malListType = 'malListType', malMacroType = 'malMacroType', malNumberType = 'malNumberType', malSpecialFormType = 'malSpecialFormType', malStringType = 'malStringType', malSymbolType = 'malSymbolType', malUnitType = 'malUnitType', malUserPureFunctionType = 'malUserPureFunctionType', malAtomType = 'malAtomType'];
@@ -3427,14 +3609,14 @@ module.exports = {
   malUserPureFunctionType: malUserPureFunctionType
 };
 
-},{}],39:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 module.exports = {
   children: require('./src/children'),
   elements: require('./src/elements'),
   interpreter: require('./src/interpreter')
 };
 
-},{"./src/children":40,"./src/elements":41,"./src/interpreter":42}],40:[function(require,module,exports){
+},{"./src/children":46,"./src/elements":47,"./src/interpreter":48}],46:[function(require,module,exports){
 function childById(id) {
   return { mode: 'id', key: id }; 
 }
@@ -3471,7 +3653,7 @@ module.exports = {
   childrenByTag: identifyChildren('tag')
 };
 
-},{}],41:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 function createElement(tag) {
   return function (config) {
     if (config == null) {
@@ -3541,7 +3723,7 @@ for (var tagName in tags) {
 
 module.exports = elementFactories;
 
-},{}],42:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 function createAndAttachElement(parent, config) {
   if (Object.prototype.toString.call(config) === '[object String]') {
     parent.innerText = config;
@@ -3611,117 +3793,102 @@ function findChildren(parent, config) {
   return Array.prototype.slice.call(htmlCollection);
 }
 
-function modifyElement(node, config) {
-  if (config.classes != null) {
-    for (var op in config.classes) {
-      switch (op) {
-        case 'add':
-          for (var klass in config.classes[op]) {
-            node.classList.add(klass);
+function isNaN(value) {
+  return isNumber(value) && value !== +value;
+}
+
+function isNumber(value) {
+  return {}.toString.call(value) === '[object Number]';
+}
+
+function modifyElement(node, patch) {
+  _modifyElement(node, patch.value, patch.commands);
+}
+
+function _modifyElement(node, tree, commands) {
+  for (var i = 0; i < tree.length; i++) {
+    var key = tree[i].index;
+    var continuation = tree[i].value;
+
+  //for (var key in tree) {
+
+    switch (key) {
+      case 'id':
+        break;
+      case 'tag':
+        break;
+      case 'style':
+        for (var styleIndex = 0; styleIndex < continuation.length; styleIndex++) {
+          var style = continuation[styleIndex].index;
+          var command = commands[continuation[styleIndex].value];
+          switch (command[0]) {
+            case 'delete':
+              node.style.removeProperty(style);
+              break;
+            case 'replace':
+            case 'setAtKey':
+              node.style[style] = command[1];
+              break;
           }
-          break;
-        case 'remove':
-          for (var klass in config.classes[op]) {
-            node.classList.remove(klass);
+        }
+        break;
+
+      case 'attribs':
+        for (var attribIndex = 0; attribIndex < continuation.length; attribIndex++) {
+          var attrib = continuation[attribIndex].index;
+          var command = commands[continuation[attribIndex].value];
+          switch (command[0]) {
+            case 'delete':
+              node.attributes.removeNamedItem(attrib);
+              break;
+            case 'replace':
+            case 'setAtKey':
+              node.setAttribute(attrib, command[1]);
+              break;
           }
-          break;
-        default:
-          throw new Error('invalid \"modifyElement.classes\" mode');
-      }
-    }
-  }
-  if (config.attribs != null) {
-    for (var op in config.attribs) {
-      switch (op) {
-        case 'set':
-          for (var attribKey in config.attribs[op]) {
-            node.setAttribute(attribKey, config.attribs[op][attribKey]);
+        }
+        break;
+
+      case 'classes':
+        for (var classIndex = 0; classIndex < continuation.length; classIndex++) {
+          var _class = continuation[classIndex].index;
+          var command = commands[continuation[classIndex].value];
+          switch (command[0]) {
+            case 'delete':
+              node.classList.remove(_class);
+              break;
+            case 'setAtKey':
+              node.classList.add(_class);
+              break;
           }
-          break;
-        case 'unset':
-          for (var attribKey in config.attribs[op]) {
-            node.attributes.removeNamedItem(attribKey);
-          }
-          break;
-        default:
-          throw new Error('invalid \"modifyElement.attribs\" mode');
-      }
-    }
-  }
-  if (config.style != null) {
-    for (var op in config.style) {
-      switch (op) {
-        case 'set':
-          for (var styleKey in config.style[op]) {
-            node.style[styleKey] = config.style[op][styleKey];
-          }
-          break;
-        case 'unset':
-          for (var styleKey in config.style[op]) {
-            node.style.removeProperty(styleKey);
-          }
-          break;
-        default:
-          throw new Error('invalid \"modifyElement.style\" mode');
-      }
-    }
-  }
-  if (config.children != null) {
-    for (var op in config.children) {
-      switch (op) {
-        case 'add':
-          for (var index in config.children[op]) {
-            createAndAttachElement(node, config.children[op][index]);
-          }
-          break;
-        case 'modify':
-          for (var index in config.children[op]) {
-            modifyElement(
-              findChild(node, config.children[op][index].child),
-              config.children[op][index].changes);
-          }
-          break;
-        case 'remove':
-          for (var index in config.children[op]) {
-            removeNode(findChild(node, config.children[op][index]));
-          }
-          break;
-        case 'removeAll':
-          var children = findChildren(node, config.children[op]);
-          for (var index in children) {
-            removeNode(children[index]);
-          }
-          break;
-        default:
-          throw new Error('invalid \"modifyElement.children\" mode');
-      }
-    }
-  }
-  if (config.text != null) {
-    for (var op in config.text) {
-      switch (op) {
-        case 'append':
-          node.innerText += config.text[op];
-          break;
-        case 'erase':
-          node.innerText = '';
-          break;
-        case 'prepend':
-          node.innerText = config.text[op] + node.innerText;
-          break;
-        case 'replace':
-          node.innerText = config.text[op];
-          break;
-        case 'slice':
-          if (config.text[op].end == null) {
-            node.innerText = node.innerText.slice(config.text[op].start);
+        }
+        break;
+
+      case 'children':
+        for (var childIndex = 0; childIndex < continuation.length; childIndex++) {
+          var child = continuation[childIndex].index;
+          var childContinuation = continuation[childIndex].value;
+          if (isNaN(parseInt(childContinuation, 10))) {
+            _modifyElement(node.childNodes[child], childContinuation, commands);
           } else {
-            node.innerText = node.innerText.slice(config.text[op].start, config.text[op].end);
+            var command = commands[childContinuation]
+            switch (command[0]) {
+              case 'delete':
+              case 'remove':
+                removeNode(findChild(node, { mode: 'index', key: child }));
+                break;
+              case 'replace':     // ?
+                //node.innerText = command[1];
+                createAndAttachElement(node, command[1]);
+                break;
+              case 'insertAtEnd': // ?
+              case 'setAtKey':    // ?
+                createAndAttachElement(node, command[1]);
+                break;
+            }
           }
-          break;
-        default:
-          throw new Error('invalid \"modifyElement.text\" mode');
-      }
+        }
+        break;
     }
   }
 }
@@ -3735,4 +3902,4 @@ module.exports = {
   modifyElement: modifyElement,
 };
 
-},{}]},{},[17]);
+},{}]},{},[23]);
