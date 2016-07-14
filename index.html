@@ -9,18 +9,34 @@
         padding: 0;
       }
       #viewport {
+        height: 80%;
+        width: 90%;
+        margin-top: 5%;
         /*
-          height: 80%;
-          width: 90%;
-          margin-top: 5%;
+          height: 400px;
+          width: 750px;
+          margin-top: 50px;
         */
-        height: 400px;
-        width: 750px;
         position:relative;
         background-color: black;
         border: 2px solid #CCC;
-        margin: 0 auto;
-        margin-top: 50px;
+        margin: 20 auto;
+      }
+      #view {
+        top: 0px;
+        left: 0px;
+        right: 0px;
+        bottom: 0px;
+        position: absolute;
+        overflow: auto;
+      }
+      #jsconsole {
+        margin: 0px;
+        position: relative;
+        min-height: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+        overflow: auto;
       }
     </style>
   </head>
