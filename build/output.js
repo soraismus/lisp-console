@@ -7,7 +7,7 @@ module.exports = require('./tinkerbox').interpreter;
 },{"./tinkerbox":3}],3:[function(require,module,exports){
 module.exports = require('../../tinkerbox/index');
 
-},{"../../tinkerbox/index":48}],4:[function(require,module,exports){
+},{"../../tinkerbox/index":45}],4:[function(require,module,exports){
 var Viewport = require('../models/actions/viewport');
 
 function getViewport(action, config) {
@@ -29,15 +29,14 @@ function getViewport(action, config) {
 
 module.exports = getViewport;
 
-},{"../models/actions/viewport":11}],5:[function(require,module,exports){
+},{"../models/actions/viewport":10}],5:[function(require,module,exports){
 var getViewport       = require('./getViewport');
 var interpretKeypress = require('./interpretKeypress');
 
-function initializeControl(subscribe, rerender, config) {
+function initializeControl(subscribe, render, config) {
   var handleEvent = function (getAction) {
     return function (event) {
-      var action = getAction(event);
-      rerender(action, getViewport(action, config));
+      render(getViewport(getAction(event), config));
     };
   }
 
@@ -112,120 +111,20 @@ function wrap(actionName) {
 module.exports = interpretKeypress;
 
 },{}],7:[function(require,module,exports){
-function copy(object) {
-  var result = {};
-  for (var key in object) {
-    if (!object.hasOwnProperty(key)) continue;
-    result[key] = object[key];
-  }
-  return result;
-}
-
-function _diff(value1, value0, index) {
-  if (value1 === value0) {
-    return { tree: [], commands: [], index: index };
-  }
-
-  var _patch;
-  var tree = [];
-  var commands = [];
-
-  if (Array.isArray(value1)) {
-    if (!Array.isArray(value0)) {
-      return {
-        tree: index,
-        commands: [['replace', value1]],
-        index: index + 1
-      };
-    }
-
-    var i = 0;
-
-    for (; i < value1.length && i < value0.length; i++) {
-      if (value1[i] !== value0[i]) {
-        _patch = _diff(value1[i], value0[i], index);
-        if (_patch.commands.length > 0) {
-          tree.push({ index: i, value: _patch.tree });
-          commands = commands.concat(_patch.commands);
-          index = index + _patch.commands.length;
-        }
-      }
-    }
-
-    for (; i < value1.length; i++) {
-      tree.push({ index: i, value: index });
-      commands.push(['insertAtEnd', value1[i]]);
-      index++;
-    }
-
-    var removals = [];
-    for (; i < value0.length; i++) {
-      removals.unshift({ index: i, value: index });
-      commands.push(['remove']);
-      index++;
-    }
-    tree = tree.concat(removals);
-
-    return { tree: tree, commands: commands, index: index + 1};
-  }
-
-  if (isObject(value1)) {
-    if (!isObject(value0)) {
-      return {
-        tree: index,
-        commands: [['replace', value1]],
-        index: index + 1
-      };
-    }
-
-    for (var key in value1) {
-      if (!value1.hasOwnProperty(key)) continue;
-      if (value0.hasOwnProperty(key)) {
-        if (value1[key] !== value0[key]) {
-          _patch = _diff(value1[key], value0[key], index);
-          if (_patch.commands.length > 0) {
-            tree.push({ index: key, value: _patch.tree });
-            commands = commands.concat(_patch.commands);
-            index = index + _patch.commands.length;
-          }
-        }
-      } else {
-        tree.push({ index: key, value: index });
-        commands.push(['setAtKey', value1[key]]);
-        index++;
-      }
-    }
-
-    for (var key in value0) {
-      if (!value1.hasOwnProperty(key)) {
-        tree.push({ index: key, value: index });
-        commands.push(['delete']);
-        index++;
-      }
-    }
-
-    return { tree: tree, commands: commands, index: index + 1};
-  }
-
-  return { tree: index, commands: [['replace', value1]], index: index + 1 };
-}
-
-function isObject(value) {
-  return {}.toString.call(value) === '[object Object]';
-}
-
-var diff = function(value1, value0) {
-  var patch = _diff(value1, value0, 0);
-  return { value: patch.tree, commands: patch.commands };
-};
-
-module.exports = diff;
-
-},{}],8:[function(require,module,exports){
 var getInitialModel   = require('./models/getInitialModel');
 var initializeControl = require('./control/initializeControl');
 var initializeView    = require('./view/initializeView');
-var rerender          = require('./view/control/rerender');
+
+var diff            = require('./view/control/diff');
+var modifyElement   = require('./../lib/interpreter').modifyElement;
+var recreateConsole = require('./view/control/recreateConsole');
+
+var createConsole          = require('./view/components/createConsole');
+
+function getCursorOffset(cursor, viewport) {
+  var margin = 5;
+  return cursor.offsetLeft + cursor.offsetWidth + margin - viewport.offsetWidth;
+}
 
 function initialize(config) {
   var getCandidates = config.getCandidates;
@@ -233,33 +132,41 @@ function initialize(config) {
   var promptLabel = config.promptLabel;
   var transform = config.transform;
 
-  var getRoot = function () {
-    return document.getElementById(nodeId);
-  };
+  var root = document.getElementById(nodeId);
+  var viewModel = createConsole(promptLabel);
 
-  var viewConfig = {
-    promptLabel: promptLabel,
-    getRoot: getRoot
-  };
+  initializeView(root, viewModel);
 
-  initializeView(viewConfig);
+  // ----------------------------------------------------------------------
+  var rootChild = root.childNodes[0];
+
+  var getCursor = function () {
+    return root.getElementsByClassName('jsconsole-cursor')[0];
+  };
 
   var controlConfig = {
     getCandidates: getCandidates,
-    getCursor: function () {
-      return getRoot().getElementsByClassName('jsconsole-cursor')[0];
-    },
-    getViewport: function () {
-      return getRoot().childNodes[0];
-    },
     promptLabel: promptLabel,
     transform: transform,
     viewport: getInitialModel()
   };
 
-  var _rerender = rerender(promptLabel, controlConfig);
+  var render = function (model) {
+    var _promptLabel = { promptLabel: promptLabel };
+    var newViewModel = recreateConsole(_promptLabel, model);
+    modifyElement(rootChild, diff(newViewModel, viewModel));
+    scroll(rootChild, getCursorOffset(getCursor(), rootChild));
+    controlConfig.viewport = model;
+    viewModel = newViewModel;
+  };
 
-  initializeControl(subscribe, _rerender, controlConfig);
+  initializeControl(subscribe, render, controlConfig);
+  // ----------------------------------------------------------------------
+}
+
+function scroll(node, cursorOffset) {
+  node.scrollTop = node.scrollHeight - node.clientHeight;
+  node.scrollLeft = cursorOffset;
 }
 
 function subscribe(eventType, eventHandler) {
@@ -275,7 +182,7 @@ function supressDefault(handleEvent) {
 
 module.exports = initialize;
 
-},{"./control/initializeControl":5,"./models/getInitialModel":12,"./view/control/rerender":22,"./view/initializeView":23}],9:[function(require,module,exports){
+},{"./../lib/interpreter":2,"./control/initializeControl":5,"./models/getInitialModel":11,"./view/components/createConsole":17,"./view/control/diff":18,"./view/control/recreateConsole":19,"./view/initializeView":20}],8:[function(require,module,exports){
 var create = require('../types/createFrame');
 
 function clear(frame, terminal) {
@@ -317,7 +224,7 @@ module.exports = {
   rewind: rewind,
 };
 
-},{"../types/createFrame":13}],10:[function(require,module,exports){
+},{"../types/createFrame":12}],9:[function(require,module,exports){
 var create       = require('../types/createTerminal');
 var createPrompt = require('../types/createPrompt');
 
@@ -502,41 +409,17 @@ module.exports = {
   submit: submit
 };
 
-},{"../types/createPrompt":14,"../types/createTerminal":16}],11:[function(require,module,exports){
+},{"../types/createPrompt":13,"../types/createTerminal":14}],10:[function(require,module,exports){
 var create         = require('../types/createViewport');
 var createFrame    = require('../types/createFrame');
-var createScroll   = require('../types/createScroll');
 var createTerminal = require('../types/createTerminal');
 var Frame          = require('./frame');
 var Terminal       = require('./terminal');
 
-var compelDown = { compel: true, origin: false };
-
-var compelLeft = createScroll({
-  horizontal: { compel: true, origin: true },
-  vertical: compelDown
-});
-
-var compelRight = createScroll({
-  horizontal: { compel: true, origin: false },
-  vertical: compelDown
-});
-
-var preferRight = createScroll({
-  horizontal: { compel: false, origin: false },
-  vertical: compelDown
-});
-
-var noScroll = createScroll({
-  horizontal: false,
-  vertical: compelDown
-});
-
 function addChar(viewport, char) {
   return create(
     Terminal.addChar(viewport.terminal, char),
-    viewport.frame,
-    preferRight);
+    viewport.frame);
 }
 
 function completeWord(viewport, getCandidates) {
@@ -549,31 +432,27 @@ function completeWord(viewport, getCandidates) {
     createFrame(
       frame.offset + diff,
       frame.start,
-      0),
-    preferRight);
+      0));
 }
 
 function clear(viewport) {
   var terminal = viewport.terminal;
   return create(
     terminal,
-    Frame.clear(viewport.frame, terminal),
-    preferRight);
+    Frame.clear(viewport.frame, terminal));
 }
 
 function fastForward(viewport) {
   return create(
     viewport.terminal,
-    Frame.fastForward(viewport.frame),
-    preferRight);
+    Frame.fastForward(viewport.frame));
 }
 
 function modifyTerminal(fnName) {
   return function (viewport) {
     return create(
       Terminal[fnName](refreshTerminal(viewport)),
-      Frame.resetPromptIndex(viewport.frame),
-      preferRight);
+      Frame.resetPromptIndex(viewport.frame));
   };
 }
 
@@ -586,8 +465,7 @@ function rewind(viewport) {
   var terminal = viewport.terminal;
   return create(
     terminal,
-    Frame.rewind(viewport.frame, terminal),
-    preferRight);
+    Frame.rewind(viewport.frame, terminal));
 }
 
 function submit(viewport, transform) {
@@ -599,8 +477,7 @@ function submit(viewport, transform) {
     createFrame(
       frame.offset + diff,
       frame.start,
-      0),
-    compelLeft);
+      0));
 }
 
 module.exports = {
@@ -620,7 +497,7 @@ module.exports = {
   submit              : submit
 };
 
-},{"../types/createFrame":13,"../types/createScroll":15,"../types/createTerminal":16,"../types/createViewport":17,"./frame":9,"./terminal":10}],12:[function(require,module,exports){
+},{"../types/createFrame":12,"../types/createTerminal":14,"../types/createViewport":15,"./frame":8,"./terminal":9}],11:[function(require,module,exports){
 var createFrame    = require('./types/createFrame');
 var createPrompt   = require('./types/createPrompt');
 var createTerminal = require('./types/createTerminal');
@@ -634,7 +511,7 @@ function getInitialModel() {
 
 module.exports = getInitialModel;
 
-},{"./types/createFrame":13,"./types/createPrompt":14,"./types/createTerminal":16,"./types/createViewport":17}],13:[function(require,module,exports){
+},{"./types/createFrame":12,"./types/createPrompt":13,"./types/createTerminal":14,"./types/createViewport":15}],12:[function(require,module,exports){
 module.exports = function (offset, start, promptIndex) {
   return {
     offset: offset,
@@ -643,7 +520,7 @@ module.exports = function (offset, start, promptIndex) {
   };
 };
 
-},{}],14:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 module.exports = function (preCursor, postCursor) {
   return {
     preCursor: preCursor,
@@ -651,26 +528,7 @@ module.exports = function (preCursor, postCursor) {
   };
 };
 
-},{}],15:[function(require,module,exports){
-function createSetting(value) {
-  if (!value) {
-    return false
-  }
-
-  return {
-    compel: !value.compel ? false : true,
-    origin: !value.origin ? false : true
-  };
-}
-
-module.exports = function (config) {
-  return {
-    horizontal: createSetting(config.horizontal),
-    vertical: createSetting(config.vertical)
-  };
-};
-
-},{}],16:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 module.exports = function (entries, prompts, currentPrompt) {
   return  {
     entries: entries,
@@ -679,75 +537,22 @@ module.exports = function (entries, prompts, currentPrompt) {
   };
 };
 
-},{}],17:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 function getPrompt(terminal, frame) {
   return frame.promptIndex === 0
     ? terminal.prompt
     : terminal.prompts[frame.promptIndex - 1];
 }
 
-module.exports = function (terminal, frame, scroll) {
+module.exports = function (terminal, frame) {
   return {
     terminal: terminal,
     frame: frame,
-    prompt: getPrompt(terminal, frame),
-    scroll: scroll
+    prompt: getPrompt(terminal, frame)
   };
 };
 
-},{}],18:[function(require,module,exports){
-function scroll(node, modelState, viewState, targets) {
-  if (modelState.horizontal) {
-    var horizontal = modelState.horizontal;
-    var _scroll = horizontal.origin ? scrollLeft : scrollRight;
-    _scroll(node, !!horizontal.compel, viewState.horizontal, targets.horizontal);
-  }
-  if (modelState.vertical) {
-    var vertical = modelState.vertical;
-    var _scroll = vertical.origin ? scrollUp : scrollDown;
-    _scroll(node, !!vertical.compel, viewState.vertical, targets.vertical);
-  }
-}
-
-function scrollDown(node, compel, atEdge, target) {
-  if (compel || (atEdge && !atEdge.origin)) {
-    _scrollDown(node, target);
-  }
-}
-function scrollLeft(node, compel, atEdge, target) {
-  if (compel || (atEdge && atEdge.origin)) {
-    _scrollLeft(node, target);
-  }
-}
-function scrollRight(node, compel, atEdge, target) {
-  if (compel || (atEdge && !atEdge.origin)) {
-    _scrollRight(node, target);
-  }
-}
-function scrollUp(node, compel, atEdge, target) {
-  if (compel || (atEdge && atEdge.origin)) {
-    _scrollUp(node, target);
-  }
-}
-
-function _scrollDown(node, target) {
-  target = target == null ? node.scrollHeight - node.clientHeight : target;
-  node.scrollTop = target;
-}
-function _scrollLeft(node, target) {
-  node.scrollLeft = 0;
-}
-function _scrollRight(node, target) {
-  target = target == null ? node.scrollWidth - node.clientWidth : target;
-  node.scrollLeft = target;
-}
-function _scrollUp(node, target) {
-  node.scrollTop = 0;
-}
-
-module.exports = scroll;
-
-},{}],19:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 var SPAN = require('../../../lib/elements').SPAN;
 
 var emptyString = '';
@@ -818,6 +623,7 @@ function createPrompt(promptLabel, preCursor, postCursor) {
 
 var cursor = SPAN(
   {
+    id: 'cursor',
     classes: _cursor,
     style: {
       'background-color': '#999',
@@ -833,7 +639,7 @@ var emptySpan = SPAN(null, emptyString);
 
 var header = SPAN(
     { classes: _header },
-    SPAN({ style: { 'color': '#0ff' }}, 'Welcome to MHLisp Console!\n'));
+    SPAN({ style: { 'color': '#0ff' }}, 'Welcome to Lisp Console.\n'));
 
 var postCursor = SPAN({
   classes: promptTextPostCursor,
@@ -848,7 +654,7 @@ module.exports = {
   header: header,
 };
 
-},{"../../../lib/elements":1}],20:[function(require,module,exports){
+},{"../../../lib/elements":1}],17:[function(require,module,exports){
 var components = require('./components');
 var elements   = require('../../../lib/elements');
 var DIV        = elements.DIV;
@@ -869,7 +675,117 @@ module.exports = function (promptLabel) {
       components.createPrompt(promptLabel)));
 };
 
-},{"../../../lib/elements":1,"./components":19}],21:[function(require,module,exports){
+},{"../../../lib/elements":1,"./components":16}],18:[function(require,module,exports){
+function copy(object) {
+  var result = {};
+  for (var key in object) {
+    if (!object.hasOwnProperty(key)) continue;
+    result[key] = object[key];
+  }
+  return result;
+}
+
+function _diff(value1, value0, index) {
+  if (value1 === value0) {
+    return { tree: [], commands: [], index: index };
+  }
+
+  var _patch;
+  var tree = [];
+  var commands = [];
+
+  if (Array.isArray(value1)) {
+    if (!Array.isArray(value0)) {
+      return {
+        tree: index,
+        commands: [['replace', value1]],
+        index: index + 1
+      };
+    }
+
+    var i = 0;
+
+    for (; i < value1.length && i < value0.length; i++) {
+      if (value1[i] !== value0[i]) {
+        _patch = _diff(value1[i], value0[i], index);
+        if (_patch.commands.length > 0) {
+          tree.push({ index: i, value: _patch.tree });
+          commands = commands.concat(_patch.commands);
+          index = index + _patch.commands.length;
+        }
+      }
+    }
+
+    for (; i < value1.length; i++) {
+      tree.push({ index: i, value: index });
+      commands.push(['insertAtEnd', value1[i]]);
+      index++;
+    }
+
+    var removals = [];
+    for (; i < value0.length; i++) {
+      removals.unshift({ index: i, value: index });
+      commands.push(['remove']);
+      index++;
+    }
+    tree = tree.concat(removals);
+
+    return { tree: tree, commands: commands, index: index + 1};
+  }
+
+  if (isObject(value1)) {
+    if (!isObject(value0)) {
+      return {
+        tree: index,
+        commands: [['replace', value1]],
+        index: index + 1
+      };
+    }
+
+    for (var key in value1) {
+      if (!value1.hasOwnProperty(key)) continue;
+      if (value0.hasOwnProperty(key)) {
+        if (value1[key] !== value0[key]) {
+          _patch = _diff(value1[key], value0[key], index);
+          if (_patch.commands.length > 0) {
+            tree.push({ index: key, value: _patch.tree });
+            commands = commands.concat(_patch.commands);
+            index = index + _patch.commands.length;
+          }
+        }
+      } else {
+        tree.push({ index: key, value: index });
+        commands.push(['setAtKey', value1[key]]);
+        index++;
+      }
+    }
+
+    for (var key in value0) {
+      if (!value1.hasOwnProperty(key)) {
+        tree.push({ index: key, value: index });
+        commands.push(['delete']);
+        index++;
+      }
+    }
+
+    return { tree: tree, commands: commands, index: index + 1};
+  }
+
+  return { tree: index, commands: [['replace', value1]], index: index + 1 };
+}
+
+function isObject(value) {
+  return {}.toString.call(value) === '[object Object]';
+}
+
+var diff = function(value1, value0) {
+  var patch = _diff(value1, value0, 0);
+  return { value: patch.tree, commands: patch.commands };
+};
+
+module.exports = diff;
+
+},{}],19:[function(require,module,exports){
 var components           = require('../components/components');
 var createPrompt         = components.createPrompt;
 var createOldPrompt      = components.createOldPrompt;
@@ -925,76 +841,19 @@ function renderComponent(prefixes, component) {
 
 module.exports = recreateConsole;
 
-},{"../../../lib/elements":1,"../components/components":19}],22:[function(require,module,exports){
-var diff            = require('../../diff');
-var modifyElement   = require('../../../lib/interpreter').modifyElement;
-var recreateConsole = require('./recreateConsole');
-var scroll          = require('../../scroll');
-
-function getScrollState(viewport) {
-  var scrollLeft = viewport.scrollLeft;
-  var scrollTop = viewport.scrollTop;
-  return {
-    horizontal: scrollLeft === 0
-      ? { atEdge: { origin: true }}
-      : scrollLeft === viewport.scrollWidth - viewport.clientWidth
-        ? { atEdge: { origin: false }}
-        : { atEdge: false },
-    vertical: scrollTop === 0
-      ? { atEdge: { origin: true }}
-      : scrollTop === viewport.scrollHeight - viewport.clientHeight
-        ? { atEdge: { origin: false }}
-        : { atEdge: false }
-  };
-}
-
-function getScrollTargets(cursor, viewport) {
-  var margin = 5;
-  return {
-    horizontal:
-      cursor.offsetLeft + cursor.offsetWidth + margin - viewport.offsetWidth
-  };
-}
-
-function rerender (promptLabel, controlConfig) {
-  return function (action, viewport) {
-    var _promptLabel = { promptLabel: promptLabel };
-    var scrollState = getScrollState(controlConfig.getViewport());
-    modifyElement(
-      controlConfig.getViewport(),
-      diff(
-        recreateConsole(_promptLabel, viewport),
-        recreateConsole(_promptLabel, controlConfig.viewport)));
-    scroll(
-      controlConfig.getViewport(),
-      viewport.scroll,
-      scrollState,
-      getScrollTargets(
-        controlConfig.getCursor(),
-        controlConfig.getViewport()));
-    controlConfig.viewport = viewport;
-  };
-}
-
-module.exports = rerender;
-
-},{"../../../lib/interpreter":2,"../../diff":7,"../../scroll":18,"./recreateConsole":21}],23:[function(require,module,exports){
-var createConsole          = require('./components/createConsole');
+},{"../../../lib/elements":1,"../components/components":16}],20:[function(require,module,exports){
 var interpreter            = require('../../lib/interpreter');
 var createAndAttachElement = interpreter.createAndAttachElement;
 
-function initializeView(config) {
-  createAndAttachElement(
-    config.getRoot(),
-    createConsole(config.promptLabel));
+function initializeView(root, _console) {
+  createAndAttachElement(root, _console);
 }
 
 module.exports = initializeView;
 
+},{"../../lib/interpreter":2}],21:[function(require,module,exports){
 
-},{"../../lib/interpreter":2,"./components/createConsole":20}],24:[function(require,module,exports){
-
-},{}],25:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1115,7 +974,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],26:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 var initialize    = require('../../jsconsole/src/initialize');
 var interpretLisp = require('../../mhlisp-copy/build/interpret');
 
@@ -1152,7 +1011,7 @@ initialize({
   getCandidates: getCandidates
 });
 
-},{"../../jsconsole/src/initialize":8,"../../mhlisp-copy/build/interpret":37}],27:[function(require,module,exports){
+},{"../../jsconsole/src/initialize":7,"../../mhlisp-copy/build/interpret":34}],24:[function(require,module,exports){
 var commentSignal, evaluate, _process;
 
 commentSignal = require('./commentSignal');
@@ -1184,14 +1043,14 @@ _process = function(transform) {
 
 module.exports = _process;
 
-},{"./commentSignal":28,"./evaluate":34}],28:[function(require,module,exports){
+},{"./commentSignal":25,"./evaluate":31}],25:[function(require,module,exports){
 var comment;
 
 comment = {};
 
 module.exports = comment;
 
-},{}],29:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 var addEnv, getLast, lookup, set, setMainEnv, unset, unsetMainEnv;
 
 addEnv = function(envStack, newEnv) {
@@ -1246,7 +1105,7 @@ module.exports = {
   unsetMainEnv: unsetMainEnv
 };
 
-},{}],30:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 var add, contains_question_, createMalBoolean, createMalCorePureFunction, createMalIdentifier, createMalIndex, createMalNumber, createMalString, dissoc, divide, exponentiate, extractJsValue, fromArray, functionsOnJsValues, get, getEnvironment, greaterThan, greaterThanOrEqual, index, jsNaN_question_, jsNumber_question_, jsString_question_, keys, length, lessThan, lessThanOrEqual, lift, malNil, mod, multiply, negate, parseNumber, reduce, setCoreFnsOnJsValues_bang_, subtract, toArray, vals,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
@@ -1481,7 +1340,7 @@ functionsOnJsValues = {
 
 module.exports = getEnvironment;
 
-},{"./js-utilities":38,"./linked-list":40,"./type-utilities":46}],31:[function(require,module,exports){
+},{"./js-utilities":35,"./linked-list":37,"./type-utilities":43}],28:[function(require,module,exports){
 (function (process){
 var append, areEqual, assoc, atom, atom_question_, boolean_question_, car, cdr, circumpendQuotes, concat, cons, coreFn_question_, count, createMalAtom, createMalBoolean, createMalCorePureFunction, createMalIndex, createMalList, createMalNumber, createMalString, createMalSymbol, createPredicate, deref, drop, empty_question_, equal_question_, extractJsValue, false_question_, first, fromArray, function_question_, functionsOnMalValues, getEnvironment, ignoreIfTrue, ignoreUnlessTrue, ignore_bang_, interpret, last, list, list_question_, macro_question_, malAtom_question_, malBoolean_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIgnore, malIndex_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malUserPureFunction_question_, meta, next, nil_question_, nth, number_question_, prepend, prettyString, read, recurse, reduce, reset, rest, reverse, serialize, set, setCoreFnsOnMalValues_bang_, slurp, string, string_question_, stripQuotes, symbol, symbol_question_, take, time_hyphen_ms, toArray, toPartialArray, true_question_, typeOf, userFn_question_, withMeta, write, _car, _cdr, _concat, _drop, _empty_question_, _interpret, _last, _not, _prStr, _quit_, _ref, _reverse, _take, _throw,
   __slice = [].slice,
@@ -1989,7 +1848,7 @@ functionsOnMalValues = {
 module.exports = getEnvironment;
 
 }).call(this,require('_process'))
-},{"./interpret":37,"./js-utilities":38,"./linked-list":40,"./serialize":42,"./type-utilities":46,"_process":25,"fs":24}],32:[function(require,module,exports){
+},{"./interpret":34,"./js-utilities":35,"./linked-list":37,"./serialize":39,"./type-utilities":43,"_process":22,"fs":21}],29:[function(require,module,exports){
 var createMalCoreEffectfulFunction, displayEffectsOnMalValues, getEnvironment, serialize, setCoreEffectfulFnsOnMalValues_bang_, toArray, _prStr,
   __hasProp = {}.hasOwnProperty;
 
@@ -2038,7 +1897,7 @@ displayEffectsOnMalValues = {
 
 module.exports = getEnvironment;
 
-},{"./linked-list":40,"./serialize":42,"./type-utilities":46}],33:[function(require,module,exports){
+},{"./linked-list":37,"./serialize":39,"./type-utilities":43}],30:[function(require,module,exports){
 var car, createMalCorePureFunction, createMalList, createMalSymbol, extractJsValue, fromArray, fromMalIndex, getEnvironment, malList_question_, setCoreFnsOnMalValues_bang_, stripQuotes, toArray, toPartialArray, tokenizeAndParse, _process, _process_,
   __hasProp = {}.hasOwnProperty;
 
@@ -2129,7 +1988,7 @@ _process_ = _process(function(malVal) {
 
 module.exports = getEnvironment;
 
-},{"./_process":27,"./index-utilities":36,"./linked-list":40,"./tokenizeAndParse":45,"./type-utilities":46}],34:[function(require,module,exports){
+},{"./_process":24,"./index-utilities":33,"./linked-list":37,"./tokenizeAndParse":42,"./type-utilities":43}],31:[function(require,module,exports){
 var addEnv, car, catch_asterisk_, cdr, circumpendQuotes, commentSignal, createFn, createLocalEnv, createMacro, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNumber, createMalString, createMalSymbol, createMalUserPureFunction, def_bang_, defineNewValue, empty_question_, evalQuasiquotedExpr, evaluate, expandMacro, expand_hyphen_macro, extractJsValue, filter, fn_asterisk_, forEach, fromArray, fromJsObjects, fromMalIndex, ignorable_question_, jsString_question_, keyword_question_, let_asterisk_, letrec_asterisk_, lookup, macro_asterisk_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malSymbol_question_, malUserPureFunction_question_, map, next, quasiquote, quote, recurse, reduce, reduceBy2, reduceLet_asterisk_, reduceLetrec_asterisk_, reverse, setMainEnv, splat, spliceUnquote, spliceUnquote_question_, spliceUnquotedExpr_question_, toPartialArray, try_asterisk_, undef_bang_, undefineValue, unquote, unquote_question_, unquotedExpr_question_, unsetMainEnv, _do, _eval, _evalWithEnv, _evaluate, _getCurrentEnv, _getDefaultEnv, _if,
   __hasProp = {}.hasOwnProperty;
 
@@ -2521,7 +2380,7 @@ unquotedExpr_question_ = function(malValue) {
 
 module.exports = evaluate;
 
-},{"./commentSignal":28,"./env-utilities":29,"./index-utilities":36,"./js-utilities":38,"./keyTokens":39,"./linked-list":40,"./type-utilities":46}],35:[function(require,module,exports){
+},{"./commentSignal":25,"./env-utilities":26,"./index-utilities":33,"./js-utilities":35,"./keyTokens":36,"./linked-list":37,"./type-utilities":43}],32:[function(require,module,exports){
 var getLispEnvironment, setEnv0_bang_, setEnv1_bang_, setEnv2_bang_, setEnv3_bang_;
 
 setEnv0_bang_ = require('./env0');
@@ -2549,7 +2408,7 @@ getLispEnvironment = function(config) {
 
 module.exports = getLispEnvironment;
 
-},{"./env0":30,"./env1":31,"./env2":32,"./env3":33}],36:[function(require,module,exports){
+},{"./env0":27,"./env1":28,"./env2":29,"./env3":30}],33:[function(require,module,exports){
 var createMalIndex, fromJsObjects, fromMalIndex, jsString_question_,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
@@ -2608,7 +2467,7 @@ module.exports = {
   fromMalIndex: fromMalIndex
 };
 
-},{"./js-utilities":38,"./type-utilities":46}],37:[function(require,module,exports){
+},{"./js-utilities":35,"./type-utilities":43}],34:[function(require,module,exports){
 var circumpendQuotes, createMalString, encapsulate, environment, error, flattenIfNecessary, fromArray, getLispEnvironment, interpret, serialize, standardFnsAndMacros, tokenizeAndParse, _createMalString, _interpret, _process, _serialize,
   __hasProp = {}.hasOwnProperty;
 
@@ -2703,7 +2562,7 @@ interpret(standardFnsAndMacros);
 
 module.exports = interpret;
 
-},{"./_process":27,"./getLispEnvironment":35,"./js-utilities":38,"./linked-list":40,"./serialize":42,"./standard-fns-and-macros":43,"./tokenizeAndParse":45,"./type-utilities":46}],38:[function(require,module,exports){
+},{"./_process":24,"./getLispEnvironment":32,"./js-utilities":35,"./linked-list":37,"./serialize":39,"./standard-fns-and-macros":40,"./tokenizeAndParse":42,"./type-utilities":43}],35:[function(require,module,exports){
 var circumpendQuotes, jsNaN_question_, jsNumber_question_, jsString_question_;
 
 circumpendQuotes = function(jsString) {
@@ -2729,7 +2588,7 @@ module.exports = {
   jsString_question_: jsString_question_
 };
 
-},{}],39:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 var binaryGlyphTokens, catch_asterisk_, def_bang_, deref, derefGlyph, expand_hyphen_macro, fn_asterisk_, glyphTokens, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, indexEnd, indexStart, keyTokens, keyword_question_, keywords, let_asterisk_, letrec_asterisk_, listEnd, listStart, macroTokens, macro_asterisk_, nil, quasiquote, quasiquoteGlyph, quote, quoteGlyph, splat, spliceUnquote, spliceUnquoteGlyph, try_asterisk_, undef_bang_, unquote, unquoteGlyph, _do, _eval, _evalWithEnv, _false, _getCurrentEnv, _getDefaultEnv, _if, _process, _true,
   __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
@@ -2796,7 +2655,7 @@ module.exports = {
   unquoteGlyph: unquoteGlyph
 };
 
-},{}],40:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 var EOL, car, cdr, concat, cons, copy, createMalList, createNode, drop, empty_question_, equal_question_, filter, forEach, fromArray, last, lastTail, malListType, malTypes, map, next, recurse, reduce, reduceBy2, reverse, take, toArray, toPartialArray, zip, _EOL,
   __slice = [].slice;
 
@@ -3066,7 +2925,7 @@ module.exports = {
   toPartialArray: toPartialArray
 };
 
-},{"./types":47}],41:[function(require,module,exports){
+},{"./types":44}],38:[function(require,module,exports){
 var atomize, binaryGlyphIndex, binaryGlyphTokens, binaryGlyph_question_, boolean_question_, comment, createMalBoolean, createMalIdentifier, createMalIgnore, createMalIndex, createMalList, createMalNil, createMalNumber, createMalString, createMalSymbol, deref, derefGlyph, extractJsValue, float_question_, glyphIndex, glyphTokens, glyph_question_, identifer_question_, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, ignore_question_, indexEnd, indexStart, indexStart_question_, integer_question_, keyTokens, listEnd, listStart, listStart_question_, nil, nil_question_, parse, parseBinaryGlyph, parseBoolean, parseFloat10, parseGlyph, parseIndex, parseInt10, parseList, quasiquote, quasiquoteGlyph, quote, quoteGlyph, reverse, spliceUnquote, spliceUnquoteGlyph, startsWith_question_, string_question_, stripUnderscores, unquote, unquoteGlyph, _false, _parse, _true,
   __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
@@ -3319,7 +3178,7 @@ identifer_question_ = startsWith_question_(':');
 
 module.exports = parse;
 
-},{"./commentSignal":28,"./keyTokens":39,"./linked-list":40,"./type-utilities":46}],42:[function(require,module,exports){
+},{"./commentSignal":25,"./keyTokens":36,"./linked-list":37,"./type-utilities":43}],39:[function(require,module,exports){
 var adjoinMalValue, commentSignal, coreEffectfulFunctionLabel, corePureFunctionLabel, extractJsValue, ignoreLabel, indexEnd, indexStart, keywordLabel, listEnd, listStart, macroLabel, malAtom_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIdentifier_question_, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil_question_, malString_question_, malUserPureFunction_question_, nilLabel, reduce, serialize, serializeAtom, serializeIdentifier, serializeIndex, serializeList, serializeString, stripQuotes, userPureFunctionLabel,
   __hasProp = {}.hasOwnProperty;
 
@@ -3484,10 +3343,10 @@ userPureFunctionLabel = '<function>';
 
 module.exports = serialize;
 
-},{"./commentSignal":28,"./keyTokens":39,"./linked-list":40,"./type-utilities":46}],43:[function(require,module,exports){
-module.exports = "(do\n  (def! fix*\n    (fn* (f)\n      ( (fn* (x) (f (fn* (& ys) (apply (x x) ys))))\n        (fn* (x) (f (fn* (& ys) (apply (x x) ys)))))))\n\n  (def! memfix*\n    (fn* (f)\n      (let* (cache {})\n        (\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          cache))))\n\n  (def! _0 car)\n  (def! _1 (fn* (xs) (nth 1 xs)))\n  (def! _2 (fn* (xs) (nth 2 xs)))\n\n  (def! swap! (macro* (atom & xs)\n    (if (empty? xs)\n      atom\n      `(let* (-atom- ~atom)\n        (do\n          (reset! -atom- (~(car xs) (deref -atom-) ~@(cdr xs)))\n          (deref -atom-))))))\n\n  (def! *gensym-counter* (atom 0))\n\n  (def! gensym (fn* ()\n    (symbol (string \"G__\" (swap! *gensym-counter* incr)))))\n\n  (def! or (macro* (& xs)\n    (if (empty? xs)\n      false\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query- \n            ~-query-\n            (or ~@(cdr xs))))))))\n\n  (def! and (macro* (& xs)\n    (if (empty? xs)\n      true\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query-\n            (and ~@(cdr xs))\n            false))))))\n\n  (def! cond (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (if (empty? (cdr xs))\n        (throw \"`cond` requires an even number of forms.\")\n        (let* (-query- (gensym))\n          `(let* (~-query- ~(car xs))\n            (if ~-query-\n              ~(_1 xs)\n              (cond ~@(cdr (cdr xs))))))))))\n\n  (def! loop (macro* (form0 form1)\n    `(let* (loop (memfix* (fn* (loop) (fn* (~(_0 form0)) ~form1)))) (loop ~(_1 form0)))))\n\n  (def! -> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                forms  (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~(car form) ~x ~@(cdr form)))\n                (list form x))\n              `(-> (-> ~x ~form) ~@forms))))))))\n\n  (def! ->> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                 forms (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~@form  ~x))\n                (list form x))\n              `(->> (->> ~x ~form) ~@forms))))))))\n\n  (def! ->* (macro* (& xs) `(fn* (-x-) (-> -x- ~@xs))))\n\n  (def! ->>* (macro* (& xs) `(fn* (-x-) (->> -x- ~@xs))))\n\n  (def! not (fn* (x) (if x false true)))\n  (def! incr  (->* (+ 1)))\n  (def! decr  (->* (- 1)))\n  (def! zero? (->* (= 0)))\n\n  (def! identity (fn* (x) x))\n\n  (def! constant-fn (fn* (x) (fn* (y) x)))\n\n  (def! call-on (fn* (& xs) (fn* (fn) (apply fn xs))))\n\n  (def! step-into-list (fn* (xs fn0 fn1)\n    (let* (x   (car xs)\n          -xs- (cdr xs))\n      (if (empty? -xs-)\n        (fn1 x)\n        (fn0 x -xs-)))))\n\n  (def! apply-on (fn* (& xs)\n    (step-into-list\n      xs\n      (fn* (arguments -xs-) (apply (car -xs-) arguments))\n      (fn* (arguments) (fn* (f) (apply f arguments))))))\n\n  (def! reduce (fn* (f seed xs)\n      (if (empty? xs)\n        seed\n        (reduce f (f seed (car xs)) (cdr xs)))))\n\n  (def! filter (fn* (predicate xs)\n    (reverse\n      (reduce\n        (fn* (memo x)\n          (if (predicate x)\n            (cons x memo)\n            memo))\n        '()\n        xs))))\n\n  (def! map (fn* (f xs)\n    (reverse (reduce (fn* (memo x) (cons (f x) memo)) '() xs))))\n\n  (def! every?  (fn* (pred xs)\n    (if (empty? xs)\n      true\n      (if (pred (car xs))\n        (every? pred (cdr xs))\n        false))))\n\n  (def! some?  (fn* (pred xs)\n    (if (empty? xs)\n      false\n      (if (pred (car xs))\n        true\n        (some? pred (cdr xs))))))\n\n  (def! letmemrec* (macro* (alias expr)\n    `(let* (~(car alias) (memfix* (fn* (~(car alias)) ~(_1 alias)))) ~expr)))\n\n  (def! skip (fn* (nbr xs)\n    (letrec* (-skip- (fn* (ys)\n      (let* (nbr (car ys)\n             xs  (_1 ys))\n        (cond\n          (= 0 nbr) xs\n          (= 1 nbr) (cdr xs)\n          \"default\" (-skip- (list (decr nbr) (cdr xs)))))))\n      (-skip- (list nbr xs)))))\n\n  (def! invokable? (fn* (x) (or (function? x) (macro? x))))\n\n  (def! . (macro* (x key & xs)\n    (if (empty? xs)\n      `(get ~x ~key)\n      `((get ~x ~key) ~@xs))))\n\n  (def! .. (fn* (lo hi)\n    (letrec* (-..- (fn* (xs)\n      (let* (lo     (_0 xs)\n             hi     (_1 xs)\n             -list- (_2 xs))\n        (if (= lo hi)\n          (cons hi -list-)\n          (-..- (list lo (decr hi) (cons hi -list-)))))))\n      (-..- (list lo hi '())))))\n\n  (def! defrec! (macro* (fn-name fn-body)\n    `(def! ~fn-name (letrec* (~fn-name ~fn-body) ~fn-name))))\n\n  (def! for* (macro* (loop-parameters body)\n    `(loop\n      ~(_0 loop-parameters)\n      (if ~(_1 loop-parameters)\n        nil\n        (do ~body (loop ~(_2 loop-parameters)))))))\n\n  (def! for-each (fn* (f xs)\n    (reduce\n      (fn* (memo x) (do (f x) memo))\n      nil\n      xs)))\n\n  (def! n-times (fn* (n f)\n    (loop (i 0)\n      (if (= i n)\n        nil\n        (do (f i) (loop (+ i 1)))))))\n\n  (def! tap (fn* (f x) (do (f x) x)))\n\n  (def! with-side-effect (fn* (thunk x)\n    (do (thunk) x)))\n\n  (def! thunk (macro* (form)\n    `(fn* () ~form)))\n\n  (def! call (macro* (f & xs) `(~f ~@xs)))\n\n  (def! apply (macro* (f xs) `(eval (cons ~f ~xs))))\n\n  (def! eval-string (fn* (malString) (eval (parse malString))))\n\n)";
+},{"./commentSignal":25,"./keyTokens":36,"./linked-list":37,"./type-utilities":43}],40:[function(require,module,exports){
+module.exports = "(do\n  (def! fix*\n    (fn* (f)\n      ( (fn* (x) (f (fn* (& ys) (apply (x x) ys))))\n        (fn* (x) (f (fn* (& ys) (apply (x x) ys)))))))\n\n  (def! memfix*\n    (fn* (f)\n      (let* (cache {})\n        (\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          cache))))\n\n  (def! _0 car)\n  (def! _1 (fn* (xs) (nth 1 xs)))\n  (def! _2 (fn* (xs) (nth 2 xs)))\n\n  (def! swap! (macro* (atom & xs)\n    (if (empty? xs)\n      atom\n      `(let* (-atom- ~atom)\n        (do\n          (reset! -atom- (~(car xs) (deref -atom-) ~@(cdr xs)))\n          (deref -atom-))))))\n\n  (def! *gensym-counter* (atom 0))\n\n  (def! gensym (fn* ()\n    (symbol (string \"G__\" (swap! *gensym-counter* incr)))))\n\n  (def! or (macro* (& xs)\n    (if (empty? xs)\n      false\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query- \n            ~-query-\n            (or ~@(cdr xs))))))))\n\n  (def! and (macro* (& xs)\n    (if (empty? xs)\n      true\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query-\n            (and ~@(cdr xs))\n            false))))))\n\n  (def! cond (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (if (empty? (cdr xs))\n        (throw \"`cond` requires an even number of forms.\")\n        (let* (-query- (gensym))\n          `(let* (~-query- ~(car xs))\n            (if ~-query-\n              ~(_1 xs)\n              (cond ~@(cdr (cdr xs))))))))))\n\n  (def! loop (macro* (form0 form1)\n    `(let* (loop (memfix* (fn* (loop) (fn* (~(_0 form0)) ~form1)))) (loop ~(_1 form0)))))\n\n  (def! -> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                forms  (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~(car form) ~x ~@(cdr form)))\n                (list form x))\n              `(-> (-> ~x ~form) ~@forms))))))))\n\n  (def! ->> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                 forms (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~@form  ~x))\n                (list form x))\n              `(->> (->> ~x ~form) ~@forms))))))))\n\n  (def! ->* (macro* (& xs) `(fn* (-x-) (-> -x- ~@xs))))\n\n  (def! ->>* (macro* (& xs) `(fn* (-x-) (->> -x- ~@xs))))\n\n  (def! not (fn* (x) (if x false true)))\n  (def! incr  (->* (+ 1)))\n  (def! decr  (->* (- 1)))\n  (def! zero? (->* (= 0)))\n\n  (def! identity (fn* (x) x))\n\n  (def! constant-fn (fn* (x) (fn* (y) x)))\n\n  (def! call-on (fn* (& xs) (fn* (fn) (apply fn xs))))\n\n  (def! step-into-list (fn* (xs fn0 fn1)\n    (let* (x   (car xs)\n          -xs- (cdr xs))\n      (if (empty? -xs-)\n        (fn1 x)\n        (fn0 x -xs-)))))\n\n  (def! apply-on (fn* (& xs)\n    (step-into-list\n      xs\n      (fn* (arguments -xs-) (apply (car -xs-) arguments))\n      (fn* (arguments) (fn* (f) (apply f arguments))))))\n\n  (def! reduce (fn* (f seed xs)\n      (if (empty? xs)\n        seed\n        (reduce f (f seed (car xs)) (cdr xs)))))\n\n  (def! filter (fn* (predicate xs)\n    (reverse\n      (reduce\n        (fn* (memo x)\n          (if (predicate x)\n            (cons x memo)\n            memo))\n        '()\n        xs))))\n\n  (def! map (fn* (f xs)\n    (reverse (reduce (fn* (memo x) (cons (f x) memo)) '() xs))))\n\n  (def! every?  (fn* (pred xs)\n    (if (empty? xs)\n      true\n      (if (pred (car xs))\n        (every? pred (cdr xs))\n        false))))\n\n  (def! some?  (fn* (pred xs)\n    (if (empty? xs)\n      false\n      (if (pred (car xs))\n        true\n        (some? pred (cdr xs))))))\n\n  (def! letmemrec* (macro* (alias expr)\n    `(let* (~(car alias) (memfix* (fn* (~(car alias)) ~(_1 alias)))) ~expr)))\n\n  (def! skip (fn* (nbr xs)\n    (letrec* (-skip- (fn* (ys)\n      (let* (nbr (car ys)\n             xs  (_1 ys))\n        (cond\n          (= 0 nbr) xs\n          (= 1 nbr) (cdr xs)\n          \"default\" (-skip- (list (decr nbr) (cdr xs)))))))\n      (-skip- (list nbr xs)))))\n\n  (def! invokable? (fn* (x) (or (function? x) (macro? x))))\n\n  (def! . (macro* (x key & xs)\n    (if (empty? xs)\n      `(get ~x ~key)\n      `((get ~x ~key) ~@xs))))\n\n  (def! .. (fn* (lo hi)\n    (letrec* (-..- (fn* (xs)\n      (let* (lo     (_0 xs)\n             hi     (_1 xs)\n             -list- (_2 xs))\n        (if (= lo hi)\n          (cons hi -list-)\n          (-..- (list lo (decr hi) (cons hi -list-)))))))\n      (-..- (list lo hi '())))))\n\n  (def! defrec! (macro* (fn-name fn-body)\n    `(def! ~fn-name (letrec* (~fn-name ~fn-body) ~fn-name))))\n\n  (def! for* (macro* (loop-parameters body)\n    `(loop\n      ~(_0 loop-parameters)\n      (if ~(_1 loop-parameters)\n        (do ~body (loop ~(_2 loop-parameters)))\n        nil))))\n\n  (def! for-each (fn* (f xs)\n    (reduce\n      (fn* (memo x) (do (f x) memo))\n      nil\n      xs)))\n\n  (def! n-times (fn* (n f)\n    (loop (i 0)\n      (if (= i n)\n        nil\n        (do (f i) (loop (+ i 1)))))))\n\n  (def! tap (fn* (f x) (do (f x) x)))\n\n  (def! with-side-effect (fn* (thunk x)\n    (do (thunk) x)))\n\n  (def! thunk (macro* (form)\n    `(fn* () ~form)))\n\n  (def! call (macro* (f & xs) `(~f ~@xs)))\n\n  (def! apply (macro* (f xs) `(eval (cons ~f ~xs))))\n\n  (def! eval-string (fn* (malString) (eval (parse malString))))\n\n)";
 
-},{}],44:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 var commentSignal, comment_question_, createTokenRegex, meaningful_question_, tokenize;
 
 commentSignal = require('./commentSignal');
@@ -3523,7 +3382,7 @@ tokenize = function(sourceCode) {
 
 module.exports = tokenize;
 
-},{"./commentSignal":28}],45:[function(require,module,exports){
+},{"./commentSignal":25}],42:[function(require,module,exports){
 var parse, tokenize;
 
 parse = require('./parse');
@@ -3534,7 +3393,7 @@ module.exports = function(sourceCode) {
   return parse(tokenize(sourceCode));
 };
 
-},{"./parse":41,"./tokenize":44}],46:[function(require,module,exports){
+},{"./parse":38,"./tokenize":41}],43:[function(require,module,exports){
 var createMalAtom, createMalBoolean, createMalCoreEffectfulFunction, createMalCorePureFunction, createMalIdentifier, createMalIgnore, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNil, createMalNumber, createMalSpecialForm, createMalString, createMalSymbol, createMalUserPureFunction, createMalValue, createPredicate, create_hyphen_factory_hyphen__ampersand__hyphen_predicate, extractJsValue, malAtomType, malAtom_question_, malBoolean_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIdentifier_question_, malIgnore, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malSpecialForm_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malTypes, malUserPureFunction_question_, _createMalAtom, _createMalBoolean, _createMalList, _createMalUnit, _malUnit_question_, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
 
 createMalList = require('./linked-list').createMalList;
@@ -3646,7 +3505,7 @@ module.exports = {
   malUserPureFunction_question_: malUserPureFunction_question_
 };
 
-},{"./linked-list":40,"./types":47}],47:[function(require,module,exports){
+},{"./linked-list":37,"./types":44}],44:[function(require,module,exports){
 var malAtomType, malBooleanType, malCoreEffectfulFunctionType, malCorePureFunctionType, malIdentifierType, malIndexType, malKeywordType, malListType, malMacroType, malNumberType, malSpecialFormType, malStringType, malSymbolType, malTypes, malUnitType, malUserPureFunctionType;
 
 malTypes = [malBooleanType = 'malBooleanType', malCoreEffectfulFunctionType = 'malCoreEffectfulFunctionType', malCorePureFunctionType = 'malCorePureFunctionType', malIdentifierType = 'malIdentifierType', malIndexType = 'malIndexType', malKeywordType = 'malKeywordType', malListType = 'malListType', malMacroType = 'malMacroType', malNumberType = 'malNumberType', malSpecialFormType = 'malSpecialFormType', malStringType = 'malStringType', malSymbolType = 'malSymbolType', malUnitType = 'malUnitType', malUserPureFunctionType = 'malUserPureFunctionType', malAtomType = 'malAtomType'];
@@ -3670,14 +3529,14 @@ module.exports = {
   malUserPureFunctionType: malUserPureFunctionType
 };
 
-},{}],48:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 module.exports = {
   children: require('./src/children'),
   elements: require('./src/elements'),
   interpreter: require('./src/interpreter')
 };
 
-},{"./src/children":49,"./src/elements":50,"./src/interpreter":51}],49:[function(require,module,exports){
+},{"./src/children":46,"./src/elements":47,"./src/interpreter":48}],46:[function(require,module,exports){
 function childById(id) {
   return { mode: 'id', key: id }; 
 }
@@ -3714,7 +3573,7 @@ module.exports = {
   childrenByTag: identifyChildren('tag')
 };
 
-},{}],50:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 function createElement(tag) {
   return function (config) {
     if (config == null) {
@@ -3787,7 +3646,7 @@ for (var tagName in tags) {
 
 module.exports = elementFactories;
 
-},{}],51:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 function attachElement(parent, element) {
   if (isString(element)) {
     parent.innerText = element;
@@ -3984,4 +3843,4 @@ module.exports = {
   modifyElement: modifyElement,
 };
 
-},{}]},{},[26]);
+},{}]},{},[23]);
