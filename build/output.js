@@ -7,7 +7,419 @@ module.exports = require('./tinkerbox').interpreter;
 },{"./tinkerbox":3}],3:[function(require,module,exports){
 module.exports = require('../../tinkerbox/index');
 
-},{"../../tinkerbox/index":45}],4:[function(require,module,exports){
+},{"../../tinkerbox/index":53}],4:[function(require,module,exports){
+var a = 'a';
+var e = 'e';
+var h = 'h';
+var l = 'l';
+var u = 'u';
+var w = 'w';
+
+var A = 'A';
+var E = 'E';
+var H = 'H';
+var L = 'L';
+var U = 'U';
+var W = 'W';
+
+var backspace = 'Backspace';
+var _delete   = 'Delete';
+var down      = 'ArrowDown';
+var enter     = 'Enter';
+var left      = 'ArrowLeft';
+var right     = 'ArrowRight';
+var space     = ' ';
+var spacebar  = 'Spacebar';
+var tab       = 'Tab';
+var up        = 'ArrowUp';
+
+var characters = [
+  space,
+  '`', '1', '2',  '3', '4',  '5', '6', '7', '8', '9', '0', '-', '=',
+  '~', '!', '@',  '#', '$',  '%', '^', '&', '*', '(', ')', '_', '+',
+  'a', 'b', 'c',  'd', 'e',  'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+  'n', 'o', 'p',  'q', 'r',  's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+  'A', 'B', 'C',  'D', 'E',  'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+  'N', 'O', 'P',  'Q', 'R',  'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+  '[', ']', '\\', ';', '\'', ',', '.', '/',
+  '{', '}', '|',  ':', '"',  '<', '>', '?'
+];
+
+function getAction(keyChord) {
+  var value = keyChord.value;
+
+  if (keyChord.ctrlKey) {
+    switch (value) {
+      case a:
+      case A:
+        return wrap('moveCursorToStart');
+      case e:
+      case E:
+        return wrap('moveCursorToEnd');
+      case h:
+      case H:
+        return wrap('deleteLeftChar');
+      case l:
+      case L:
+        return wrap('clear');
+      case u:
+      case U:
+        return wrap('deletePreCursor');
+      case w:
+      case W:
+        return wrap('deleteWord');
+      default:
+        return wrap('noOp');
+    }
+  }
+
+  switch (value) {
+    case enter:
+      return wrap('submit');
+    case backspace:
+      return wrap('deleteLeftChar');
+    case left:
+      return wrap('moveCursorLeft');
+    case right:
+      return wrap('moveCursorRight');
+    case up:
+      return wrap('rewind');
+    case down:
+      return wrap('fastForward');
+    case _delete:
+      return wrap('deleteRightChar');
+    case tab:
+      return wrap('completeWord');
+    case space:
+    case spacebar:
+      return { name: 'addChar', char: ' ' };
+    default:
+      return isCharacter(value)
+        ? { name: 'addChar', char: value }
+        : wrap('noOp');
+  }
+}
+
+function isCharacter(value) {
+  return characters.indexOf(value) >= 0;
+}
+
+function wrap(actionName) {
+  return { name: actionName };
+}
+
+module.exports = getAction;
+
+},{}],5:[function(require,module,exports){
+var keyCodeCharts       = require('./keyCodeCharts');
+var keyIdentifierCharts = require('./keyIdentifierCharts');
+
+function getEventProxy(kind, event) {
+  return {
+    value: event[kind],
+    altKey: event.altKey,
+    ctrlKey: event.ctrlKey,
+    shiftKey: event.shiftKey
+  };
+};
+
+function identity(event) {
+  return event;
+}
+
+function getKeyChord(event) {
+  var normalize;
+  var property;
+
+  if (event.key != null) {
+    property = 'key';
+    normalize = identity;
+  } else if (event.keyIdentifier != null) {
+    property = 'keyIdentifier';
+    normalize = _getKeyChord(keyIdentifierCharts);
+  } else {
+    property = 'keyCode';
+    normalize = _getKeyChord(keyCodeCharts);
+  }
+
+  return normalize(getEventProxy(property, event));
+}
+
+function _getKeyChord(conversionCharts) {
+  return function (event) {
+    return {
+      value: getKeyChordValue(conversionCharts, event.value, event.shiftKey),
+      altKey: event.altKey,
+      ctrlKey: event.ctrlKey,
+      shiftKey: event.shiftKey
+    };
+  };
+}
+
+function getKeyChordValue(conversionCharts, value, shiftKey) {
+  var key = shiftKey ? 'withShift' : 'withoutShift';
+  return conversionCharts[key][value];
+}
+
+module.exports = getKeyChord;
+
+},{"./keyCodeCharts":7,"./keyIdentifierCharts":8}],6:[function(require,module,exports){
+var getAction   = require('./getAction');
+var getKeyChord = require('./getKeyChord');
+
+function interpretKeydown(event) {
+  return getAction(getKeyChord(event));
+}
+
+module.exports = interpretKeydown;
+
+},{"./getAction":4,"./getKeyChord":5}],7:[function(require,module,exports){
+var keyCodeCharts = {
+  withShift: {
+    8  : 'Backspace',
+    9  : 'Tab',
+    13 : 'Enter',
+    32 : ' ',
+    37 : 'ArrowLeft',
+    38 : 'ArrowUp',
+    39 : 'ArrowRight',
+    40 : 'ArrowDown',
+    46 : 'Delete',
+    48 : ')',
+    49 : '!',
+    50 : '@',
+    51 : '#',
+    52 : '$',
+    53 : '%',
+    54 : '^',
+    55 : '&',
+    56 : '*',
+    57 : '(',
+    59 : ':',
+    61 : '+',
+    65 : 'A',
+    66 : 'B',
+    67 : 'C',
+    68 : 'D',
+    69 : 'E',
+    70 : 'F',
+    71 : 'G',
+    72 : 'H',
+    73 : 'I',
+    74 : 'J',
+    75 : 'K',
+    76 : 'L',
+    77 : 'M',
+    78 : 'N',
+    79 : 'O',
+    80 : 'P',
+    81 : 'Q',
+    82 : 'R',
+    83 : 'S',
+    84 : 'T',
+    85 : 'U',
+    86 : 'V',
+    87 : 'W',
+    88 : 'X',
+    89 : 'Y',
+    90 : 'Z',
+    173: '_',
+    188: '<',
+    190: '>',
+    191: '?',
+    192: '~',
+    219: '{',
+    220: '|',
+    221: '}',
+    222: '"'
+  },
+  withoutShift: {
+    8  : 'Backspace',
+    9  : 'Tab',
+    13 : 'Enter',
+    32 : ' ',
+    37 : 'ArrowLeft',
+    38 : 'ArrowUp',
+    39 : 'ArrowRight',
+    40 : 'ArrowDown',
+    46 : 'Delete',
+    48: '0',
+    49: '1',
+    50: '2',
+    51: '3',
+    52: '4',
+    53: '5',
+    54: '6',
+    55: '7',
+    56: '8',
+    57: '9',
+    59: ';',
+    61: '=',
+    65: 'a',
+    66: 'b',
+    67: 'c',
+    68: 'd',
+    69: 'e',
+    70: 'f',
+    71: 'g',
+    72: 'h',
+    73: 'i',
+    74: 'j',
+    75: 'k',
+    76: 'l',
+    77: 'm',
+    78: 'n',
+    79: 'o',
+    80: 'p',
+    81: 'q',
+    82: 'r',
+    83: 's',
+    84: 't',
+    85: 'u',
+    86: 'v',
+    87: 'w',
+    88: 'x',
+    89: 'y',
+    90: 'z',
+    173: '-',
+    188: ',',
+    190: '.',
+    191: '/',
+    192: '`',
+    219: '[',
+    220: '\\',
+    221: ']',
+    222: '\''
+  }
+};
+
+module.exports = keyCodeCharts;
+
+},{}],8:[function(require,module,exports){
+var keyIdentifierCharts = {
+  withoutShift: {
+    'U+0041': 'a',
+    'U+0042': 'b',
+    'U+0043': 'c',
+    'U+0044': 'd',
+    'U+0045': 'e',
+    'U+0046': 'f',
+    'U+0047': 'g',
+    'U+0048': 'h',
+    'U+0049': 'i',
+    'U+004A': 'j',
+    'U+004B': 'k',
+    'U+004C': 'l',
+    'U+004D': 'm',
+    'U+004E': 'n',
+    'U+004F': 'o',
+    'U+0050': 'p',
+    'U+0051': 'q',
+    'U+0052': 'r',
+    'U+0053': 's',
+    'U+0054': 't',
+    'U+0055': 'u',
+    'U+0056': 'v',
+    'U+0057': 'w',
+    'U+0058': 'x',
+    'U+0059': 'y',
+    'U+005A': 'z',
+    'U+0030': '0',
+    'U+0031': '1',
+    'U+0032': '2',
+    'U+0033': '3',
+    'U+0034': '4',
+    'U+0035': '5',
+    'U+0036': '6',
+    'U+0037': '7',
+    'U+0038': '8',
+    'U+0039': '9',
+    'U+00C0': '`',
+    'U+00BD': '-',
+    'U+00BB': '=',
+    'U+00DB': '[',
+    'U+00DD': ']',
+    'U+00DC': '\\',
+    'U+00BA': ';',
+    'U+00DE': '\'',
+    'U+00BC': ',',
+    'U+00BE': '.',
+    'U+00BF': '/',
+    'U+0020': ' ',
+    'U+0008': 'Backspace',
+    'U+0075': 'Delete',
+    'Down'  : 'ArrowDown',
+    'Enter' : 'Enter',
+    'Left'  : 'ArrowLeft',
+    'Right' : 'ArrowRight',
+    'U+0020': ' ',
+    'U+0009': 'Tab',
+    'Up'    : 'ArrowUp'
+  },
+  withShift: {
+    'U+0041': 'A',
+    'U+0042': 'B',
+    'U+0043': 'C',
+    'U+0044': 'D',
+    'U+0045': 'E',
+    'U+0046': 'F',
+    'U+0047': 'G',
+    'U+0048': 'H',
+    'U+0049': 'I',
+    'U+004A': 'J',
+    'U+004B': 'K',
+    'U+004C': 'L',
+    'U+004D': 'M',
+    'U+004E': 'N',
+    'U+004F': 'O',
+    'U+0050': 'P',
+    'U+0051': 'Q',
+    'U+0052': 'R',
+    'U+0053': 'S',
+    'U+0054': 'T',
+    'U+0055': 'U',
+    'U+0056': 'V',
+    'U+0057': 'W',
+    'U+0058': 'X',
+    'U+0059': 'Y',
+    'U+005A': 'Z',
+    'U+0030': ')',
+    'U+0031': '!',
+    'U+0032': '@',
+    'U+0033': '#',
+    'U+0034': '$',
+    'U+0035': '%',
+    'U+0036': '^',
+    'U+0037': '&',
+    'U+0038': '*',
+    'U+0039': '(',
+    'U+00C0': '~',
+    'U+00BD': '_',
+    'U+00BB': '+',
+    'U+00DB': '{',
+    'U+00DD': '}',
+    'U+00DC': '|',
+    'U+00BA': ':',
+    'U+00DE': '"',
+    'U+00BC': '<',
+    'U+00BE': '>',
+    'U+00BF': '?',
+    'U+0020': ' ',
+    'U+0008': 'Backspace',
+    'U+0075': 'Delete',
+    'Down'  : 'ArrowDown',
+    'Enter' : 'Enter',
+    'Left'  : 'ArrowLeft',
+    'Right' : 'ArrowRight',
+    'U+0020': ' ',
+    'U+0009': 'Tab',
+    'Up'    : 'ArrowUp'
+  }
+};
+
+module.exports = keyIdentifierCharts
+
+},{}],9:[function(require,module,exports){
 var Viewport = require('../models/actions/viewport');
 
 function getViewport(action, config) {
@@ -29,9 +441,9 @@ function getViewport(action, config) {
 
 module.exports = getViewport;
 
-},{"../models/actions/viewport":10}],5:[function(require,module,exports){
+},{"../models/actions/viewport":14}],10:[function(require,module,exports){
 var getViewport       = require('./getViewport');
-var interpretKeypress = require('./interpretKeypress');
+var interpretKeydown = require('./chars/interpretKeydown');
 
 function initializeControl(subscribe, render, config) {
   var handleEvent = function (getAction) {
@@ -40,149 +452,51 @@ function initializeControl(subscribe, render, config) {
     };
   }
 
-  subscribe('keypress', handleEvent(interpretKeypress));
+  subscribe('keydown', handleEvent(interpretKeydown));
 }
 
 module.exports = initializeControl;
 
-},{"./getViewport":4,"./interpretKeypress":6}],6:[function(require,module,exports){
-var a =  97;
-var e = 101;
-var h = 104;
-var l = 108;
-var u = 117;
-var w = 119;
-
-var backspace =   8;
-var _delete   =  46;
-var down      =  40;
-var enter     =  13;
-var left      =  37;
-var right     =  39;
-var up        =  38;
-var tab       =   9;
-
-function interpretKeypress(event) {
-  if (event.ctrlKey) {
-    switch (event.charCode) {
-      case a:
-        return wrap('moveCursorToStart');
-      case e:
-        return wrap('moveCursorToEnd');
-      case h:
-        return wrap('deleteLeftChar');
-      case l:
-        return wrap('clear');
-      case u:
-        return wrap('deletePreCursor');
-      case w:
-        return wrap('deleteWord');
-      default:
-        return wrap('noOp');
-    }
-  }
-
-  switch (event.keyCode) {
-    case enter:
-      return wrap('submit');
-    case backspace:
-      return wrap('deleteLeftChar');
-    case left:
-      return wrap('moveCursorLeft');
-    case right:
-      return wrap('moveCursorRight');
-    case up:
-      return wrap('rewind');
-    case down:
-      return wrap('fastForward');
-    case _delete:
-      return wrap('deleteRightChar');
-    case tab:
-      return wrap('completeWord');
-    default:
-      return { name: 'addChar', char: String.fromCharCode(event.charCode) };
-  }
-}
-
-function wrap(actionName) {
-  return { name: actionName };
-}
-
-module.exports = interpretKeypress;
-
-},{}],7:[function(require,module,exports){
-var getInitialModel   = require('./models/getInitialModel');
-var initializeControl = require('./control/initializeControl');
-var initializeView    = require('./view/initializeView');
-
-var diff            = require('./view/control/diff');
-var modifyElement   = require('./../lib/interpreter').modifyElement;
-var recreateConsole = require('./view/control/recreateConsole');
-
-var createConsole          = require('./view/components/createConsole');
-
-function getCursorOffset(cursor, viewport) {
-  var margin = 5;
-  return cursor.offsetLeft + cursor.offsetWidth + margin - viewport.offsetWidth;
-}
+},{"./chars/interpretKeydown":6,"./getViewport":9}],11:[function(require,module,exports){
+var getInitialModel        = require('./models/getInitialModel');
+var getInitialViewModel    = require('./view/components/createConsole');
+var initializeControl      = require('./control/initializeControl');
+var initializeView         = require('./view/initializeView');
+var initializeViewDynamics = require('./view/initializeViewDynamics');
+var render                 = require('./render');
+var subscribe              = require('./subscribe');
 
 function initialize(config) {
-  var getCandidates = config.getCandidates;
-  var nodeId = config.nodeId;
+  var root = document.getElementById(config.nodeId);
   var promptLabel = config.promptLabel;
-  var transform = config.transform;
-
-  var root = document.getElementById(nodeId);
-  var viewModel = createConsole(promptLabel);
+  var viewModel = getInitialViewModel(promptLabel);
 
   initializeView(root, viewModel);
 
-  // ----------------------------------------------------------------------
   var rootChild = root.childNodes[0];
 
   var getCursor = function () {
     return root.getElementsByClassName('jsconsole-cursor')[0];
   };
 
+  initializeViewDynamics(rootChild, getCursor);
+
   var controlConfig = {
-    getCandidates: getCandidates,
+    getCandidates: config.getCandidates,
     promptLabel: promptLabel,
-    transform: transform,
+    transform: config.transform,
     viewport: getInitialModel()
   };
 
-  var render = function (model) {
-    var _promptLabel = { promptLabel: promptLabel };
-    var newViewModel = recreateConsole(_promptLabel, model);
-    modifyElement(rootChild, diff(newViewModel, viewModel));
-    scroll(rootChild, getCursorOffset(getCursor(), rootChild));
-    controlConfig.viewport = model;
-    viewModel = newViewModel;
-  };
-
-  initializeControl(subscribe, render, controlConfig);
-  // ----------------------------------------------------------------------
-}
-
-function scroll(node, cursorOffset) {
-  node.scrollTop = node.scrollHeight - node.clientHeight;
-  node.scrollLeft = cursorOffset;
-}
-
-function subscribe(eventType, eventHandler) {
-  window.addEventListener(eventType, supressDefault(eventHandler));
-}
-
-function supressDefault(handleEvent) {
-  return function (event) {
-    event.preventDefault();
-    handleEvent(event);
-  };
+  initializeControl(
+    subscribe,
+    render(viewModel, rootChild, getCursor, controlConfig),
+    controlConfig);
 }
 
 module.exports = initialize;
 
-},{"./../lib/interpreter":2,"./control/initializeControl":5,"./models/getInitialModel":11,"./view/components/createConsole":17,"./view/control/diff":18,"./view/control/recreateConsole":19,"./view/initializeView":20}],8:[function(require,module,exports){
+},{"./control/initializeControl":10,"./models/getInitialModel":15,"./render":20,"./subscribe":21,"./view/components/createConsole":23,"./view/initializeView":27,"./view/initializeViewDynamics":28}],12:[function(require,module,exports){
 var create = require('../types/createFrame');
 
 function clear(frame, terminal) {
@@ -224,7 +538,7 @@ module.exports = {
   rewind: rewind,
 };
 
-},{"../types/createFrame":12}],9:[function(require,module,exports){
+},{"../types/createFrame":16}],13:[function(require,module,exports){
 var create       = require('../types/createTerminal');
 var createPrompt = require('../types/createPrompt');
 
@@ -385,12 +699,17 @@ function submit(terminal, transform) {
     .slice(0, -1)
     .filter(function (result) { return result.effect.type === 'display'; })
     .map(function (display) { return { type: 'display', value: display.value }});
-  var response = { type: 'response', value: results[results.length - 1].value };
+
+  var lastResult = results[results.length - 1];
+  var response = lastResult.value != null
+    ? [{ type: 'response', value: lastResult.value }]
+    : [];
+
   var command = { type: 'command', value: commandText };
   var prompt = normalizePrompt(terminal.prompt);
 
   return create(
-    terminal.entries.concat([command], displayEntries, [response]),
+    terminal.entries.concat([command], displayEntries, response),
     [prompt].concat(terminal.prompts),
     createPrompt('', ''));
 }
@@ -398,7 +717,7 @@ function submit(terminal, transform) {
 module.exports = {
   addChar: addChar,
   completeWord: completeWord,
-  deleteLeftChar, deleteLeftChar,
+  deleteLeftChar: deleteLeftChar,
   deletePreCursor: deletePreCursor,
   deleteRightChar: deleteRightChar,
   deleteWord: deleteWord,
@@ -409,7 +728,7 @@ module.exports = {
   submit: submit
 };
 
-},{"../types/createPrompt":13,"../types/createTerminal":14}],10:[function(require,module,exports){
+},{"../types/createPrompt":17,"../types/createTerminal":18}],14:[function(require,module,exports){
 var create         = require('../types/createViewport');
 var createFrame    = require('../types/createFrame');
 var createTerminal = require('../types/createTerminal');
@@ -497,7 +816,7 @@ module.exports = {
   submit              : submit
 };
 
-},{"../types/createFrame":12,"../types/createTerminal":14,"../types/createViewport":15,"./frame":8,"./terminal":9}],11:[function(require,module,exports){
+},{"../types/createFrame":16,"../types/createTerminal":18,"../types/createViewport":19,"./frame":12,"./terminal":13}],15:[function(require,module,exports){
 var createFrame    = require('./types/createFrame');
 var createPrompt   = require('./types/createPrompt');
 var createTerminal = require('./types/createTerminal');
@@ -511,7 +830,7 @@ function getInitialModel() {
 
 module.exports = getInitialModel;
 
-},{"./types/createFrame":12,"./types/createPrompt":13,"./types/createTerminal":14,"./types/createViewport":15}],12:[function(require,module,exports){
+},{"./types/createFrame":16,"./types/createPrompt":17,"./types/createTerminal":18,"./types/createViewport":19}],16:[function(require,module,exports){
 module.exports = function (offset, start, promptIndex) {
   return {
     offset: offset,
@@ -520,7 +839,7 @@ module.exports = function (offset, start, promptIndex) {
   };
 };
 
-},{}],13:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 module.exports = function (preCursor, postCursor) {
   return {
     preCursor: preCursor,
@@ -528,7 +847,7 @@ module.exports = function (preCursor, postCursor) {
   };
 };
 
-},{}],14:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 module.exports = function (entries, prompts, currentPrompt) {
   return  {
     entries: entries,
@@ -537,7 +856,7 @@ module.exports = function (entries, prompts, currentPrompt) {
   };
 };
 
-},{}],15:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 function getPrompt(terminal, frame) {
   return frame.promptIndex === 0
     ? terminal.prompt
@@ -552,7 +871,43 @@ module.exports = function (terminal, frame) {
   };
 };
 
-},{}],16:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
+var diff          = require('./view/control/diff');
+var getViewModel  = require('./view/control/recreateConsole');
+var modifyElement = require('./../lib/interpreter').modifyElement;
+var scroll        = require('./view/control/scroll');
+
+var viewModel;
+
+function render(_viewModel, rootChild, getCursor, controlConfig) {
+  viewModel = _viewModel;
+
+  return function (model) {
+    var newViewModel = getViewModel({ promptLabel: controlConfig.promptLabel }, model);
+    modifyElement(rootChild, diff(newViewModel, viewModel));
+    scroll(rootChild, getCursor());
+    controlConfig.viewport = model;
+    viewModel = newViewModel;
+  };
+}
+
+module.exports = render;
+
+},{"./../lib/interpreter":2,"./view/control/diff":24,"./view/control/recreateConsole":25,"./view/control/scroll":26}],21:[function(require,module,exports){
+function subscribe(eventType, eventHandler) {
+  window.addEventListener(eventType, supressDefault(eventHandler));
+}
+
+function supressDefault(handleEvent) {
+  return function (event) {
+    event.preventDefault();
+    handleEvent(event);
+  };
+}
+
+module.exports = subscribe;
+
+},{}],22:[function(require,module,exports){
 var SPAN = require('../../../lib/elements').SPAN;
 
 var emptyString = '';
@@ -583,40 +938,46 @@ var _prompt = {
   'jsconsole-prompt': true
 };
 
+var _1 = { classes: display, style: { 'font-weight': 'normal' }};
 function createDisplay(text) {
   return SPAN(
-    { classes: display, style: { 'font-weight': 'normal' }},
+    _1,
     SPAN(null, text + '\n'));
 }
 
+var _2 = { classes: oldPrompt, style: { 'font-weight': 'normal' }};
 function createOldPrompt(text) {
   return SPAN(
-    { classes: oldPrompt, style: { 'font-weight': 'normal' }},
+    _2,
     SPAN(null, text + '\n'));
 }
 
+var _3 = { classes: oldPromptResponse };
 function createOldPromptReply(text) {
   return SPAN(
-    { classes: oldPromptResponse },
+    _3,
     SPAN(null, '==> ' + text + '\n'));
 }
 
+var _4 = { classes: _prompt, style: { 'color': '#0d0' }};
+var _5 = { classes: promptText };
+var _6 = {
+  classes: promptTextPostCursor,
+  style: { 'position': 'relative' }
+};
 function createPrompt(promptLabel, preCursor, postCursor) {
   preCursor = preCursor != null ? preCursor : '';
   postCursor = postCursor != null ? postCursor : '';
   return SPAN(
-    { classes: _prompt, style: { 'color': '#0d0' }},
+    _4,
     emptySpan,
     SPAN(
       null,
       SPAN(null, promptLabel),
-      SPAN({ classes: promptText }, preCursor),
+      SPAN(_5, preCursor),
       cursor,
       SPAN(
-        {
-          classes: promptTextPostCursor,
-          style: { 'position': 'relative' }
-        },
+        _6,
         postCursor)),
     emptySpan);
 }
@@ -654,7 +1015,7 @@ module.exports = {
   header: header,
 };
 
-},{"../../../lib/elements":1}],17:[function(require,module,exports){
+},{"../../../lib/elements":1}],23:[function(require,module,exports){
 var components = require('./components');
 var elements   = require('../../../lib/elements');
 var DIV        = elements.DIV;
@@ -675,14 +1036,117 @@ module.exports = function (promptLabel) {
       components.createPrompt(promptLabel)));
 };
 
-},{"../../../lib/elements":1,"./components":16}],18:[function(require,module,exports){
-function copy(object) {
-  var result = {};
-  for (var key in object) {
-    if (!object.hasOwnProperty(key)) continue;
-    result[key] = object[key];
+},{"../../../lib/elements":1,"./components":22}],24:[function(require,module,exports){
+function diffArray(value1, value0, index) {
+  if (!Array.isArray(value0)) {
+    return { tree: index, commands: [['replace', value1]], index: index + 1 };
   }
-  return result;
+
+  var count = 0;
+  var length1 = value1.length;
+  var length0 = value0.length;
+  var minLength = Math.min(length1, length0);
+
+  if (minLength > 1) {
+    for (var j = 0; j < minLength; j++) {
+      if (value1[j] !== value0[j]) {
+        count++;
+      }
+    }
+
+    if (count === minLength) {
+      return { tree: index, commands: [['replace', value1]], index: index + 1 };
+    }
+  }
+
+  var i = 0;
+  var tree = [];
+  var commands = [];
+
+  for (; i < minLength; i++) {
+    if (value1[i] !== value0[i]) {
+      var _patch = _diff(value1[i], value0[i], index);
+      if (_patch.commands.length > 0) {
+        tree.push({ index: i, value: _patch.tree });
+        commands = commands.concat(_patch.commands);
+        index = index + _patch.commands.length;
+      }
+    }
+  }
+
+  for (; i < length1; i++) {
+    tree.push({ index: i, value: index });
+    commands.push(['insertAtEnd', value1[i]]);
+    index++;
+  }
+
+  var removals = [];
+
+  for (; i < length0; i++) {
+    removals.unshift({ index: i, value: index });
+    commands.push(['remove']);
+    index++;
+  }
+
+  tree = tree.concat(removals);
+
+  return { tree: tree, commands: commands, index: index };
+}
+
+function diffObject(value1, value0, index) {
+  if (!isObject(value0)) {
+    return {
+      tree: index,
+      commands: [['replace', value1]],
+      index: index + 1
+    };
+  }
+
+  var keyCount = 0;
+  var diffCount = 0;
+
+  for (var key in value0) {
+    if (!value0.hasOwnProperty(key)) continue;
+    keyCount++;
+    if (!value1.hasOwnProperty(key) || value1[key] !== value0[key]) {
+      diffCount++;
+    }
+  }
+
+  if (keyCount > 1 && keyCount === diffCount) {
+    return { tree: index, commands: [['replace', value1]], index: index + 1 };
+  }
+
+  var tree = [];
+  var commands = [];
+
+  for (var key in value1) {
+    if (!value1.hasOwnProperty(key)) continue;
+    if (value0.hasOwnProperty(key)) {
+      if (value1[key] !== value0[key]) {
+        var _patch = _diff(value1[key], value0[key], index);
+        if (_patch.commands.length > 0) {
+          tree.push({ index: key, value: _patch.tree });
+          commands = commands.concat(_patch.commands);
+          index = index + _patch.commands.length;
+        }
+      }
+    } else {
+      tree.push({ index: key, value: index });
+      commands.push(['setAtKey', value1[key]]);
+      index++;
+    }
+  }
+
+  for (var key in value0) {
+    if (!value1.hasOwnProperty(key)) {
+      tree.push({ index: key, value: index });
+      commands.push(['delete']);
+      index++;
+    }
+  }
+
+  return { tree: tree, commands: commands, index: index };
 }
 
 function _diff(value1, value0, index) {
@@ -690,92 +1154,15 @@ function _diff(value1, value0, index) {
     return { tree: [], commands: [], index: index };
   }
 
-  var _patch;
-  var tree = [];
-  var commands = [];
-
   if (Array.isArray(value1)) {
-    if (!Array.isArray(value0)) {
-      return {
-        tree: index,
-        commands: [['replace', value1]],
-        index: index + 1
-      };
-    }
-
-    var i = 0;
-
-    for (; i < value1.length && i < value0.length; i++) {
-      if (value1[i] !== value0[i]) {
-        _patch = _diff(value1[i], value0[i], index);
-        if (_patch.commands.length > 0) {
-          tree.push({ index: i, value: _patch.tree });
-          commands = commands.concat(_patch.commands);
-          index = index + _patch.commands.length;
-        }
-      }
-    }
-
-    for (; i < value1.length; i++) {
-      tree.push({ index: i, value: index });
-      commands.push(['insertAtEnd', value1[i]]);
-      index++;
-    }
-
-    var removals = [];
-    for (; i < value0.length; i++) {
-      removals.unshift({ index: i, value: index });
-      commands.push(['remove']);
-      index++;
-    }
-    tree = tree.concat(removals);
-
-    return { tree: tree, commands: commands, index: index + 1};
+    return diffArray(value1, value0, index);
   }
 
   if (isObject(value1)) {
-    if (!isObject(value0)) {
-      return {
-        tree: index,
-        commands: [['replace', value1]],
-        index: index + 1
-      };
-    }
-
-    for (var key in value1) {
-      if (!value1.hasOwnProperty(key)) continue;
-      if (value0.hasOwnProperty(key)) {
-        if (value1[key] !== value0[key]) {
-          _patch = _diff(value1[key], value0[key], index);
-          if (_patch.commands.length > 0) {
-            tree.push({ index: key, value: _patch.tree });
-            commands = commands.concat(_patch.commands);
-            index = index + _patch.commands.length;
-          }
-        }
-      } else {
-        tree.push({ index: key, value: index });
-        commands.push(['setAtKey', value1[key]]);
-        index++;
-      }
-    }
-
-    for (var key in value0) {
-      if (!value1.hasOwnProperty(key)) {
-        tree.push({ index: key, value: index });
-        commands.push(['delete']);
-        index++;
-      }
-    }
-
-    return { tree: tree, commands: commands, index: index + 1};
+    return diffObject(value1, value0, index);
   }
 
   return { tree: index, commands: [['replace', value1]], index: index + 1 };
-}
-
-function isObject(value) {
-  return {}.toString.call(value) === '[object Object]';
 }
 
 var diff = function(value1, value0) {
@@ -783,9 +1170,13 @@ var diff = function(value1, value0) {
   return { value: patch.tree, commands: patch.commands };
 };
 
+function isObject(value) {
+  return {}.toString.call(value) === '[object Object]';
+}
+
 module.exports = diff;
 
-},{}],19:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 var components           = require('../components/components');
 var createPrompt         = components.createPrompt;
 var createOldPrompt      = components.createOldPrompt;
@@ -841,19 +1232,44 @@ function renderComponent(prefixes, component) {
 
 module.exports = recreateConsole;
 
-},{"../../../lib/elements":1,"../components/components":16}],20:[function(require,module,exports){
+},{"../../../lib/elements":1,"../components/components":22}],26:[function(require,module,exports){
+var margin = 5;
+
+function getCursorOffset(cursor, viewport) {
+  return cursor.offsetLeft + cursor.offsetWidth + margin - viewport.offsetWidth;
+}
+
+function scroll(rootChild, cursor) {
+  rootChild.scrollTop = rootChild.scrollHeight - rootChild.clientHeight;
+  rootChild.scrollLeft = getCursorOffset(cursor, rootChild);
+}
+
+module.exports = scroll;
+
+},{}],27:[function(require,module,exports){
 var interpreter            = require('../../lib/interpreter');
 var createAndAttachElement = interpreter.createAndAttachElement;
 
-function initializeView(root, _console) {
-  createAndAttachElement(root, _console);
+function initializeView(root, viewModel) {
+  createAndAttachElement(root, viewModel);
 }
 
 module.exports = initializeView;
 
-},{"../../lib/interpreter":2}],21:[function(require,module,exports){
+},{"../../lib/interpreter":2}],28:[function(require,module,exports){
+var scroll = require('./control/scroll');
 
-},{}],22:[function(require,module,exports){
+function initializeViewDynamics(rootChild, getCursor) {
+  window.addEventListener('resize', function (event) {
+    scroll(rootChild, getCursor());
+  });
+}
+
+module.exports = initializeViewDynamics;
+
+},{"./control/scroll":26}],29:[function(require,module,exports){
+
+},{}],30:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -974,7 +1390,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],23:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 var initialize    = require('../../jsconsole/src/initialize');
 var interpretLisp = require('../../mhlisp-copy/build/interpret');
 
@@ -1011,7 +1427,7 @@ initialize({
   getCandidates: getCandidates
 });
 
-},{"../../jsconsole/src/initialize":7,"../../mhlisp-copy/build/interpret":34}],24:[function(require,module,exports){
+},{"../../jsconsole/src/initialize":11,"../../mhlisp-copy/build/interpret":42}],32:[function(require,module,exports){
 var commentSignal, evaluate, _process;
 
 commentSignal = require('./commentSignal');
@@ -1043,14 +1459,14 @@ _process = function(transform) {
 
 module.exports = _process;
 
-},{"./commentSignal":25,"./evaluate":31}],25:[function(require,module,exports){
+},{"./commentSignal":33,"./evaluate":39}],33:[function(require,module,exports){
 var comment;
 
 comment = {};
 
 module.exports = comment;
 
-},{}],26:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 var addEnv, getLast, lookup, set, setMainEnv, unset, unsetMainEnv;
 
 addEnv = function(envStack, newEnv) {
@@ -1105,7 +1521,7 @@ module.exports = {
   unsetMainEnv: unsetMainEnv
 };
 
-},{}],27:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 var add, contains_question_, createMalBoolean, createMalCorePureFunction, createMalIdentifier, createMalIndex, createMalNumber, createMalString, dissoc, divide, exponentiate, extractJsValue, fromArray, functionsOnJsValues, get, getEnvironment, greaterThan, greaterThanOrEqual, index, jsNaN_question_, jsNumber_question_, jsString_question_, keys, length, lessThan, lessThanOrEqual, lift, malNil, mod, multiply, negate, parseNumber, reduce, setCoreFnsOnJsValues_bang_, subtract, toArray, vals,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
@@ -1340,7 +1756,7 @@ functionsOnJsValues = {
 
 module.exports = getEnvironment;
 
-},{"./js-utilities":35,"./linked-list":37,"./type-utilities":43}],28:[function(require,module,exports){
+},{"./js-utilities":43,"./linked-list":45,"./type-utilities":51}],36:[function(require,module,exports){
 (function (process){
 var append, areEqual, assoc, atom, atom_question_, boolean_question_, car, cdr, circumpendQuotes, concat, cons, coreFn_question_, count, createMalAtom, createMalBoolean, createMalCorePureFunction, createMalIndex, createMalList, createMalNumber, createMalString, createMalSymbol, createPredicate, deref, drop, empty_question_, equal_question_, extractJsValue, false_question_, first, fromArray, function_question_, functionsOnMalValues, getEnvironment, ignoreIfTrue, ignoreUnlessTrue, ignore_bang_, interpret, last, list, list_question_, macro_question_, malAtom_question_, malBoolean_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIgnore, malIndex_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malUserPureFunction_question_, meta, next, nil_question_, nth, number_question_, prepend, prettyString, read, recurse, reduce, reset, rest, reverse, serialize, set, setCoreFnsOnMalValues_bang_, slurp, string, string_question_, stripQuotes, symbol, symbol_question_, take, time_hyphen_ms, toArray, toPartialArray, true_question_, typeOf, userFn_question_, withMeta, write, _car, _cdr, _concat, _drop, _empty_question_, _interpret, _last, _not, _prStr, _quit_, _ref, _reverse, _take, _throw,
   __slice = [].slice,
@@ -1848,7 +2264,7 @@ functionsOnMalValues = {
 module.exports = getEnvironment;
 
 }).call(this,require('_process'))
-},{"./interpret":34,"./js-utilities":35,"./linked-list":37,"./serialize":39,"./type-utilities":43,"_process":22,"fs":21}],29:[function(require,module,exports){
+},{"./interpret":42,"./js-utilities":43,"./linked-list":45,"./serialize":47,"./type-utilities":51,"_process":30,"fs":29}],37:[function(require,module,exports){
 var createMalCoreEffectfulFunction, displayEffectsOnMalValues, getEnvironment, serialize, setCoreEffectfulFnsOnMalValues_bang_, toArray, _prStr,
   __hasProp = {}.hasOwnProperty;
 
@@ -1897,7 +2313,7 @@ displayEffectsOnMalValues = {
 
 module.exports = getEnvironment;
 
-},{"./linked-list":37,"./serialize":39,"./type-utilities":43}],30:[function(require,module,exports){
+},{"./linked-list":45,"./serialize":47,"./type-utilities":51}],38:[function(require,module,exports){
 var car, createMalCorePureFunction, createMalList, createMalSymbol, extractJsValue, fromArray, fromMalIndex, getEnvironment, malList_question_, setCoreFnsOnMalValues_bang_, stripQuotes, toArray, toPartialArray, tokenizeAndParse, _process, _process_,
   __hasProp = {}.hasOwnProperty;
 
@@ -1988,7 +2404,7 @@ _process_ = _process(function(malVal) {
 
 module.exports = getEnvironment;
 
-},{"./_process":24,"./index-utilities":33,"./linked-list":37,"./tokenizeAndParse":42,"./type-utilities":43}],31:[function(require,module,exports){
+},{"./_process":32,"./index-utilities":41,"./linked-list":45,"./tokenizeAndParse":50,"./type-utilities":51}],39:[function(require,module,exports){
 var addEnv, car, catch_asterisk_, cdr, circumpendQuotes, commentSignal, createFn, createLocalEnv, createMacro, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNumber, createMalString, createMalSymbol, createMalUserPureFunction, def_bang_, defineNewValue, empty_question_, evalQuasiquotedExpr, evaluate, expandMacro, expand_hyphen_macro, extractJsValue, filter, fn_asterisk_, forEach, fromArray, fromJsObjects, fromMalIndex, ignorable_question_, jsString_question_, keyword_question_, let_asterisk_, letrec_asterisk_, lookup, macro_asterisk_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malSymbol_question_, malUserPureFunction_question_, map, next, quasiquote, quote, recurse, reduce, reduceBy2, reduceLet_asterisk_, reduceLetrec_asterisk_, reverse, setMainEnv, splat, spliceUnquote, spliceUnquote_question_, spliceUnquotedExpr_question_, toPartialArray, try_asterisk_, undef_bang_, undefineValue, unquote, unquote_question_, unquotedExpr_question_, unsetMainEnv, _do, _eval, _evalWithEnv, _evaluate, _getCurrentEnv, _getDefaultEnv, _if,
   __hasProp = {}.hasOwnProperty;
 
@@ -2380,7 +2796,7 @@ unquotedExpr_question_ = function(malValue) {
 
 module.exports = evaluate;
 
-},{"./commentSignal":25,"./env-utilities":26,"./index-utilities":33,"./js-utilities":35,"./keyTokens":36,"./linked-list":37,"./type-utilities":43}],32:[function(require,module,exports){
+},{"./commentSignal":33,"./env-utilities":34,"./index-utilities":41,"./js-utilities":43,"./keyTokens":44,"./linked-list":45,"./type-utilities":51}],40:[function(require,module,exports){
 var getLispEnvironment, setEnv0_bang_, setEnv1_bang_, setEnv2_bang_, setEnv3_bang_;
 
 setEnv0_bang_ = require('./env0');
@@ -2408,7 +2824,7 @@ getLispEnvironment = function(config) {
 
 module.exports = getLispEnvironment;
 
-},{"./env0":27,"./env1":28,"./env2":29,"./env3":30}],33:[function(require,module,exports){
+},{"./env0":35,"./env1":36,"./env2":37,"./env3":38}],41:[function(require,module,exports){
 var createMalIndex, fromJsObjects, fromMalIndex, jsString_question_,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
@@ -2467,7 +2883,7 @@ module.exports = {
   fromMalIndex: fromMalIndex
 };
 
-},{"./js-utilities":35,"./type-utilities":43}],34:[function(require,module,exports){
+},{"./js-utilities":43,"./type-utilities":51}],42:[function(require,module,exports){
 var circumpendQuotes, createMalString, encapsulate, environment, error, flattenIfNecessary, fromArray, getLispEnvironment, interpret, serialize, standardFnsAndMacros, tokenizeAndParse, _createMalString, _interpret, _process, _serialize,
   __hasProp = {}.hasOwnProperty;
 
@@ -2562,7 +2978,7 @@ interpret(standardFnsAndMacros);
 
 module.exports = interpret;
 
-},{"./_process":24,"./getLispEnvironment":32,"./js-utilities":35,"./linked-list":37,"./serialize":39,"./standard-fns-and-macros":40,"./tokenizeAndParse":42,"./type-utilities":43}],35:[function(require,module,exports){
+},{"./_process":32,"./getLispEnvironment":40,"./js-utilities":43,"./linked-list":45,"./serialize":47,"./standard-fns-and-macros":48,"./tokenizeAndParse":50,"./type-utilities":51}],43:[function(require,module,exports){
 var circumpendQuotes, jsNaN_question_, jsNumber_question_, jsString_question_;
 
 circumpendQuotes = function(jsString) {
@@ -2588,7 +3004,7 @@ module.exports = {
   jsString_question_: jsString_question_
 };
 
-},{}],36:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 var binaryGlyphTokens, catch_asterisk_, def_bang_, deref, derefGlyph, expand_hyphen_macro, fn_asterisk_, glyphTokens, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, indexEnd, indexStart, keyTokens, keyword_question_, keywords, let_asterisk_, letrec_asterisk_, listEnd, listStart, macroTokens, macro_asterisk_, nil, quasiquote, quasiquoteGlyph, quote, quoteGlyph, splat, spliceUnquote, spliceUnquoteGlyph, try_asterisk_, undef_bang_, unquote, unquoteGlyph, _do, _eval, _evalWithEnv, _false, _getCurrentEnv, _getDefaultEnv, _if, _process, _true,
   __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
@@ -2655,7 +3071,7 @@ module.exports = {
   unquoteGlyph: unquoteGlyph
 };
 
-},{}],37:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 var EOL, car, cdr, concat, cons, copy, createMalList, createNode, drop, empty_question_, equal_question_, filter, forEach, fromArray, last, lastTail, malListType, malTypes, map, next, recurse, reduce, reduceBy2, reverse, take, toArray, toPartialArray, zip, _EOL,
   __slice = [].slice;
 
@@ -2925,7 +3341,7 @@ module.exports = {
   toPartialArray: toPartialArray
 };
 
-},{"./types":44}],38:[function(require,module,exports){
+},{"./types":52}],46:[function(require,module,exports){
 var atomize, binaryGlyphIndex, binaryGlyphTokens, binaryGlyph_question_, boolean_question_, comment, createMalBoolean, createMalIdentifier, createMalIgnore, createMalIndex, createMalList, createMalNil, createMalNumber, createMalString, createMalSymbol, deref, derefGlyph, extractJsValue, float_question_, glyphIndex, glyphTokens, glyph_question_, identifer_question_, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, ignore_question_, indexEnd, indexStart, indexStart_question_, integer_question_, keyTokens, listEnd, listStart, listStart_question_, nil, nil_question_, parse, parseBinaryGlyph, parseBoolean, parseFloat10, parseGlyph, parseIndex, parseInt10, parseList, quasiquote, quasiquoteGlyph, quote, quoteGlyph, reverse, spliceUnquote, spliceUnquoteGlyph, startsWith_question_, string_question_, stripUnderscores, unquote, unquoteGlyph, _false, _parse, _true,
   __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
@@ -3178,7 +3594,7 @@ identifer_question_ = startsWith_question_(':');
 
 module.exports = parse;
 
-},{"./commentSignal":25,"./keyTokens":36,"./linked-list":37,"./type-utilities":43}],39:[function(require,module,exports){
+},{"./commentSignal":33,"./keyTokens":44,"./linked-list":45,"./type-utilities":51}],47:[function(require,module,exports){
 var adjoinMalValue, commentSignal, coreEffectfulFunctionLabel, corePureFunctionLabel, extractJsValue, ignoreLabel, indexEnd, indexStart, keywordLabel, listEnd, listStart, macroLabel, malAtom_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIdentifier_question_, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil_question_, malString_question_, malUserPureFunction_question_, nilLabel, reduce, serialize, serializeAtom, serializeIdentifier, serializeIndex, serializeList, serializeString, stripQuotes, userPureFunctionLabel,
   __hasProp = {}.hasOwnProperty;
 
@@ -3343,10 +3759,10 @@ userPureFunctionLabel = '<function>';
 
 module.exports = serialize;
 
-},{"./commentSignal":25,"./keyTokens":36,"./linked-list":37,"./type-utilities":43}],40:[function(require,module,exports){
+},{"./commentSignal":33,"./keyTokens":44,"./linked-list":45,"./type-utilities":51}],48:[function(require,module,exports){
 module.exports = "(do\n  (def! fix*\n    (fn* (f)\n      ( (fn* (x) (f (fn* (& ys) (apply (x x) ys))))\n        (fn* (x) (f (fn* (& ys) (apply (x x) ys)))))))\n\n  (def! memfix*\n    (fn* (f)\n      (let* (cache {})\n        (\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          cache))))\n\n  (def! _0 car)\n  (def! _1 (fn* (xs) (nth 1 xs)))\n  (def! _2 (fn* (xs) (nth 2 xs)))\n\n  (def! swap! (macro* (atom & xs)\n    (if (empty? xs)\n      atom\n      `(let* (-atom- ~atom)\n        (do\n          (reset! -atom- (~(car xs) (deref -atom-) ~@(cdr xs)))\n          (deref -atom-))))))\n\n  (def! *gensym-counter* (atom 0))\n\n  (def! gensym (fn* ()\n    (symbol (string \"G__\" (swap! *gensym-counter* incr)))))\n\n  (def! or (macro* (& xs)\n    (if (empty? xs)\n      false\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query- \n            ~-query-\n            (or ~@(cdr xs))))))))\n\n  (def! and (macro* (& xs)\n    (if (empty? xs)\n      true\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query-\n            (and ~@(cdr xs))\n            false))))))\n\n  (def! cond (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (if (empty? (cdr xs))\n        (throw \"`cond` requires an even number of forms.\")\n        (let* (-query- (gensym))\n          `(let* (~-query- ~(car xs))\n            (if ~-query-\n              ~(_1 xs)\n              (cond ~@(cdr (cdr xs))))))))))\n\n  (def! loop (macro* (form0 form1)\n    `(let* (loop (memfix* (fn* (loop) (fn* (~(_0 form0)) ~form1)))) (loop ~(_1 form0)))))\n\n  (def! -> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                forms  (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~(car form) ~x ~@(cdr form)))\n                (list form x))\n              `(-> (-> ~x ~form) ~@forms))))))))\n\n  (def! ->> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                 forms (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~@form  ~x))\n                (list form x))\n              `(->> (->> ~x ~form) ~@forms))))))))\n\n  (def! ->* (macro* (& xs) `(fn* (-x-) (-> -x- ~@xs))))\n\n  (def! ->>* (macro* (& xs) `(fn* (-x-) (->> -x- ~@xs))))\n\n  (def! not (fn* (x) (if x false true)))\n  (def! incr  (->* (+ 1)))\n  (def! decr  (->* (- 1)))\n  (def! zero? (->* (= 0)))\n\n  (def! identity (fn* (x) x))\n\n  (def! constant-fn (fn* (x) (fn* (y) x)))\n\n  (def! call-on (fn* (& xs) (fn* (fn) (apply fn xs))))\n\n  (def! step-into-list (fn* (xs fn0 fn1)\n    (let* (x   (car xs)\n          -xs- (cdr xs))\n      (if (empty? -xs-)\n        (fn1 x)\n        (fn0 x -xs-)))))\n\n  (def! apply-on (fn* (& xs)\n    (step-into-list\n      xs\n      (fn* (arguments -xs-) (apply (car -xs-) arguments))\n      (fn* (arguments) (fn* (f) (apply f arguments))))))\n\n  (def! reduce (fn* (f seed xs)\n      (if (empty? xs)\n        seed\n        (reduce f (f seed (car xs)) (cdr xs)))))\n\n  (def! filter (fn* (predicate xs)\n    (reverse\n      (reduce\n        (fn* (memo x)\n          (if (predicate x)\n            (cons x memo)\n            memo))\n        '()\n        xs))))\n\n  (def! map (fn* (f xs)\n    (reverse (reduce (fn* (memo x) (cons (f x) memo)) '() xs))))\n\n  (def! every?  (fn* (pred xs)\n    (if (empty? xs)\n      true\n      (if (pred (car xs))\n        (every? pred (cdr xs))\n        false))))\n\n  (def! some?  (fn* (pred xs)\n    (if (empty? xs)\n      false\n      (if (pred (car xs))\n        true\n        (some? pred (cdr xs))))))\n\n  (def! letmemrec* (macro* (alias expr)\n    `(let* (~(car alias) (memfix* (fn* (~(car alias)) ~(_1 alias)))) ~expr)))\n\n  (def! skip (fn* (nbr xs)\n    (letrec* (-skip- (fn* (ys)\n      (let* (nbr (car ys)\n             xs  (_1 ys))\n        (cond\n          (= 0 nbr) xs\n          (= 1 nbr) (cdr xs)\n          \"default\" (-skip- (list (decr nbr) (cdr xs)))))))\n      (-skip- (list nbr xs)))))\n\n  (def! invokable? (fn* (x) (or (function? x) (macro? x))))\n\n  (def! . (macro* (x key & xs)\n    (if (empty? xs)\n      `(get ~x ~key)\n      `((get ~x ~key) ~@xs))))\n\n  (def! .. (fn* (lo hi)\n    (letrec* (-..- (fn* (xs)\n      (let* (lo     (_0 xs)\n             hi     (_1 xs)\n             -list- (_2 xs))\n        (if (= lo hi)\n          (cons hi -list-)\n          (-..- (list lo (decr hi) (cons hi -list-)))))))\n      (-..- (list lo hi '())))))\n\n  (def! defrec! (macro* (fn-name fn-body)\n    `(def! ~fn-name (letrec* (~fn-name ~fn-body) ~fn-name))))\n\n  (def! for* (macro* (loop-parameters body)\n    `(loop\n      ~(_0 loop-parameters)\n      (if ~(_1 loop-parameters)\n        (do ~body (loop ~(_2 loop-parameters)))\n        nil))))\n\n  (def! for-each (fn* (f xs)\n    (reduce\n      (fn* (memo x) (do (f x) memo))\n      nil\n      xs)))\n\n  (def! n-times (fn* (n f)\n    (loop (i 0)\n      (if (= i n)\n        nil\n        (do (f i) (loop (+ i 1)))))))\n\n  (def! tap (fn* (f x) (do (f x) x)))\n\n  (def! with-side-effect (fn* (thunk x)\n    (do (thunk) x)))\n\n  (def! thunk (macro* (form)\n    `(fn* () ~form)))\n\n  (def! call (macro* (f & xs) `(~f ~@xs)))\n\n  (def! apply (macro* (f xs) `(eval (cons ~f ~xs))))\n\n  (def! eval-string (fn* (malString) (eval (parse malString))))\n\n)";
 
-},{}],41:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 var commentSignal, comment_question_, createTokenRegex, meaningful_question_, tokenize;
 
 commentSignal = require('./commentSignal');
@@ -3382,7 +3798,7 @@ tokenize = function(sourceCode) {
 
 module.exports = tokenize;
 
-},{"./commentSignal":25}],42:[function(require,module,exports){
+},{"./commentSignal":33}],50:[function(require,module,exports){
 var parse, tokenize;
 
 parse = require('./parse');
@@ -3393,7 +3809,7 @@ module.exports = function(sourceCode) {
   return parse(tokenize(sourceCode));
 };
 
-},{"./parse":38,"./tokenize":41}],43:[function(require,module,exports){
+},{"./parse":46,"./tokenize":49}],51:[function(require,module,exports){
 var createMalAtom, createMalBoolean, createMalCoreEffectfulFunction, createMalCorePureFunction, createMalIdentifier, createMalIgnore, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNil, createMalNumber, createMalSpecialForm, createMalString, createMalSymbol, createMalUserPureFunction, createMalValue, createPredicate, create_hyphen_factory_hyphen__ampersand__hyphen_predicate, extractJsValue, malAtomType, malAtom_question_, malBoolean_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIdentifier_question_, malIgnore, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malSpecialForm_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malTypes, malUserPureFunction_question_, _createMalAtom, _createMalBoolean, _createMalList, _createMalUnit, _malUnit_question_, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
 
 createMalList = require('./linked-list').createMalList;
@@ -3505,7 +3921,7 @@ module.exports = {
   malUserPureFunction_question_: malUserPureFunction_question_
 };
 
-},{"./linked-list":37,"./types":44}],44:[function(require,module,exports){
+},{"./linked-list":45,"./types":52}],52:[function(require,module,exports){
 var malAtomType, malBooleanType, malCoreEffectfulFunctionType, malCorePureFunctionType, malIdentifierType, malIndexType, malKeywordType, malListType, malMacroType, malNumberType, malSpecialFormType, malStringType, malSymbolType, malTypes, malUnitType, malUserPureFunctionType;
 
 malTypes = [malBooleanType = 'malBooleanType', malCoreEffectfulFunctionType = 'malCoreEffectfulFunctionType', malCorePureFunctionType = 'malCorePureFunctionType', malIdentifierType = 'malIdentifierType', malIndexType = 'malIndexType', malKeywordType = 'malKeywordType', malListType = 'malListType', malMacroType = 'malMacroType', malNumberType = 'malNumberType', malSpecialFormType = 'malSpecialFormType', malStringType = 'malStringType', malSymbolType = 'malSymbolType', malUnitType = 'malUnitType', malUserPureFunctionType = 'malUserPureFunctionType', malAtomType = 'malAtomType'];
@@ -3529,14 +3945,14 @@ module.exports = {
   malUserPureFunctionType: malUserPureFunctionType
 };
 
-},{}],45:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 module.exports = {
   children: require('./src/children'),
   elements: require('./src/elements'),
   interpreter: require('./src/interpreter')
 };
 
-},{"./src/children":46,"./src/elements":47,"./src/interpreter":48}],46:[function(require,module,exports){
+},{"./src/children":54,"./src/elements":55,"./src/interpreter":56}],54:[function(require,module,exports){
 function childById(id) {
   return { mode: 'id', key: id }; 
 }
@@ -3573,7 +3989,7 @@ module.exports = {
   childrenByTag: identifyChildren('tag')
 };
 
-},{}],47:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 function createElement(tag) {
   return function (config) {
     if (config == null) {
@@ -3646,7 +4062,7 @@ for (var tagName in tags) {
 
 module.exports = elementFactories;
 
-},{}],48:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 function attachElement(parent, element) {
   if (isString(element)) {
     parent.innerText = element;
@@ -3657,6 +4073,12 @@ function attachElement(parent, element) {
 
 function createAndAttachElement(parent, config) {
   attachElement(parent, createElement(config));
+}
+
+function createAndAttachElements(node, elements) {
+  for (var i = 0; i < elements.length; i++) {
+    createAndAttachElement(node, elements[i]);
+  }
 }
 
 function createElement(config) {
@@ -3727,8 +4149,8 @@ function findChildren(parent, config) {
   return Array.prototype.slice.call(htmlCollection);
 }
 
-function isDiff(value) {
-  return isNaN(parseInt(value, 10));
+function isCommandIndex(value) {
+  return !isNaN(parseInt(value, 10));
 }
 
 function isNaN(value) {
@@ -3807,30 +4229,58 @@ function _modifyElement(node, tree, commands) {
         break;
 
       case 'children':
-        for (var childIndex = 0; childIndex < continuation.length; childIndex++) {
-          var child = continuation[childIndex].index;
-          var childContinuation = continuation[childIndex].value;
-          if (isDiff(childContinuation)) {
-            _modifyElement(node.childNodes[child], childContinuation, commands);
-          } else {
-            var command = commands[childContinuation]
-            switch (command[0]) {
-              case 'delete':
-              case 'remove':
-                removeNode(findChild(node, { mode: 'index', key: child }));
-                break;
-              case 'replace':     // ?
-                createAndAttachElement(node, command[1]);
-                break;
-              case 'insertAtEnd': // ?
-              case 'setAtKey':    // ?
-                createAndAttachElement(node, command[1]);
-                break;
+        if (isCommandIndex(continuation)) {
+          var command = commands[continuation]
+          switch (command[0]) {
+            case 'delete':
+            case 'remove':
+              removeChildren(node);
+              break;
+            case 'replace':     // ?
+              removeChildren(node);
+              createAndAttachElements(node, command[1]);
+              break;
+            case 'insertAtEnd': // ?
+            case 'setAtKey':    // ?
+              break;
+          }
+        } else {
+          for (var childIndex = 0; childIndex < continuation.length; childIndex++) {
+            var child = continuation[childIndex].index;
+            var childContinuation = continuation[childIndex].value;
+            if (isCommandIndex(childContinuation)) {
+              var command = commands[childContinuation]
+              switch (command[0]) {
+                case 'delete':
+                case 'remove':
+                  removeChild(node, child);
+                  break;
+                case 'replace':     // ?
+                  createAndAttachElement(node, command[1]);
+                  break;
+                case 'insertAtEnd': // ?
+                case 'setAtKey':    // ?
+                  createAndAttachElement(node, command[1]);
+                  break;
+              }
+            } else {
+              _modifyElement(node.childNodes[child], childContinuation, commands);
             }
           }
         }
         break;
     }
+  }
+}
+
+function removeChild(node, childIndex) {
+  removeNode(findChild(node, { mode: 'index', key: childIndex }));
+}
+
+function removeChildren(node) {
+  var childCount = node.childNodes.length;
+  for (var i = childCount - 1; i >= 0; i--) {
+    node.removeChild(node.childNodes[i]);
   }
 }
 
@@ -3843,4 +4293,4 @@ module.exports = {
   modifyElement: modifyElement,
 };
 
-},{}]},{},[23]);
+},{}]},{},[31]);
