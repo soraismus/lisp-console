@@ -7,7 +7,7 @@ module.exports = require('./tinkerbox').interpreter;
 },{"./tinkerbox":3}],3:[function(require,module,exports){
 module.exports = require('../../tinkerbox/index');
 
-},{"../../tinkerbox/index":53}],4:[function(require,module,exports){
+},{"../../tinkerbox/index":52}],4:[function(require,module,exports){
 var a = 'a';
 var e = 'e';
 var h = 'h';
@@ -459,7 +459,7 @@ module.exports = initializeControl;
 
 },{"./chars/interpretKeydown":6,"./getViewport":9}],11:[function(require,module,exports){
 var getInitialModel        = require('./models/getInitialModel');
-var getInitialViewModel    = require('./view/components/createConsole');
+var getInitialViewModel    = require('./view/control/recreateConsole');
 var initializeControl      = require('./control/initializeControl');
 var initializeView         = require('./view/initializeView');
 var initializeViewDynamics = require('./view/initializeViewDynamics');
@@ -468,15 +468,17 @@ var subscribe              = require('./subscribe');
 
 function initialize(config) {
   var root = document.getElementById(config.nodeId);
+  var initialModel = getInitialModel();
   var promptLabel = config.promptLabel;
-  var viewModel = getInitialViewModel(promptLabel);
+  var labels = { promptLabel: promptLabel };
+  var viewModel = getInitialViewModel(labels, initialModel);
 
   initializeView(root, viewModel);
 
   var rootChild = root.childNodes[0];
 
   var getCursor = function () {
-    return root.getElementsByClassName('jsconsole-cursor')[0];
+    return document.getElementById('erl-cursor');
   };
 
   initializeViewDynamics(rootChild, getCursor);
@@ -485,7 +487,7 @@ function initialize(config) {
     getCandidates: config.getCandidates,
     promptLabel: promptLabel,
     transform: config.transform,
-    viewport: getInitialModel()
+    viewport: initialModel
   };
 
   initializeControl(
@@ -496,7 +498,7 @@ function initialize(config) {
 
 module.exports = initialize;
 
-},{"./control/initializeControl":10,"./models/getInitialModel":15,"./render":20,"./subscribe":21,"./view/components/createConsole":23,"./view/initializeView":27,"./view/initializeViewDynamics":28}],12:[function(require,module,exports){
+},{"./control/initializeControl":10,"./models/getInitialModel":15,"./render":20,"./subscribe":21,"./view/control/recreateConsole":24,"./view/initializeView":26,"./view/initializeViewDynamics":27}],12:[function(require,module,exports){
 var create = require('../types/createFrame');
 
 function clear(frame, terminal) {
@@ -877,13 +879,11 @@ var getViewModel  = require('./view/control/recreateConsole');
 var modifyElement = require('./../lib/interpreter').modifyElement;
 var scroll        = require('./view/control/scroll');
 
-var viewModel;
-
 function render(_viewModel, rootChild, getCursor, controlConfig) {
-  viewModel = _viewModel;
-
+  var viewModel = _viewModel;
   return function (model) {
-    var newViewModel = getViewModel({ promptLabel: controlConfig.promptLabel }, model);
+    var labels = { promptLabel: controlConfig.promptLabel };
+    var newViewModel = getViewModel(labels, model);
     modifyElement(rootChild, diff(newViewModel, viewModel));
     scroll(rootChild, getCursor());
     controlConfig.viewport = model;
@@ -893,7 +893,7 @@ function render(_viewModel, rootChild, getCursor, controlConfig) {
 
 module.exports = render;
 
-},{"./../lib/interpreter":2,"./view/control/diff":24,"./view/control/recreateConsole":25,"./view/control/scroll":26}],21:[function(require,module,exports){
+},{"./../lib/interpreter":2,"./view/control/diff":23,"./view/control/recreateConsole":24,"./view/control/scroll":25}],21:[function(require,module,exports){
 function subscribe(eventType, eventHandler) {
   window.addEventListener(eventType, supressDefault(eventHandler));
 }
@@ -911,81 +911,43 @@ module.exports = subscribe;
 var SPAN = require('../../../lib/elements').SPAN;
 
 var emptyString = '';
-
+var newline = '\n';
 var space = ' ';
 
-var _cursor = { 'jsconsole-cursor': true };
-var _header = { 'jsconsole-header': true };
-var promptText = { 'jsconsole-prompt-text': true };
-var promptTextPostCursor = { 'jsconsole-prompt-text-post-cursor': true };
-
-var display = {
-  'jsconsole-display': true,
-  'jsconsole-line-item': true
+var _entryConfig = {
+  classes: { 'erl-line': true },
+  style: { 'font-weight': 'normal' }
 };
 
-var oldPrompt = {
-  'jsconsole-old-prompt': true,
-  'jsconsole-line-item': true
-};
-
-var oldPromptResponse = {
-  'jsconsole-old-prompt-response': true,
-  'jsconsole-line-item': true
-};
-
-var _prompt = {
-  'jsconsole-prompt': true
-};
-
-var _1 = { classes: display, style: { 'font-weight': 'normal' }};
-function createDisplay(text) {
+function ERL_ENTRY(text) {
   return SPAN(
-    _1,
-    SPAN(null, text + '\n'));
+    _entryConfig,
+    SPAN(null, text + newline));
 }
 
-var _2 = { classes: oldPrompt, style: { 'font-weight': 'normal' }};
-function createOldPrompt(text) {
-  return SPAN(
-    _2,
-    SPAN(null, text + '\n'));
-}
+var _inputConfig = { id: 'erl-input', style: { 'color': '#0d0' }};
+var _postConfig = { id: 'erl-post', style: { 'position': 'relative' }};
+var _preConfig = { id: 'erl-pre' };
+var _promptConfig = { id: 'erl-prompt' };
 
-var _3 = { classes: oldPromptResponse };
-function createOldPromptReply(text) {
+function ERL_INPUT(prompt, preCursor, postCursor) {
+  preCursor = preCursor != null ? preCursor : emptyString;
+  postCursor = postCursor != null ? postCursor : emptyString;
   return SPAN(
-    _3,
-    SPAN(null, '==> ' + text + '\n'));
-}
-
-var _4 = { classes: _prompt, style: { 'color': '#0d0' }};
-var _5 = { classes: promptText };
-var _6 = {
-  classes: promptTextPostCursor,
-  style: { 'position': 'relative' }
-};
-function createPrompt(promptLabel, preCursor, postCursor) {
-  preCursor = preCursor != null ? preCursor : '';
-  postCursor = postCursor != null ? postCursor : '';
-  return SPAN(
-    _4,
+    _inputConfig,
     emptySpan,
     SPAN(
       null,
-      SPAN(null, promptLabel),
-      SPAN(_5, preCursor),
-      cursor,
-      SPAN(
-        _6,
-        postCursor)),
+      ERL_PROMPT(prompt),
+      ERL_PRE(preCursor),
+      ERL_CURSOR,
+      ERL_POST(postCursor)),
     emptySpan);
 }
 
-var cursor = SPAN(
+var ERL_CURSOR = SPAN(
   {
-    id: 'cursor',
-    classes: _cursor,
+    id: 'erl-cursor',
     style: {
       'background-color': '#999',
       'color': 'transparent',
@@ -998,45 +960,36 @@ var cursor = SPAN(
 
 var emptySpan = SPAN(null, emptyString);
 
-var header = SPAN(
-    { classes: _header },
-    SPAN({ style: { 'color': '#0ff' }}, 'Welcome to Lisp Console.\n'));
+var ERL_HEADER = SPAN(
+    {
+      classes: { 'erl-header': true }
+    },
+    SPAN(
+      {
+        id: 'erl-banner',
+        style: { 'color': '#0ff' }
+      },
+      'Welcome to ErlKing Lisp Console.\n'));
 
-var postCursor = SPAN({
-  classes: promptTextPostCursor,
-  style: { 'position': 'relative' }
-});
+function ERL_PROMPT(text) {
+  return SPAN(_promptConfig, text);
+}
+
+function ERL_PRE(text) {
+  return SPAN(_preConfig, text);
+}
+
+function ERL_POST(text) {
+  return SPAN(_postConfig, text);
+}
 
 module.exports = {
-  createDisplay: createDisplay,
-  createOldPrompt: createOldPrompt,
-  createOldPromptReply: createOldPromptReply,
-  createPrompt: createPrompt,
-  header: header,
+  ERL_ENTRY: ERL_ENTRY,
+  ERL_INPUT: ERL_INPUT,
+  ERL_HEADER: ERL_HEADER,
 };
 
 },{"../../../lib/elements":1}],23:[function(require,module,exports){
-var components = require('./components');
-var elements   = require('../../../lib/elements');
-var DIV        = elements.DIV;
-var PRE        = elements.PRE;
-
-module.exports = function (promptLabel) {
-  return DIV(
-    {
-      id: 'view',
-      classes: { 'view': true }
-    },
-    PRE(
-      {
-        id: 'jsconsole',
-        classes: { 'jsconsole': true }
-      },
-      components.header,
-      components.createPrompt(promptLabel)));
-};
-
-},{"../../../lib/elements":1,"./components":22}],24:[function(require,module,exports){
 function diffArray(value1, value0, index) {
   if (!Array.isArray(value0)) {
     return { tree: index, commands: [['replace', value1]], index: index + 1 };
@@ -1176,63 +1129,64 @@ function isObject(value) {
 
 module.exports = diff;
 
-},{}],25:[function(require,module,exports){
-var components           = require('../components/components');
-var createPrompt         = components.createPrompt;
-var createOldPrompt      = components.createOldPrompt;
-var createOldPromptReply = components.createOldPromptReply;
-var elements             = require('../../../lib/elements');
-var DIV                  = elements.DIV;
-var PRE                  = elements.PRE;
+},{}],24:[function(require,module,exports){
+var components  = require('../components/components');
+var ERL_ENTRY = components.ERL_ENTRY;
+var ERL_HEADER  = components.ERL_HEADER;
+var ERL_INPUT   = components.ERL_INPUT;
+var elements    = require('../../../lib/elements');
+var DIV         = elements.DIV;
+var PRE         = elements.PRE;
 
-function recreateConsole (prefixes, viewport) {
+var _1 = { id: 'erlking' };
+var _2 = { id: 'erl-console' };
+
+function ERLKING(prefixes, viewport) {
   var promptLabel = prefixes.promptLabel;
   var prompt = viewport.prompt;
   var frame = viewport.frame;
 
   var entries = viewport.terminal.entries
     .slice(frame.start, frame.start + frame.offset)
-    .map(renderComponent.bind(null, prefixes));
+    .map(specifyEntry.bind(null, prefixes));
 
   return DIV(
-    {
-      id: 'view',
-      classes: { 'view': true }
-    },
+    _1,
     PRE(
-      {
-        id: 'jsconsole',
-        classes: { 'jsconsole': true }
-      },
-      components.header,
+      _2,
+      ERL_HEADER,
       entries,
-      createPrompt(
+      ERL_INPUT(
         promptLabel,
         prompt.preCursor,
         prompt.postCursor)));
 }
 
-function renderComponent(prefixes, component) {
+function specifyEntry(prefixes, component) {
+  var completionLabel = '  ';
+  var displayLabel = '';
+  var errorLabel = '...> ';
   var promptLabel = prefixes.promptLabel;
+  var responseLabel = '==> ';
   switch (component.type) {
     case 'command':
-      return createOldPrompt(promptLabel + component.value);
+      return ERL_ENTRY(promptLabel + component.value);
     case 'response':
-      return createOldPromptReply(component.value);
+      return ERL_ENTRY(responseLabel + component.value);
     case 'display':
-      return createOldPrompt(component.value);
+      return ERL_ENTRY(displayLabel + component.value);
     case 'completion':
-      return createOldPrompt('  ' + component.value);
+      return ERL_ENTRY(completionLabel + component.value);
     case 'error':
-      return createOldPrompt('...> ' + component.value);
+      return ERL_ENTRY(errorLabel + component.value);
     default:
       throw new Error('invalid component type');
   }
 }
 
-module.exports = recreateConsole;
+module.exports = ERLKING;
 
-},{"../../../lib/elements":1,"../components/components":22}],26:[function(require,module,exports){
+},{"../../../lib/elements":1,"../components/components":22}],25:[function(require,module,exports){
 var margin = 5;
 
 function getCursorOffset(cursor, viewport) {
@@ -1246,7 +1200,7 @@ function scroll(rootChild, cursor) {
 
 module.exports = scroll;
 
-},{}],27:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 var interpreter            = require('../../lib/interpreter');
 var createAndAttachElement = interpreter.createAndAttachElement;
 
@@ -1256,7 +1210,7 @@ function initializeView(root, viewModel) {
 
 module.exports = initializeView;
 
-},{"../../lib/interpreter":2}],28:[function(require,module,exports){
+},{"../../lib/interpreter":2}],27:[function(require,module,exports){
 var scroll = require('./control/scroll');
 
 function initializeViewDynamics(rootChild, getCursor) {
@@ -1267,9 +1221,9 @@ function initializeViewDynamics(rootChild, getCursor) {
 
 module.exports = initializeViewDynamics;
 
-},{"./control/scroll":26}],29:[function(require,module,exports){
+},{"./control/scroll":25}],28:[function(require,module,exports){
 
-},{}],30:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1390,7 +1344,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],31:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 var initialize    = require('../../jsconsole/src/initialize');
 var interpretLisp = require('../../mhlisp-copy/build/interpret');
 
@@ -1427,7 +1381,7 @@ initialize({
   getCandidates: getCandidates
 });
 
-},{"../../jsconsole/src/initialize":11,"../../mhlisp-copy/build/interpret":42}],32:[function(require,module,exports){
+},{"../../jsconsole/src/initialize":11,"../../mhlisp-copy/build/interpret":41}],31:[function(require,module,exports){
 var commentSignal, evaluate, _process;
 
 commentSignal = require('./commentSignal');
@@ -1459,14 +1413,14 @@ _process = function(transform) {
 
 module.exports = _process;
 
-},{"./commentSignal":33,"./evaluate":39}],33:[function(require,module,exports){
+},{"./commentSignal":32,"./evaluate":38}],32:[function(require,module,exports){
 var comment;
 
 comment = {};
 
 module.exports = comment;
 
-},{}],34:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 var addEnv, getLast, lookup, set, setMainEnv, unset, unsetMainEnv;
 
 addEnv = function(envStack, newEnv) {
@@ -1521,8 +1475,8 @@ module.exports = {
   unsetMainEnv: unsetMainEnv
 };
 
-},{}],35:[function(require,module,exports){
-var add, contains_question_, createMalBoolean, createMalCorePureFunction, createMalIdentifier, createMalIndex, createMalNumber, createMalString, dissoc, divide, exponentiate, extractJsValue, fromArray, functionsOnJsValues, get, getEnvironment, greaterThan, greaterThanOrEqual, index, jsNaN_question_, jsNumber_question_, jsString_question_, keys, length, lessThan, lessThanOrEqual, lift, malNil, mod, multiply, negate, parseNumber, reduce, setCoreFnsOnJsValues_bang_, subtract, toArray, vals,
+},{}],34:[function(require,module,exports){
+var add, contains_question_, createMalBoolean, createMalCorePureFunction, createMalIdentifier, createMalIndex, createMalNumber, createMalString, dissoc, divide, exponentiate, extractJsValue, fromArray, functionsOnJsValues, get, getEnvironment, greaterThan, greaterThanOrEqual, index, jsNaN_question_, jsNumber_question_, jsString_question_, keys, length, lessThan, lessThanOrEqual, lift, malNil, max, min, mod, multiply, negate, parseNumber, reduce, setCoreFnsOnJsValues_bang_, subtract, toArray, vals,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
 
@@ -1670,6 +1624,18 @@ lift = function(fnOnJsValues) {
   };
 };
 
+max = function() {
+  var nbrs;
+  nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+  return createMalNumber(Math.max.apply(Math, nbrs));
+};
+
+min = function() {
+  var nbrs;
+  nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+  return createMalNumber(Math.min.apply(Math, nbrs));
+};
+
 mod = function(nbr0, nbr1) {
   return createMalNumber(nbr0 % nbr1);
 };
@@ -1744,6 +1710,8 @@ functionsOnJsValues = {
   'index': index,
   'keys': keys,
   'length': length,
+  'max': max,
+  'min': min,
   '<': lessThan,
   '<=': lessThanOrEqual,
   '%': mod,
@@ -1756,7 +1724,7 @@ functionsOnJsValues = {
 
 module.exports = getEnvironment;
 
-},{"./js-utilities":43,"./linked-list":45,"./type-utilities":51}],36:[function(require,module,exports){
+},{"./js-utilities":42,"./linked-list":44,"./type-utilities":50}],35:[function(require,module,exports){
 (function (process){
 var append, areEqual, assoc, atom, atom_question_, boolean_question_, car, cdr, circumpendQuotes, concat, cons, coreFn_question_, count, createMalAtom, createMalBoolean, createMalCorePureFunction, createMalIndex, createMalList, createMalNumber, createMalString, createMalSymbol, createPredicate, deref, drop, empty_question_, equal_question_, extractJsValue, false_question_, first, fromArray, function_question_, functionsOnMalValues, getEnvironment, ignoreIfTrue, ignoreUnlessTrue, ignore_bang_, interpret, last, list, list_question_, macro_question_, malAtom_question_, malBoolean_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIgnore, malIndex_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malUserPureFunction_question_, meta, next, nil_question_, nth, number_question_, prepend, prettyString, read, recurse, reduce, reset, rest, reverse, serialize, set, setCoreFnsOnMalValues_bang_, slurp, string, string_question_, stripQuotes, symbol, symbol_question_, take, time_hyphen_ms, toArray, toPartialArray, true_question_, typeOf, userFn_question_, withMeta, write, _car, _cdr, _concat, _drop, _empty_question_, _interpret, _last, _not, _prStr, _quit_, _ref, _reverse, _take, _throw,
   __slice = [].slice,
@@ -2264,7 +2232,7 @@ functionsOnMalValues = {
 module.exports = getEnvironment;
 
 }).call(this,require('_process'))
-},{"./interpret":42,"./js-utilities":43,"./linked-list":45,"./serialize":47,"./type-utilities":51,"_process":30,"fs":29}],37:[function(require,module,exports){
+},{"./interpret":41,"./js-utilities":42,"./linked-list":44,"./serialize":46,"./type-utilities":50,"_process":29,"fs":28}],36:[function(require,module,exports){
 var createMalCoreEffectfulFunction, displayEffectsOnMalValues, getEnvironment, serialize, setCoreEffectfulFnsOnMalValues_bang_, toArray, _prStr,
   __hasProp = {}.hasOwnProperty;
 
@@ -2313,7 +2281,7 @@ displayEffectsOnMalValues = {
 
 module.exports = getEnvironment;
 
-},{"./linked-list":45,"./serialize":47,"./type-utilities":51}],38:[function(require,module,exports){
+},{"./linked-list":44,"./serialize":46,"./type-utilities":50}],37:[function(require,module,exports){
 var car, createMalCorePureFunction, createMalList, createMalSymbol, extractJsValue, fromArray, fromMalIndex, getEnvironment, malList_question_, setCoreFnsOnMalValues_bang_, stripQuotes, toArray, toPartialArray, tokenizeAndParse, _process, _process_,
   __hasProp = {}.hasOwnProperty;
 
@@ -2404,7 +2372,7 @@ _process_ = _process(function(malVal) {
 
 module.exports = getEnvironment;
 
-},{"./_process":32,"./index-utilities":41,"./linked-list":45,"./tokenizeAndParse":50,"./type-utilities":51}],39:[function(require,module,exports){
+},{"./_process":31,"./index-utilities":40,"./linked-list":44,"./tokenizeAndParse":49,"./type-utilities":50}],38:[function(require,module,exports){
 var addEnv, car, catch_asterisk_, cdr, circumpendQuotes, commentSignal, createFn, createLocalEnv, createMacro, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNumber, createMalString, createMalSymbol, createMalUserPureFunction, def_bang_, defineNewValue, empty_question_, evalQuasiquotedExpr, evaluate, expandMacro, expand_hyphen_macro, extractJsValue, filter, fn_asterisk_, forEach, fromArray, fromJsObjects, fromMalIndex, ignorable_question_, jsString_question_, keyword_question_, let_asterisk_, letrec_asterisk_, lookup, macro_asterisk_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malSymbol_question_, malUserPureFunction_question_, map, next, quasiquote, quote, recurse, reduce, reduceBy2, reduceLet_asterisk_, reduceLetrec_asterisk_, reverse, setMainEnv, splat, spliceUnquote, spliceUnquote_question_, spliceUnquotedExpr_question_, toPartialArray, try_asterisk_, undef_bang_, undefineValue, unquote, unquote_question_, unquotedExpr_question_, unsetMainEnv, _do, _eval, _evalWithEnv, _evaluate, _getCurrentEnv, _getDefaultEnv, _if,
   __hasProp = {}.hasOwnProperty;
 
@@ -2796,7 +2764,7 @@ unquotedExpr_question_ = function(malValue) {
 
 module.exports = evaluate;
 
-},{"./commentSignal":33,"./env-utilities":34,"./index-utilities":41,"./js-utilities":43,"./keyTokens":44,"./linked-list":45,"./type-utilities":51}],40:[function(require,module,exports){
+},{"./commentSignal":32,"./env-utilities":33,"./index-utilities":40,"./js-utilities":42,"./keyTokens":43,"./linked-list":44,"./type-utilities":50}],39:[function(require,module,exports){
 var getLispEnvironment, setEnv0_bang_, setEnv1_bang_, setEnv2_bang_, setEnv3_bang_;
 
 setEnv0_bang_ = require('./env0');
@@ -2824,7 +2792,7 @@ getLispEnvironment = function(config) {
 
 module.exports = getLispEnvironment;
 
-},{"./env0":35,"./env1":36,"./env2":37,"./env3":38}],41:[function(require,module,exports){
+},{"./env0":34,"./env1":35,"./env2":36,"./env3":37}],40:[function(require,module,exports){
 var createMalIndex, fromJsObjects, fromMalIndex, jsString_question_,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
@@ -2883,7 +2851,7 @@ module.exports = {
   fromMalIndex: fromMalIndex
 };
 
-},{"./js-utilities":43,"./type-utilities":51}],42:[function(require,module,exports){
+},{"./js-utilities":42,"./type-utilities":50}],41:[function(require,module,exports){
 var circumpendQuotes, createMalString, encapsulate, environment, error, flattenIfNecessary, fromArray, getLispEnvironment, interpret, serialize, standardFnsAndMacros, tokenizeAndParse, _createMalString, _interpret, _process, _serialize,
   __hasProp = {}.hasOwnProperty;
 
@@ -2978,7 +2946,7 @@ interpret(standardFnsAndMacros);
 
 module.exports = interpret;
 
-},{"./_process":32,"./getLispEnvironment":40,"./js-utilities":43,"./linked-list":45,"./serialize":47,"./standard-fns-and-macros":48,"./tokenizeAndParse":50,"./type-utilities":51}],43:[function(require,module,exports){
+},{"./_process":31,"./getLispEnvironment":39,"./js-utilities":42,"./linked-list":44,"./serialize":46,"./standard-fns-and-macros":47,"./tokenizeAndParse":49,"./type-utilities":50}],42:[function(require,module,exports){
 var circumpendQuotes, jsNaN_question_, jsNumber_question_, jsString_question_;
 
 circumpendQuotes = function(jsString) {
@@ -3004,7 +2972,7 @@ module.exports = {
   jsString_question_: jsString_question_
 };
 
-},{}],44:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 var binaryGlyphTokens, catch_asterisk_, def_bang_, deref, derefGlyph, expand_hyphen_macro, fn_asterisk_, glyphTokens, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, indexEnd, indexStart, keyTokens, keyword_question_, keywords, let_asterisk_, letrec_asterisk_, listEnd, listStart, macroTokens, macro_asterisk_, nil, quasiquote, quasiquoteGlyph, quote, quoteGlyph, splat, spliceUnquote, spliceUnquoteGlyph, try_asterisk_, undef_bang_, unquote, unquoteGlyph, _do, _eval, _evalWithEnv, _false, _getCurrentEnv, _getDefaultEnv, _if, _process, _true,
   __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
@@ -3071,7 +3039,7 @@ module.exports = {
   unquoteGlyph: unquoteGlyph
 };
 
-},{}],45:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 var EOL, car, cdr, concat, cons, copy, createMalList, createNode, drop, empty_question_, equal_question_, filter, forEach, fromArray, last, lastTail, malListType, malTypes, map, next, recurse, reduce, reduceBy2, reverse, take, toArray, toPartialArray, zip, _EOL,
   __slice = [].slice;
 
@@ -3341,7 +3309,7 @@ module.exports = {
   toPartialArray: toPartialArray
 };
 
-},{"./types":52}],46:[function(require,module,exports){
+},{"./types":51}],45:[function(require,module,exports){
 var atomize, binaryGlyphIndex, binaryGlyphTokens, binaryGlyph_question_, boolean_question_, comment, createMalBoolean, createMalIdentifier, createMalIgnore, createMalIndex, createMalList, createMalNil, createMalNumber, createMalString, createMalSymbol, deref, derefGlyph, extractJsValue, float_question_, glyphIndex, glyphTokens, glyph_question_, identifer_question_, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, ignore_question_, indexEnd, indexStart, indexStart_question_, integer_question_, keyTokens, listEnd, listStart, listStart_question_, nil, nil_question_, parse, parseBinaryGlyph, parseBoolean, parseFloat10, parseGlyph, parseIndex, parseInt10, parseList, quasiquote, quasiquoteGlyph, quote, quoteGlyph, reverse, spliceUnquote, spliceUnquoteGlyph, startsWith_question_, string_question_, stripUnderscores, unquote, unquoteGlyph, _false, _parse, _true,
   __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
@@ -3594,7 +3562,7 @@ identifer_question_ = startsWith_question_(':');
 
 module.exports = parse;
 
-},{"./commentSignal":33,"./keyTokens":44,"./linked-list":45,"./type-utilities":51}],47:[function(require,module,exports){
+},{"./commentSignal":32,"./keyTokens":43,"./linked-list":44,"./type-utilities":50}],46:[function(require,module,exports){
 var adjoinMalValue, commentSignal, coreEffectfulFunctionLabel, corePureFunctionLabel, extractJsValue, ignoreLabel, indexEnd, indexStart, keywordLabel, listEnd, listStart, macroLabel, malAtom_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIdentifier_question_, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil_question_, malString_question_, malUserPureFunction_question_, nilLabel, reduce, serialize, serializeAtom, serializeIdentifier, serializeIndex, serializeList, serializeString, stripQuotes, userPureFunctionLabel,
   __hasProp = {}.hasOwnProperty;
 
@@ -3759,10 +3727,10 @@ userPureFunctionLabel = '<function>';
 
 module.exports = serialize;
 
-},{"./commentSignal":33,"./keyTokens":44,"./linked-list":45,"./type-utilities":51}],48:[function(require,module,exports){
+},{"./commentSignal":32,"./keyTokens":43,"./linked-list":44,"./type-utilities":50}],47:[function(require,module,exports){
 module.exports = "(do\n  (def! fix*\n    (fn* (f)\n      ( (fn* (x) (f (fn* (& ys) (apply (x x) ys))))\n        (fn* (x) (f (fn* (& ys) (apply (x x) ys)))))))\n\n  (def! memfix*\n    (fn* (f)\n      (let* (cache {})\n        (\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          cache))))\n\n  (def! _0 car)\n  (def! _1 (fn* (xs) (nth 1 xs)))\n  (def! _2 (fn* (xs) (nth 2 xs)))\n\n  (def! swap! (macro* (atom & xs)\n    (if (empty? xs)\n      atom\n      `(let* (-atom- ~atom)\n        (do\n          (reset! -atom- (~(car xs) (deref -atom-) ~@(cdr xs)))\n          (deref -atom-))))))\n\n  (def! *gensym-counter* (atom 0))\n\n  (def! gensym (fn* ()\n    (symbol (string \"G__\" (swap! *gensym-counter* incr)))))\n\n  (def! or (macro* (& xs)\n    (if (empty? xs)\n      false\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query- \n            ~-query-\n            (or ~@(cdr xs))))))))\n\n  (def! and (macro* (& xs)\n    (if (empty? xs)\n      true\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query-\n            (and ~@(cdr xs))\n            false))))))\n\n  (def! cond (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (if (empty? (cdr xs))\n        (throw \"`cond` requires an even number of forms.\")\n        (let* (-query- (gensym))\n          `(let* (~-query- ~(car xs))\n            (if ~-query-\n              ~(_1 xs)\n              (cond ~@(cdr (cdr xs))))))))))\n\n  (def! loop (macro* (form0 form1)\n    `(let* (loop (memfix* (fn* (loop) (fn* (~(_0 form0)) ~form1)))) (loop ~(_1 form0)))))\n\n  (def! -> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                forms  (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~(car form) ~x ~@(cdr form)))\n                (list form x))\n              `(-> (-> ~x ~form) ~@forms))))))))\n\n  (def! ->> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                 forms (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~@form  ~x))\n                (list form x))\n              `(->> (->> ~x ~form) ~@forms))))))))\n\n  (def! ->* (macro* (& xs) `(fn* (-x-) (-> -x- ~@xs))))\n\n  (def! ->>* (macro* (& xs) `(fn* (-x-) (->> -x- ~@xs))))\n\n  (def! not (fn* (x) (if x false true)))\n  (def! incr  (->* (+ 1)))\n  (def! decr  (->* (- 1)))\n  (def! zero? (->* (= 0)))\n\n  (def! identity (fn* (x) x))\n\n  (def! constant-fn (fn* (x) (fn* (y) x)))\n\n  (def! call-on (fn* (& xs) (fn* (fn) (apply fn xs))))\n\n  (def! step-into-list (fn* (xs fn0 fn1)\n    (let* (x   (car xs)\n          -xs- (cdr xs))\n      (if (empty? -xs-)\n        (fn1 x)\n        (fn0 x -xs-)))))\n\n  (def! apply-on (fn* (& xs)\n    (step-into-list\n      xs\n      (fn* (arguments -xs-) (apply (car -xs-) arguments))\n      (fn* (arguments) (fn* (f) (apply f arguments))))))\n\n  (def! reduce (fn* (f seed xs)\n      (if (empty? xs)\n        seed\n        (reduce f (f seed (car xs)) (cdr xs)))))\n\n  (def! filter (fn* (predicate xs)\n    (reverse\n      (reduce\n        (fn* (memo x)\n          (if (predicate x)\n            (cons x memo)\n            memo))\n        '()\n        xs))))\n\n  (def! map (fn* (f xs)\n    (reverse (reduce (fn* (memo x) (cons (f x) memo)) '() xs))))\n\n  (def! every?  (fn* (pred xs)\n    (if (empty? xs)\n      true\n      (if (pred (car xs))\n        (every? pred (cdr xs))\n        false))))\n\n  (def! some?  (fn* (pred xs)\n    (if (empty? xs)\n      false\n      (if (pred (car xs))\n        true\n        (some? pred (cdr xs))))))\n\n  (def! letmemrec* (macro* (alias expr)\n    `(let* (~(car alias) (memfix* (fn* (~(car alias)) ~(_1 alias)))) ~expr)))\n\n  (def! skip (fn* (nbr xs)\n    (letrec* (-skip- (fn* (ys)\n      (let* (nbr (car ys)\n             xs  (_1 ys))\n        (cond\n          (= 0 nbr) xs\n          (= 1 nbr) (cdr xs)\n          \"default\" (-skip- (list (decr nbr) (cdr xs)))))))\n      (-skip- (list nbr xs)))))\n\n  (def! invokable? (fn* (x) (or (function? x) (macro? x))))\n\n  (def! . (macro* (x key & xs)\n    (if (empty? xs)\n      `(get ~x ~key)\n      `((get ~x ~key) ~@xs))))\n\n  (def! .. (fn* (lo hi)\n    (letrec* (-..- (fn* (xs)\n      (let* (lo     (_0 xs)\n             hi     (_1 xs)\n             -list- (_2 xs))\n        (if (= lo hi)\n          (cons hi -list-)\n          (-..- (list lo (decr hi) (cons hi -list-)))))))\n      (-..- (list lo hi '())))))\n\n  (def! defrec! (macro* (fn-name fn-body)\n    `(def! ~fn-name (letrec* (~fn-name ~fn-body) ~fn-name))))\n\n  (def! for* (macro* (loop-parameters body)\n    `(loop\n      ~(_0 loop-parameters)\n      (if ~(_1 loop-parameters)\n        (do ~body (loop ~(_2 loop-parameters)))\n        nil))))\n\n  (def! for-each (fn* (f xs)\n    (reduce\n      (fn* (memo x) (do (f x) memo))\n      nil\n      xs)))\n\n  (def! n-times (fn* (n f)\n    (loop (i 0)\n      (if (= i n)\n        nil\n        (do (f i) (loop (+ i 1)))))))\n\n  (def! tap (fn* (f x) (do (f x) x)))\n\n  (def! with-side-effect (fn* (thunk x)\n    (do (thunk) x)))\n\n  (def! thunk (macro* (form)\n    `(fn* () ~form)))\n\n  (def! call (macro* (f & xs) `(~f ~@xs)))\n\n  (def! apply (macro* (f xs) `(eval (cons ~f ~xs))))\n\n  (def! eval-string (fn* (malString) (eval (parse malString))))\n\n)";
 
-},{}],49:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 var commentSignal, comment_question_, createTokenRegex, meaningful_question_, tokenize;
 
 commentSignal = require('./commentSignal');
@@ -3798,7 +3766,7 @@ tokenize = function(sourceCode) {
 
 module.exports = tokenize;
 
-},{"./commentSignal":33}],50:[function(require,module,exports){
+},{"./commentSignal":32}],49:[function(require,module,exports){
 var parse, tokenize;
 
 parse = require('./parse');
@@ -3809,7 +3777,7 @@ module.exports = function(sourceCode) {
   return parse(tokenize(sourceCode));
 };
 
-},{"./parse":46,"./tokenize":49}],51:[function(require,module,exports){
+},{"./parse":45,"./tokenize":48}],50:[function(require,module,exports){
 var createMalAtom, createMalBoolean, createMalCoreEffectfulFunction, createMalCorePureFunction, createMalIdentifier, createMalIgnore, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNil, createMalNumber, createMalSpecialForm, createMalString, createMalSymbol, createMalUserPureFunction, createMalValue, createPredicate, create_hyphen_factory_hyphen__ampersand__hyphen_predicate, extractJsValue, malAtomType, malAtom_question_, malBoolean_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIdentifier_question_, malIgnore, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malSpecialForm_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malTypes, malUserPureFunction_question_, _createMalAtom, _createMalBoolean, _createMalList, _createMalUnit, _malUnit_question_, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
 
 createMalList = require('./linked-list').createMalList;
@@ -3921,7 +3889,7 @@ module.exports = {
   malUserPureFunction_question_: malUserPureFunction_question_
 };
 
-},{"./linked-list":45,"./types":52}],52:[function(require,module,exports){
+},{"./linked-list":44,"./types":51}],51:[function(require,module,exports){
 var malAtomType, malBooleanType, malCoreEffectfulFunctionType, malCorePureFunctionType, malIdentifierType, malIndexType, malKeywordType, malListType, malMacroType, malNumberType, malSpecialFormType, malStringType, malSymbolType, malTypes, malUnitType, malUserPureFunctionType;
 
 malTypes = [malBooleanType = 'malBooleanType', malCoreEffectfulFunctionType = 'malCoreEffectfulFunctionType', malCorePureFunctionType = 'malCorePureFunctionType', malIdentifierType = 'malIdentifierType', malIndexType = 'malIndexType', malKeywordType = 'malKeywordType', malListType = 'malListType', malMacroType = 'malMacroType', malNumberType = 'malNumberType', malSpecialFormType = 'malSpecialFormType', malStringType = 'malStringType', malSymbolType = 'malSymbolType', malUnitType = 'malUnitType', malUserPureFunctionType = 'malUserPureFunctionType', malAtomType = 'malAtomType'];
@@ -3945,14 +3913,14 @@ module.exports = {
   malUserPureFunctionType: malUserPureFunctionType
 };
 
-},{}],53:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 module.exports = {
   children: require('./src/children'),
   elements: require('./src/elements'),
   interpreter: require('./src/interpreter')
 };
 
-},{"./src/children":54,"./src/elements":55,"./src/interpreter":56}],54:[function(require,module,exports){
+},{"./src/children":53,"./src/elements":54,"./src/interpreter":55}],53:[function(require,module,exports){
 function childById(id) {
   return { mode: 'id', key: id }; 
 }
@@ -3989,7 +3957,7 @@ module.exports = {
   childrenByTag: identifyChildren('tag')
 };
 
-},{}],55:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 function createElement(tag) {
   return function (config) {
     if (config == null) {
@@ -4062,7 +4030,7 @@ for (var tagName in tags) {
 
 module.exports = elementFactories;
 
-},{}],56:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 function attachElement(parent, element) {
   if (isString(element)) {
     parent.innerText = element;
@@ -4150,7 +4118,8 @@ function findChildren(parent, config) {
 }
 
 function isCommandIndex(value) {
-  return !isNaN(parseInt(value, 10));
+  //return !isNaN(parseInt(value, 10));
+  return isNumber(value);
 }
 
 function isNaN(value) {
@@ -4176,12 +4145,23 @@ function _modifyElement(node, tree, commands) {
 
     switch (key) {
       case 'id':
+        var command = commands[continuation];
+        switch (command[0]) {
+          case 'delete':
+            node.removeAttribute('id');
+            break;
+          case 'replace':
+          case 'setAtKey':
+            node.id = command[1];
+            break;
+        }
         break;
 
       case 'tag':
         break;
 
       case 'style':
+        // TODO: In case the continuation is a command index.
         for (var styleIndex = 0; styleIndex < continuation.length; styleIndex++) {
           var style = continuation[styleIndex].index;
           var command = commands[continuation[styleIndex].value];
@@ -4198,6 +4178,7 @@ function _modifyElement(node, tree, commands) {
         break;
 
       case 'attribs':
+        // TODO: In case the continuation is a command index.
         for (var attribIndex = 0; attribIndex < continuation.length; attribIndex++) {
           var attrib = continuation[attribIndex].index;
           var command = commands[continuation[attribIndex].value];
@@ -4214,16 +4195,32 @@ function _modifyElement(node, tree, commands) {
         break;
 
       case 'classes':
-        for (var classIndex = 0; classIndex < continuation.length; classIndex++) {
-          var _class = continuation[classIndex].index;
-          var command = commands[continuation[classIndex].value];
+        if (isCommandIndex(continuation)) {
+          var command = commands[0];
           switch (command[0]) {
             case 'delete':
-              node.classList.remove(_class);
+              for (var _class in command[1]) {
+                node.classList.remove(_class);
+              }
               break;
             case 'setAtKey':
-              node.classList.add(_class);
+              for (var _class in command[1]) {
+                node.classList.add(_class);
+              }
               break;
+          }
+        } else {
+          for (var classIndex = 0; classIndex < continuation.length; classIndex++) {
+            var _class = continuation[classIndex].index;
+            var command = commands[continuation[classIndex].value];
+            switch (command[0]) {
+              case 'delete':
+                node.classList.remove(_class);
+                break;
+              case 'setAtKey':
+                node.classList.add(_class);
+                break;
+            }
           }
         }
         break;
@@ -4293,4 +4290,4 @@ module.exports = {
   modifyElement: modifyElement,
 };
 
-},{}]},{},[31]);
+},{}]},{},[30]);

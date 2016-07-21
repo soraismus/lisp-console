@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>AngularJS Terminal Emulator | vtortola.GitHub.io</title>
+        <link rel="shortcut icon" href="favicon.ico">
+        <meta name="description" content="Javascript terminal emulator in AngularJS" />
+        <meta name="viewport" content="width=device-width">
+        <meta property="og:image" content="http://vtortola.github.io/ng-terminal-emulator/example/content/angular.png">
+        <link href="src/vtortola.ng-terminal.css" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css?family=Architects+Daughter" rel="stylesheet" type="text/css">
+        <link href="example/content/example.css" rel="stylesheet" />
+    </head>
+    <body ng-app="ng-terminal-example">
+        <section class="console-section">
+            <section class="container">
+                <section class="head">
+                    <h1>ng-terminal-emulator</h1>
+                    <h4>A terminal emulator in Javascript with AngularJS </h4>
+                </section>
+
+                <div class="console-options">
+                    <label><input type="radio" ng-model="theme" name="theme" value="vintage">Vintage</label>
+                    <label><input type="radio" ng-model="theme" name="theme" value="modern">Modern</label>
+                </div>
+
+                <div ng-controller="console" ng-show="theme == 'vintage'">
+                    <terminal terminal-class="vintage-terminal" terminal-config="vintage">
+                        <p class="click-me">Click me to start commanding !</p>
+                    </terminal>
+                </div>
+
+                <div class="ng-scope" ng-show="theme == 'vintage'" ng-controller="console">
+                  <section class="terminal vintage-terminal" ng-paste="handlePaste($event)" terminal-config="vintage" terminal-class="vintage-terminal">
+                    <div class="terminal-viewport">
+                      <div class="terminal-results">
+                        <pre class="terminal-line"> Welcome to vtortola.GitHub.io</pre>
+                        <pre class="terminal-line"> This is an example of ng-terminal-emulator. </pre>
+                        <pre class="terminal-line"> </pre>
+                        <pre class="terminal-line"> Please type 'help' to open a list of commands.</pre>
+                        <br>
+                      </div>
+                      <span class="terminal-prompt ng-binding" ng-show="showPrompt">anon@\:></span>
+                      <span class="terminal-input ng-binding"> </span>
+                      <span class="terminal-cursor terminal-cursor-hidden">_</span>
+                      <input class="terminal-target ng-pristine ng-valid" type="text" ng-model="commandLine">
+                    </div>
+                    <div ng-transclude="">
+                      <p class="click-me ng-scope">Click me to start commanding! </p>
+                    </div>
+                  </section>
+                </div>
+
+
+
+                <div ng-controller="console" ng-show="theme == 'modern'">
+                    <terminal>
+                        <p class="click-me">Click me to start commanding !</p>
+                    </terminal>
+                </div>
+                
+            </section>
+        </section>
+    </body>
+</html>
