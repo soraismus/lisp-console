@@ -908,85 +908,63 @@ function supressDefault(handleEvent) {
 module.exports = subscribe;
 
 },{}],22:[function(require,module,exports){
+var PRE  = require('../../../lib/elements').PRE;
 var SPAN = require('../../../lib/elements').SPAN;
 
-var emptyString = '';
-var newline = '\n';
-var space = ' ';
-
-var _entryConfig = {
-  classes: { 'erl-line': true },
-  style: { 'font-weight': 'normal' }
-};
-
-function ERL_ENTRY(text) {
-  return SPAN(
-    _entryConfig,
-    SPAN(null, text + newline));
-}
-
-var _inputConfig = { id: 'erl-input', style: { 'color': '#0d0' }};
-var _postConfig = { id: 'erl-post', style: { 'position': 'relative' }};
-var _preConfig = { id: 'erl-pre' };
-var _promptConfig = { id: 'erl-prompt' };
-
-function ERL_INPUT(prompt, preCursor, postCursor) {
-  preCursor = preCursor != null ? preCursor : emptyString;
-  postCursor = postCursor != null ? postCursor : emptyString;
-  return SPAN(
-    _inputConfig,
-    emptySpan,
-    SPAN(
-      null,
-      ERL_PROMPT(prompt),
-      ERL_PRE(preCursor),
-      ERL_CURSOR,
-      ERL_POST(postCursor)),
-    emptySpan);
-}
-
-var ERL_CURSOR = SPAN(
-  {
-    id: 'erl-cursor',
-    style: {
-      'background-color': '#999',
-      'color': 'transparent',
-      'display': 'inline',
-      'z-index': 0,
-      'position': 'absolute'
-    }
-  },
-  space);
-
-var emptySpan = SPAN(null, emptyString);
-
-var ERL_HEADER = SPAN(
-    {
-      classes: { 'erl-header': true }
-    },
-    SPAN(
-      {
-        id: 'erl-banner',
-        style: { 'color': '#0ff' }
-      },
-      'Welcome to ErlKing Lisp Console.\n'));
-
-function ERL_PROMPT(text) {
-  return SPAN(_promptConfig, text);
-}
-
-function ERL_PRE(text) {
-  return SPAN(_preConfig, text);
+function ERL_LINE(text) {
+  return PRE(_lineConfig, text + newline);
 }
 
 function ERL_POST(text) {
   return SPAN(_postConfig, text);
 }
 
+function ERL_PRE(text) {
+  return SPAN(_preConfig, text);
+}
+
+function ERL_PROMPT(text) {
+  return SPAN(_promptConfig, text);
+}
+
+var emptyString = '';
+var newline = '\n';
+var space = ' ';
+var underscore = '_';
+
+var ERL_CURSOR = SPAN(
+  {
+    id: 'erl-cursor',
+    classes: { 'erl-cursor': true, 'erl-cursor': true },
+  },
+  underscore);
+
+var _lineConfig = {
+  classes: { 'erl-line': true },
+};
+
+var _postConfig = {
+  id: 'erl-post',
+  classes: { 'erl-post': true },
+  style: { 'position': 'relative' }
+};
+
+var _preConfig = {
+   id: 'erl-pre',
+   classes: { 'erl-pre': true }
+};
+
+var _promptConfig = {
+  id: 'erl-prompt',
+  classes: { 'erl-prompt': true, 'erl-prompt': true }
+};
+
 module.exports = {
-  ERL_ENTRY: ERL_ENTRY,
-  ERL_INPUT: ERL_INPUT,
-  ERL_HEADER: ERL_HEADER,
+  ERL_CURSOR : ERL_CURSOR,
+  ERL_LINE   : ERL_LINE,
+  ERL_POST   : ERL_POST,
+  ERL_PRE    : ERL_PRE,
+  ERL_PROMPT : ERL_PROMPT
 };
 
 },{"../../../lib/elements":1}],23:[function(require,module,exports){
@@ -1130,39 +1108,55 @@ function isObject(value) {
 module.exports = diff;
 
 },{}],24:[function(require,module,exports){
-var components  = require('../components/components');
-var ERL_ENTRY = components.ERL_ENTRY;
-var ERL_HEADER  = components.ERL_HEADER;
-var ERL_INPUT   = components.ERL_INPUT;
-var elements    = require('../../../lib/elements');
-var DIV         = elements.DIV;
-var PRE         = elements.PRE;
+var components = require('../components/components');
+var ERL_CURSOR = components.ERL_CURSOR;
+var ERL_LINE  = components.ERL_LINE;
+var ERL_POST   = components.ERL_POST;
+var ERL_PRE    = components.ERL_PRE;
+var ERL_PROMPT = components.ERL_PROMPT;
 
-var _1 = { id: 'erlking' };
-var _2 = { id: 'erl-console' };
+var elements   = require('../../../lib/elements');
+var DIV        = elements.DIV;
+var SECTION    = elements.SECTION;
+var H1         = elements.H1;
 
+var ERL_HEADER = SECTION(
+    {
+      id: 'erl-header',
+      classes: { 'head': true }
+    },
+    H1(null, 'Welcome to ErlKing Lisp Console.\n'));
+
+var emptyString = '';
 function ERLKING(prefixes, viewport) {
   var promptLabel = prefixes.promptLabel;
   var prompt = viewport.prompt;
   var frame = viewport.frame;
 
-  var entries = viewport.terminal.entries
+  var lines = viewport.terminal.entries
     .slice(frame.start, frame.start + frame.offset)
-    .map(specifyEntry.bind(null, prefixes));
+    .map(specifyLine.bind(null, prefixes));
 
-  return DIV(
-    _1,
-    PRE(
-      _2,
+  var preCursor = prompt.preCursor != null ? prompt.preCursor : emptyString;
+  var postCursor = prompt.postCursor != null ? prompt.postCursor : emptyString;
+
+  return SECTION(
+    _erlkingConfig,
+    DIV(
+      null,
       ERL_HEADER,
-      entries,
-      ERL_INPUT(
-        promptLabel,
-        prompt.preCursor,
-        prompt.postCursor)));
+      SECTION(
+        _terminalConfig,
+        DIV(
+          _erlViewportConfig,
+          lines,
+          ERL_PROMPT(promptLabel),
+          ERL_PRE(prompt.preCursor),
+          ERL_CURSOR,
+          ERL_POST(prompt.postCursor)))));
 }
 
-function specifyEntry(prefixes, component) {
+function specifyLine(prefixes, component) {
   var completionLabel = '  ';
   var displayLabel = '';
   var errorLabel = '...> ';
@@ -1170,19 +1164,27 @@ function specifyEntry(prefixes, component) {
   var responseLabel = '==> ';
   switch (component.type) {
     case 'command':
-      return ERL_ENTRY(promptLabel + component.value);
+      return ERL_LINE(promptLabel + component.value);
     case 'response':
-      return ERL_ENTRY(responseLabel + component.value);
+      return ERL_LINE(responseLabel + component.value);
     case 'display':
-      return ERL_ENTRY(displayLabel + component.value);
+      return ERL_LINE(displayLabel + component.value);
     case 'completion':
-      return ERL_ENTRY(completionLabel + component.value);
+      return ERL_LINE(completionLabel + component.value);
     case 'error':
-      return ERL_ENTRY(errorLabel + component.value);
+      return ERL_LINE(errorLabel + component.value);
     default:
       throw new Error('invalid component type');
   }
 }
+
+var _erlkingConfig = {
+  id: 'erlking',
+  classes: { 'erlking': true, 'container': true }
+};
+var _consoleConfig = { id: 'erl-console' };
+var _terminalConfig = { classes: { 'terminal': true }};
+var _erlViewportConfig = { classes: { 'erl-viewport': true }};
 
 module.exports = ERLKING;
 
@@ -3960,30 +3962,46 @@ module.exports = {
 },{}],54:[function(require,module,exports){
 function createElement(tag) {
   return function (config) {
-    if (config == null) {
-      config = {};
-    }
     var element = { tag: tag };
-    for (var key in config) {
-      if (key === 'id') {
-        element.id = config.id;
-      }
-      if (key === 'classes') {
-        element.classes = config.classes;
-      }
-      if (key === 'style') {
-        element.style = config.style;
-      }
-      if (key === 'attribs') {
-        element.attribs = config.attribs;
+
+    if (config != null) { // isObject
+
+      for (var key in config) {
+        if (key === 'id') {
+          element.id = config.id;
+        }
+
+        if (key === 'classes') {
+          element.classes = config.classes;
+        }
+
+        if (key === 'style') {
+          element.style = config.style;
+        }
+
+        if (key === 'attribs') {
+          element.attribs = config.attribs;
+        }
       }
     }
+
     if (arguments.length > 1) {
-      element.children = [].concat.apply([], [].slice.call(arguments, 1))
-          
+      var args = [].slice.call(arguments, 1);
+
+      if (args.length === 1 && isString(args[0])) {
+        element.children = args[0];
+      } else {
+        element.children = [].concat.apply([], args);
+      }
     }
+
     return element;
   };
+}
+
+// WET.
+function isString(value) {
+  return {}.toString.call(value) === '[object String]';
 }
 
 var tags = {
@@ -4033,14 +4051,29 @@ module.exports = elementFactories;
 },{}],55:[function(require,module,exports){
 function attachElement(parent, element) {
   if (isString(element)) {
-    parent.innerText = element;
+    parent.innerText = element; // ?
   } else {
     parent.appendChild(element);
   }
 }
 
+function replaceElement(parent, newElement, oldElement) {
+  if (isString(newElement)) {
+    parent.innerText = newElement; // ?
+  } else {
+    parent.replaceChild(newElement, oldElement);
+  }
+}
+
 function createAndAttachElement(parent, config) {
   attachElement(parent, createElement(config));
+}
+
+function createAndSubstituteElement(parent, config, oldElementIndex) {
+  replaceElement(
+    parent,
+    createElement(config),
+    findChild(parent, { mode: 'index', key: oldElementIndex }));
 }
 
 function createAndAttachElements(node, elements) {
@@ -4054,30 +4087,34 @@ function createElement(config) {
     return config;
   }
   var node = document.createElement(config.tag);
-  if (config.id != null) {
+  if (config.id != null) { // isString
     node.id = config.id;
   }
-  if (config.classes != null) {
+  if (config.classes != null) { // isObject
     for (var klass in config.classes) {
       node.classList.add(klass);
     }
   }
-  if (config.attribs != null) {
+  if (config.attribs != null) { // isObject
     for (var attribKey in config.attribs) {
       if (attribKey !== 'style') {
         node.setAttribute(attribKey, config.attribs[attribKey]);
       }
     }
   }
-  if (config.style != null) {
+  if (config.style != null) { // isObject
     for (var styleKey in config.style) {
       node.style[styleKey] = config.style[styleKey];
     }
   }
   if (config.children != null) {
-    config.children.forEach(function (newConfig, index) { 
-      createAndAttachElement(node, newConfig);
-    });
+    if (isString(config.children)) {
+      createAndAttachElement(node, config.children);
+    } else { // isObject
+      config.children.forEach(function (newConfig, index) { 
+        createAndAttachElement(node, newConfig);
+      });
+    }
   }
   return node;
 }
@@ -4229,16 +4266,24 @@ function _modifyElement(node, tree, commands) {
         if (isCommandIndex(continuation)) {
           var command = commands[continuation]
           switch (command[0]) {
-            case 'delete':
+            //case 'delete':
             case 'remove':
               removeChildren(node);
               break;
             case 'replace':     // ?
-              removeChildren(node);
-              createAndAttachElements(node, command[1]);
+              if (isString(command[1])) {
+                if (node.childElementCount === 0) {
+                  node.innerText = command[1];
+                } else {
+                  node.innerText = command[1];
+                }
+              } else {
+                removeChildren(node);
+                createAndAttachElements(node, command[1]);
+              }
               break;
             case 'insertAtEnd': // ?
-            case 'setAtKey':    // ?
+            //case 'setAtKey':    // ?
               break;
           }
         } else {
@@ -4248,15 +4293,15 @@ function _modifyElement(node, tree, commands) {
             if (isCommandIndex(childContinuation)) {
               var command = commands[childContinuation]
               switch (command[0]) {
-                case 'delete':
+                //case 'delete':
                 case 'remove':
                   removeChild(node, child);
                   break;
                 case 'replace':     // ?
-                  createAndAttachElement(node, command[1]);
+                  createAndSubstituteElement(node, command[1], child);
                   break;
                 case 'insertAtEnd': // ?
-                case 'setAtKey':    // ?
+                //case 'setAtKey':    // ?
                   createAndAttachElement(node, command[1]);
                   break;
               }
