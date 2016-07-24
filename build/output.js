@@ -911,11 +911,19 @@ function supressDefault(handleEvent) {
 module.exports = subscribe;
 
 },{}],22:[function(require,module,exports){
-var PRE  = require('../../../lib/elements').PRE;
 var SPAN = require('../../../lib/elements').SPAN;
 
+function ERL_INPUT(promptText, preText, postText) {
+  return SPAN(
+    null,
+    ERL_PROMPT(promptText),
+    ERL_PRE(preText),
+    ERL_CURSOR,
+    ERL_POST(postText));
+}
+
 function ERL_LINE(text) {
-  return PRE(_lineConfig, text + newline);
+  return SPAN(_lineConfig, text + newline);
 }
 
 function ERL_POST(text) {
@@ -964,6 +972,7 @@ var _promptConfig = {
 
 module.exports = {
   ERL_CURSOR : ERL_CURSOR,
+  ERL_INPUT  : ERL_INPUT,
   ERL_LINE   : ERL_LINE,
   ERL_POST   : ERL_POST,
   ERL_PRE    : ERL_PRE,
@@ -1113,6 +1122,7 @@ module.exports = diff;
 },{}],24:[function(require,module,exports){
 var components = require('../components/components');
 var ERL_CURSOR = components.ERL_CURSOR;
+var ERL_INPUT  = components.ERL_INPUT;
 var ERL_LINE   = components.ERL_LINE;
 var ERL_POST   = components.ERL_POST;
 var ERL_PRE    = components.ERL_PRE;
@@ -1121,6 +1131,7 @@ var ERL_PROMPT = components.ERL_PROMPT;
 var elements   = require('../../../lib/elements');
 var DIV        = elements.DIV;
 var SECTION    = elements.SECTION;
+var SPAN       = elements.SPAN;
 var H1         = elements.H1;
 var H4         = elements.H4;
 
@@ -1151,15 +1162,12 @@ function ERLKING(prefixes, viewport) {
     DIV(
       null,
       ERL_HEADER,
-      SECTION(
+      DIV(
         _terminalConfig,
         DIV(
           _erlViewportConfig,
           lines,
-          ERL_PROMPT(promptLabel),
-          ERL_PRE(prompt.preCursor),
-          ERL_CURSOR,
-          ERL_POST(prompt.postCursor)))));
+          ERL_INPUT(promptLabel, prompt.preCursor, prompt.postCursor)))));
 }
 
 var defaultCompletionLabel = '  ';
