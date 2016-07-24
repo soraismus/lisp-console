@@ -885,7 +885,10 @@ function render(_viewModel, rootChild, getCursor, controlConfig) {
     var labels = { promptLabel: controlConfig.promptLabel };
     var newViewModel = getViewModel(labels, model);
     modifyElement(rootChild, diff(newViewModel, viewModel));
-    scroll(rootChild, getCursor());
+
+    //scroll(rootChild, getCursor());
+    scroll(document.getElementsByClassName('erl-viewport')[0], getCursor());
+
     controlConfig.viewport = model;
     viewModel = newViewModel;
   };
@@ -1110,7 +1113,7 @@ module.exports = diff;
 },{}],24:[function(require,module,exports){
 var components = require('../components/components');
 var ERL_CURSOR = components.ERL_CURSOR;
-var ERL_LINE  = components.ERL_LINE;
+var ERL_LINE   = components.ERL_LINE;
 var ERL_POST   = components.ERL_POST;
 var ERL_PRE    = components.ERL_PRE;
 var ERL_PROMPT = components.ERL_PROMPT;
@@ -1130,6 +1133,7 @@ var ERL_HEADER = SECTION(
     H4(null, 'A terminal emulator and lisp interpreter\n'));
 
 var emptyString = '';
+
 function ERLKING(prefixes, viewport) {
   var promptLabel = prefixes.promptLabel;
   var prompt = viewport.prompt;
@@ -1142,7 +1146,7 @@ function ERLKING(prefixes, viewport) {
   var preCursor = prompt.preCursor != null ? prompt.preCursor : emptyString;
   var postCursor = prompt.postCursor != null ? prompt.postCursor : emptyString;
 
-  return SECTION(
+  return DIV(
     _erlkingConfig,
     DIV(
       null,
@@ -1211,9 +1215,9 @@ function getCursorOffset(cursor, viewport) {
   return cursor.offsetLeft + cursor.offsetWidth + margin - viewport.offsetWidth;
 }
 
-function scroll(rootChild, cursor) {
-  rootChild.scrollTop = rootChild.scrollHeight - rootChild.clientHeight;
-  rootChild.scrollLeft = getCursorOffset(cursor, rootChild);
+function scroll(node, cursor) {
+  node.scrollTop = node.scrollHeight - node.clientHeight;
+  node.scrollLeft = getCursorOffset(cursor, node);
 }
 
 module.exports = scroll;
@@ -1233,7 +1237,9 @@ var scroll = require('./control/scroll');
 
 function initializeViewDynamics(rootChild, getCursor) {
   window.addEventListener('resize', function (event) {
-    scroll(rootChild, getCursor());
+    scroll(
+      document.getElementsByClassName('erl-viewport')[0],
+      getCursor());
   });
 }
 

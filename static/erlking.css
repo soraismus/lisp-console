@@ -14,26 +14,43 @@ html {
 }
 
 body {
+    /*
     height: 100%;
     margin: 0px;
     padding: 0px;
     width: 100%;
+    */
+  background-color: black;
 }
 
 .console-section {
+
+  /*
     background: rgb(0,0,0);
-    background: -webkit-gradient(linear, left top, right bottom, color-stop(0%,rgba(0,0,0,1)), color-stop(100%,rgba(69,72,77,1)));
     background: -moz-linear-gradient(   -45deg, rgba(0,0,0,1) 0, rgba(69,72,77,1) 100%);
     background: -webkit-linear-gradient(-45deg, rgba(0,0,0,1) 0, rgba(69,72,77,1) 100%);
-    background: linear-gradient(        135deg, rgba(0,0,0,1) 0, rgba(69,72,77,1) 100%);
+    background:         linear-gradient(135deg, rgba(0,0,0,1) 0, rgba(69,72,77,1) 100%);
+    background: -webkit-gradient(linear, left top, right bottom, color-stop(0%,rgba(0,0,0,1)), color-stop(100%,rgba(69,72,77,1)));
+  */
+
     margin: 0;
+    /*
     padding: 10px;
+    */
+  position: absolute;
+  top: 10%;
+  left: 10%;
+  bottom: 10%;
+  right: 10%;
+  background-color: black;
 }
 
 .container {
+  /*
     color: #FFF;
     margin: 0 auto;
     width: 720px;
+  */
 }
 
 .head {
@@ -57,54 +74,112 @@ body {
 }
 
 .terminal {
-    border: none;
-    background-color: #000;
-    height: 500px;
-    color: #F6F6FF;
-    font-family: monospace;
-    overflow-x: hidden;
-    overflow-y: hidden;
-    font-size: 12px;
-    position: relative;
-    padding: 10px;
-}
+    /* background: rgb(0,0,0); */
 
-.terminal {
+    background: -moz-linear-gradient(   -45deg, rgba(0,0,0,1) 0, rgba(69,72,77,1) 100%);
+    background: -webkit-linear-gradient(-45deg, rgba(0,0,0,1) 0, rgba(69,72,77,1) 100%);
+    background:         linear-gradient(135deg, rgba(0,0,0,1) 0, rgba(69,72,77,1) 100%);
+    background: -webkit-gradient(linear, left top, right bottom, color-stop(0%,rgba(0,0,0,1)), color-stop(100%,rgba(69,72,77,1)));
+
+
+  /*
     background: -moz-radial-gradient(center, ellipse cover,  rgba(0,0,0,0) 0%, rgba(0,0,0,0.65) 83%, rgba(0,0,0,0.65) 100%);
     background: -webkit-gradient(radial, center center, 0px, center center, 100%, color-stop(0%,rgba(0,0,0,0)), color-stop(83%,rgba(0,0,0,0.65)), color-stop(100%,rgba(0,0,0,0.65)));
     background: -webkit-radial-gradient(center, ellipse cover,  rgba(0,0,0,0) 0%,rgba(0,0,0,0.65) 83%,rgba(0,0,0,0.65) 100%);
     background: radial-gradient(ellipse at center,  rgba(0,0,0,0) 0%,rgba(0,0,0,0.65) 83%,rgba(0,0,0,0.65) 100%);
+    */
+
     border-radius: 20px;
+
     box-shadow: 0 0 20px rgba(217, 215, 255, 0.85) inset, 2px 2px 16px #000;
+
     padding: 0;
     text-shadow: 0 0 6px rgba(255, 255, 255, .8);
-    transition: linear box-shadow .2s;
+
+    /* transition: linear box-shadow .2s; */
+
+    border: none;
+    background-color: #000;
+    /* height: 500px; */
+    color: #F6F6FF;
+    font-family: monospace;
+              /*
+              overflow-x: hidden;
+              overflow-y: hidden;
+              */
+              /*overflow: auto;*/
+    font-size: 12px;
+
+    /*
+    position: relative;
+    padding: 10px;
+    */
+
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 69px;
 }
 
 .terminal:focus {
+    /*
     box-shadow:
       0 0 20px rgba(217, 215, 255, 0.85) inset,
       0 0  2px #000,
       0 0 16px rgba(255, 255, 0, 0.5); 
-    height: 1000px;
-    /* An asterisk was found in "border:none; *". */
+    */
+
+    /* height: 1000px; */
 }
 
-.erl-line {
-    margin: 0;
-    padding: 0;
-    white-space: pre-wrap;
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-}
-
+/*
 .erl-viewport {
     height: 100%;
     margin: 0;
     overflow-x: hidden;
     overflow-y: auto;
     padding: 0;
+}
+*/
+
+.erl-viewport {
+    height: 94%;
+    margin: 15px 20px;
+            /*
+            overflow-x: hidden;
+            overflow-y: hidden;
+            */
+            overflow: auto;
+    padding: 0;
+}
+
+.erl-viewport::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.erl-viewport::-webkit-scrollbar-track {
+  /*background: rgba(0, 0, 0, 0.1);*/
+  border-radius: 10px;
+    /*-webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3); */
+  visibility: hidden;
+}
+.erl-viewport::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+    /*-webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.5); */
+}
+.erl-viewport::-webkit-scrollbar-corner {
+  visibility: hidden;
+}
+
+.erl-line {
+    margin: 0 0 2px 0;
+    padding: 0;
+    white-space: pre-wrap;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
 }
 
 .erl-cursor {
@@ -116,14 +191,8 @@ body {
 }
 
 .erl-pre {
-    white-space: pre-wrap;
-    overflow-wrap: break-word;
-}
-
-.erl-viewport {
-    height: 94%;
-    margin: 15px 20px;
-    overflow-x: hidden;
-    overflow-y: hidden;
-    padding: 0;
+              /*
+              white-space: pre-wrap;
+              overflow-wrap: break-word;
+              */
 }
