@@ -913,17 +913,17 @@ module.exports = subscribe;
 },{}],22:[function(require,module,exports){
 var SPAN = require('../../../lib/elements').SPAN;
 
+function ERL_ENTRY(text) {
+  return SPAN(_entryConfig, text + newline);
+}
+
 function ERL_INPUT(promptText, preText, postText) {
   return SPAN(
-    null,
+    _inputConfig,
     ERL_PROMPT(promptText),
     ERL_PRE(preText),
     ERL_CURSOR,
     ERL_POST(postText));
-}
-
-function ERL_LINE(text) {
-  return SPAN(_lineConfig, text + newline);
 }
 
 function ERL_POST(text) {
@@ -950,8 +950,13 @@ var ERL_CURSOR = SPAN(
   },
   underscore);
 
-var _lineConfig = {
-  classes: { 'erl-line': true },
+var _entryConfig = {
+  classes: { 'erl-entry': true, 'erl-line': true },
+};
+
+var _inputConfig = {
+  id: 'erl-input',
+  classes: { 'erl-input': true, 'erl-line': true }
 };
 
 var _postConfig = {
@@ -972,8 +977,8 @@ var _promptConfig = {
 
 module.exports = {
   ERL_CURSOR : ERL_CURSOR,
+  ERL_ENTRY  : ERL_ENTRY,
   ERL_INPUT  : ERL_INPUT,
-  ERL_LINE   : ERL_LINE,
   ERL_POST   : ERL_POST,
   ERL_PRE    : ERL_PRE,
   ERL_PROMPT : ERL_PROMPT
@@ -1123,7 +1128,7 @@ module.exports = diff;
 var components = require('../components/components');
 var ERL_CURSOR = components.ERL_CURSOR;
 var ERL_INPUT  = components.ERL_INPUT;
-var ERL_LINE   = components.ERL_LINE;
+var ERL_ENTRY  = components.ERL_ENTRY;
 var ERL_POST   = components.ERL_POST;
 var ERL_PRE    = components.ERL_PRE;
 var ERL_PROMPT = components.ERL_PROMPT;
@@ -1150,9 +1155,9 @@ function ERLKING(prefixes, viewport) {
   var prompt = viewport.prompt;
   var frame = viewport.frame;
 
-  var lines = viewport.terminal.entries
+  var entries = viewport.terminal.entries
     .slice(frame.start, frame.start + frame.offset)
-    .map(specifyLine.bind(null, prefixes));
+    .map(specifyEntry.bind(null, prefixes));
 
   var preCursor = prompt.preCursor != null ? prompt.preCursor : emptyString;
   var postCursor = prompt.postCursor != null ? prompt.postCursor : emptyString;
@@ -1166,7 +1171,7 @@ function ERLKING(prefixes, viewport) {
         _terminalConfig,
         DIV(
           _erlViewportConfig,
-          lines,
+          entries,
           ERL_INPUT(promptLabel, prompt.preCursor, prompt.postCursor)))));
 }
 
@@ -1176,7 +1181,7 @@ var defaultErrorLabel = '...> ';
 var defaultPromptLabel = '> ';
 var defaultResponseLabel = '==> ';
 
-function specifyLine(prefixes, component) {
+function specifyEntry(prefixes, component) {
   var completionLabel = prefixes.completionLabel || defaultCompletionLabel;
   var displayLabel = prefixes.displayLabel || defaultDisplayLabel;
   var errorLabel = prefixes.errorLabel || defaultErrorLabel;
@@ -1203,7 +1208,7 @@ function specifyLine(prefixes, component) {
     default:
       throw new Error('invalid component type');
   }
-  return ERL_LINE(entry);
+  return ERL_ENTRY(entry);
 }
 
 var _erlkingConfig = {
