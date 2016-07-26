@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html>
   <style type="text/css">
+    #orb {
+      position: absolute;
+      top: 70px;
+      left: 310px;
+      height: 50px;
+      width: 50px;
+      background-color: green;
+    }
+
     #container {
       position: absolute;
       top: 50px;
@@ -9,72 +18,81 @@
 
     #scroll-up {
       position: absolute;
-      width: 10px;
-      height: 10px;
+      width: 5px;
+      height: 5px;
       background-color: #CCC;
+    border-radius: 2px;
     }
 
     #scroll-down {
       position: absolute;
       top: 190px;
-      width: 10px;
-      height: 10px;
+      width: 5px;
+      height: 5px;
       background-color: #CCC;
+    border-radius: 2px;
     }
 
     #scroll-left {
       position: absolute;
       top: 190px;
       left: -170px;
-      width: 10px;
-      height: 10px;
+      width: 5px;
+      height: 5px;
       background-color: #CCC;
+    border-radius: 2px;
     }
 
     #scroll-right {
       position: absolute;
       top: 190px;
-      width: 10px;
-      height: 10px;
+      width: 5px;
+      height: 5px;
       background-color: #CCC;
+    border-radius: 2px;
     }
 
     #scroll-vertical-track {
       position: absolute;
       top: 20px;
-      width: 10px;
+      width: 5px;
       height: 160px;
       background-color: #EEE;
+    border-radius: 20px;
     }
 
     #scroll-vertical-handle {
       position: absolute;
-      width: 10px;
+      width: 5px;
       height: 30px;
       background-color: #CCC;
+    border-radius: 20px;
     }
 
     #scroll-horizontal-track {
       position: absolute;
       top: 170px;
       left: -150px;
-      height: 10px;
+      height: 5px;
       width: 140px;
       background-color: #EEE;
+    border-radius: 20px;
     }
 
     #scroll-horizontal-handle {
       position: absolute;
       top: 0;
       left: 0;
-      height: 10px;
+      height: 5px;
       width: 30px;
       background-color: #CCC;
+    border-radius: 20px;
     }
 
   </style>
 
   <body>
+    <div id="orb"></div>
     <div id="container" style="visibility: visible;">
       <div id="scroll-up"></div>
       <div id="scroll-down"></div>
