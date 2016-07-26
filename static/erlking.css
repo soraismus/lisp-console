@@ -51,28 +51,16 @@ body {
   background: -webkit-linear-gradient(-45deg, rgba(0,0,0,1) 0, rgba(69,72,77,1) 100%);
   background:         linear-gradient(135deg, rgba(0,0,0,1) 0, rgba(69,72,77,1) 100%);
   background: -webkit-gradient(linear, left top, right bottom, color-stop(0%,rgba(0,0,0,1)), color-stop(100%,rgba(69,72,77,1)));
-
-
-  /*
-  background: -moz-radial-gradient(center, ellipse cover,  rgba(0,0,0,0) 0%, rgba(0,0,0,0.65) 83%, rgba(0,0,0,0.65) 100%);
-  background: -webkit-gradient(radial, center center, 0px, center center, 100%, color-stop(0%,rgba(0,0,0,0)), color-stop(83%,rgba(0,0,0,0.65)), color-stop(100%,rgba(0,0,0,0.65)));
-  background: -webkit-radial-gradient(center, ellipse cover,  rgba(0,0,0,0) 0%,rgba(0,0,0,0.65) 83%,rgba(0,0,0,0.65) 100%);
-  background: radial-gradient(ellipse at center,  rgba(0,0,0,0) 0%,rgba(0,0,0,0.65) 83%,rgba(0,0,0,0.65) 100%);
-  */
-
   transition: linear box-shadow .2s;
-
   border-radius: 20px;
   box-shadow: 0 0 20px rgba(217, 215, 255, 0.85) inset, 2px 2px 16px #000;
   padding: 0;
   text-shadow: 0 0 6px rgba(255, 255, 255, .8);
-
   border: none;
   background-color: #000;
   color: #F6F6FF;
   font-family: monospace;
   font-size: 12px;
-
   position: absolute;
   left: 0;
   right: 0;
@@ -114,4 +102,46 @@ body {
 
 .erl-cursor-hidden {
   visibility: hidden;
+}
+
+.erl-x-scroll-track {
+  visibility: hidden;
+  position: absolute;
+  border-radius: 20px;
+  height: 5px;
+  left: 5%;
+  bottom: 10px;
+  right: 5%;
+}
+
+.erl-y-scroll-track {
+  visibility: hidden;
+  position: absolute;
+  border-radius: 20px;
+  width: 5px;
+  top: 5%;
+  right: 10px;
+  bottom: 5%;
+}
+
+.erl-x-scroll-thumb {
+  visibility: visible;
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  z-index: 1;
+  left: 0;
+  height: 5px;
+  width: 80%;
+}
+
+.erl-y-scroll-thumb {
+  visibility: visible;
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  z-index: 1;
+  top: 0;
+  width: 5px;
+  height: 80%;
 }
