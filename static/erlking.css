@@ -30,8 +30,10 @@ body {
 .head {
   font-family: 'Architects Daughter', 'Helvetica Neue', Helvetica, Arial, serif;
   color: #FFF;
-  position:relative;
+  position: fixed;
   padding:5px;
+  top: 0;
+  left: 10%;
 }
 
 .head h1 {
