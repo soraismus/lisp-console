@@ -3,8 +3,7 @@
   <style type="text/css">
     #orb {
       position: absolute;
-      top: 70px;
-      left: 310px;
+      left: -150px;
       height: 50px;
       width: 50px;
       background-color: green;
@@ -92,8 +91,8 @@
   </style>
 
   <body>
-    <div id="orb"></div>
     <div id="container" style="visibility: visible;">
+      <div id="orb"></div>
       <div id="scroll-up"></div>
       <div id="scroll-down"></div>
       <div id="scroll-left"></div>
@@ -107,6 +106,7 @@
       </div>
     </div>
     <script type="text/javascript">
+      var orb = document.getElementById('orb');
       var container = document.getElementById('container');
 
       var verticalTrack = document.getElementById('scroll-vertical-track');
@@ -120,7 +120,9 @@
       var mouseMove_vertical = function (event) {
         var _top = event.clientY - container.offsetTop - verticalTrack.offsetTop;
         var top = _top < 0 ? 0 : _top > verticalUllage ? verticalUllage : _top;
-        verticalHandle.style.top = top + 'px';
+        var topPx = top + 'px';
+        verticalHandle.style.top = topPx;
+        orb.style.top = topPx;
       };
 
       var mouseDown_vertical = function () {
@@ -137,6 +139,7 @@
         var _left = event.clientX - container.offsetLeft - horizontalTrack.offsetLeft;
         var left = _left < 0 ? 0 : _left > horizontalUllage ? horizontalUllage : _left;
         horizontalHandle.style.left = left + 'px';
+        orb.style.left = (left - 150) + 'px';
       };
 
       var mouseDown_horizontal = function () {
