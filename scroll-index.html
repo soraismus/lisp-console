@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+  <style type="text/css">
+    #container {
+      position: absolute;
+      top: 50px;
+      left: 460px;
+    }
+
+    #scroll-up {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: #CCC;
+    }
+
+    #scroll-down {
+      position: absolute;
+      top: 190px;
+      width: 10px;
+      height: 10px;
+      background-color: #CCC;
+    }
+
+    #scroll-left {
+      position: absolute;
+      top: 190px;
+      left: -170px;
+      width: 10px;
+      height: 10px;
+      background-color: #CCC;
+    }
+
+    #scroll-right {
+      position: absolute;
+      top: 190px;
+      width: 10px;
+      height: 10px;
+      background-color: #CCC;
+    }
+
+    #scroll-vertical-track {
+      position: absolute;
+      top: 20px;
+      width: 10px;
+      height: 160px;
+      background-color: #EEE;
+    }
+
+    #scroll-vertical-handle {
+      position: absolute;
+      width: 10px;
+      height: 30px;
+      background-color: #CCC;
+    }
+
+    #scroll-horizontal-track {
+      position: absolute;
+      top: 170px;
+      left: -150px;
+      height: 10px;
+      width: 140px;
+      background-color: #EEE;
+    }
+
+    #scroll-horizontal-handle {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 10px;
+      width: 30px;
+      background-color: #CCC;
+    }
+
+  </style>
+
+  <body>
+    <div id="container" style="visibility: visible;">
+      <div id="scroll-up"></div>
+      <div id="scroll-down"></div>
+      <div id="scroll-left"></div>
+      <div id="scroll-right"></div>
+      <div id="scroll-up"></div>
+      <div id="scroll-vertical-track">
+        <div id="scroll-vertical-handle">
+      </div>
+      <div id="scroll-horizontal-track">
+        <div id="scroll-horizontal-handle">
+      </div>
+    </div>
+    <script type="text/javascript">
+      var container = document.getElementById('container');
+
+      var verticalTrack = document.getElementById('scroll-vertical-track');
+      var verticalHandle = document.getElementById('scroll-vertical-handle');
+      var verticalUllage = verticalTrack.offsetHeight - verticalHandle.offsetHeight;
+
+      var horizontalTrack = document.getElementById('scroll-horizontal-track');
+      var horizontalHandle = document.getElementById('scroll-horizontal-handle');
+      var horizontalUllage = horizontalTrack.offsetWidth - horizontalHandle.offsetWidth;
+
+      var mouseMove_vertical = function (event) {
+        var _top = event.clientY - container.offsetTop - verticalTrack.offsetTop;
+        var top = _top < 0 ? 0 : _top > verticalUllage ? verticalUllage : _top;
+        verticalHandle.style.top = top + 'px';
+      };
+
+      var mouseDown_vertical = function () {
+        document.addEventListener('mousemove', mouseMove_vertical);
+        document.addEventListener('mouseup', mouseUp_vertical);
+      };
+
+      var mouseUp_vertical = function () {
+        document.removeEventListener('mousemove', mouseMove_vertical);
+        document.removeEventListener('mouseup', mouseUp_vertical);
+      };
+
+      var mouseMove_horizontal = function (event) {
+        var _left = event.clientX - container.offsetLeft - horizontalTrack.offsetLeft;
+        var left = _left < 0 ? 0 : _left > horizontalUllage ? horizontalUllage : _left;
+        horizontalHandle.style.left = left + 'px';
+      };
+
+      var mouseDown_horizontal = function () {
+        document.addEventListener('mousemove', mouseMove_horizontal);
+        document.addEventListener('mouseup', mouseUp_horizontal);
+      };
+
+      var mouseUp_horizontal = function () {
+        document.removeEventListener('mousemove', mouseMove_horizontal);
+        document.removeEventListener('mouseup', mouseUp_horizontal);
+      };
+
+      verticalHandle.addEventListener('mousedown', mouseDown_vertical);
+      horizontalHandle.addEventListener('mousedown', mouseDown_horizontal);
+
+    </script>
+  </body>
