@@ -37,8 +37,8 @@ body {
 }
 
 .head h1 {
-  font-size:1.5em;
-  color:yellow;
+  font-size: 1.5em;
+  color: rgb(0, 255, 0);
 }
 
 .head h1, .head h4 {
@@ -71,7 +71,7 @@ body {
 .erl-viewport {
   height: 94%;
   margin: 15px 20px;
-  overflow: auto;
+  overflow: hidden;
   padding: 0;
 }
 
@@ -125,7 +125,7 @@ body {
 }
 
 .erl-x-scroll-thumb {
-  visibility: visible;
+  visibility: hidden;
   position: absolute;
   background-color: rgba(0, 0, 0, 0.3);
   border-radius: 20px;
@@ -136,7 +136,7 @@ body {
 }
 
 .erl-y-scroll-thumb {
-  visibility: visible;
+  visibility: hidden;
   position: absolute;
   background-color: rgba(0, 0, 0, 0.3);
   border-radius: 20px;
