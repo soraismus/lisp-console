@@ -498,47 +498,6 @@ function initialize(config) {
 
 module.exports = initialize;
 
-
-function f0() {
-  var ratio;
-
-  var viewport = document.getElementById('erl-viewport');
-  var xTrack = document.getElementById('erl-x-scroll-track');
-  var yTrack = document.getElementById('erl-y-scroll-track');
-  var xThumb = document.getElementById('erl-x-scroll-thumb');
-  var yThumb = document.getElementById('erl-y-scroll-thumb');
-
-  var viewportWidth = viewport.offsetWidth;
-  var terminalWidth = viewport.scrollWidth;
-
-  if (viewportWidth < terminalWidth) {
-    console.log('part is hidden');
-  }
-}
-
-/*
-`viewport.offsetWidth` is the size of the 'viewport'.
-`viewport.scrollWidth` is the size of the underlying 'terminal'.
-
-The scroll track's length should be offsetWidth / scrollWdith.
-
-
-var X_SCROLLBAR = DIV(
-  {
-    id: 'erl-x-scroll-track',
-    classes: {
-      'erl-x-scroll-track': true,
-      'erl-scroll-track': true
-    }
-  },
-  DIV({
-    id: 'erl-x-scroll-thumb',
-    classes: {
-      'erl-x-scroll-thumb': true,
-      'erl-scroll-thumb': true
-
-*/
-
 },{"./control/initializeControl":10,"./models/getInitialModel":15,"./render":20,"./subscribe":21,"./view/control/recreateConsole":24,"./view/initializeView":26,"./view/initializeViewDynamics":27}],12:[function(require,module,exports){
 var create = require('../types/createFrame');
 
@@ -934,20 +893,21 @@ function render(_viewModel, rootChild, getCursor, controlConfig) {
     viewModel = newViewModel;
 
     f0();
+    f1();
 
   };
 }
 
 module.exports = render;
 
-
+function getPercentage(number) {
+  return (100 * number) + '%';
+}
 
 function f0() {
   var viewport = document.getElementsByClassName('erl-viewport')[0];
   var xTrack = document.getElementById('erl-x-scroll-track');
-  var yTrack = document.getElementById('erl-y-scroll-track');
   var xThumb = document.getElementById('erl-x-scroll-thumb');
-  var yThumb = document.getElementById('erl-y-scroll-thumb');
   var cursor = document.getElementById('erl-cursor');
   var prompt = document.getElementById('erl-prompt');
 
@@ -958,20 +918,60 @@ function f0() {
 
   if (viewportWidth < terminalWidth) {
     var fullPromptOffsetWidth = prompt.offsetLeft + prompt.offsetWidth;
+    var start = fullPromptOffsetWidth;
 
     var viewportRatio = viewportWidth / terminalWidth;
-    var viewportPercentage = (100 * viewportRatio) + '%';
-
+    var viewportPercentage = getPercentage(viewportRatio);
     var ullage = xTrackWidth - xThumbWidth;
-    var xPosition = cursor.offsetLeft - fullPromptOffsetWidth;
+    var xPosition = cursor.offsetLeft + cursor.offsetWidth - start;
     var cursorRatio = (xPosition / terminalWidth) * (ullage / xTrackWidth);
-    var cursorPercentage = (100 * cursorRatio) + '%';
+    var cursorPercentage = getPercentage(cursorRatio);
 
     var xThumbStyle = xThumb.style;
     xThumbStyle.left = cursorPercentage;
     xThumbStyle.width = viewportPercentage;
     xThumbStyle.visibility = 'visible';
   }
+}
+
+    //xThumbWidth = viewportRatio * xThumbWidth;
+    //yThumbHeight = _viewportRatio * yThumbHeight;
+
+function f1() {
+  var viewport = document.getElementsByClassName('erl-viewport')[0];
+  var yTrack = document.getElementById('erl-y-scroll-track');
+  var yThumb = document.getElementById('erl-y-scroll-thumb');
+  var cursor = document.getElementById('erl-cursor');
+
+  var yTrackHeight = yTrack.offsetHeight;
+  var yThumbHeight = yThumb.offsetHeight;
+  var viewportHeight = viewport.offsetHeight;
+  var terminalHeight = viewport.scrollHeight;
+
+  if (viewportHeight < terminalHeight) {
+    var start = viewport.offsetTop;
+
+    var _viewportRatio = viewportHeight / terminalHeight;
+    var _viewportPercentage = getPercentage(_viewportRatio);
+    var _ullage = yTrackHeight - yThumbHeight;
+    var yPosition = cursor.offsetTop + cursor.offsetHeight - start;
+    var _cursorRatio = (yPosition / terminalHeight) * (_ullage / yTrackHeight);
+    var _cursorPercentage = getPercentage(_cursorRatio);
+
+    var yThumbStyle = yThumb.style;
+    yThumbStyle.top = _cursorPercentage;
+    yThumbStyle.height = _viewportPercentage;
+    yThumbStyle.visibility = 'visible';
+  }
+
+    // viewport.scrollHeight ~=~ cursor.offsetTop;
+    // viewport.scrollHeight + viewport.scrollTop ~=~ cursor.offsetTop + cursor.offsetHeight;
+
+    //var yPosition = cursor.offsetTop + cursor.offsetHeight - viewport.scrollTop;
+    //var yPosition = cursor.offsetTop;
+    //var yPosition = cursor.offsetHeight;
+    //var yPosition = cursor.offsetHeight + cursor.offsetTop;
+    //var yPosition = cursor.offsetHeight + cursor.offsetTop - viewport.offsetTop;
 }
 
 },{"./../lib/interpreter":2,"./view/control/diff":23,"./view/control/recreateConsole":24,"./view/control/scroll":25}],21:[function(require,module,exports){

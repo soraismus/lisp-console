@@ -132,7 +132,7 @@ body {
   z-index: 1;
   left: 0;
   height: 5px;
-  width: 80%;
+  width: 100%;
 }
 
 .erl-y-scroll-thumb {
@@ -143,5 +143,5 @@ body {
   z-index: 1;
   top: 0;
   width: 5px;
-  height: 80%;
+  height: 100%;
 }
