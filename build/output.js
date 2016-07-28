@@ -912,7 +912,7 @@ function f0() {
   var prompt = document.getElementById('erl-prompt');
 
   var xTrackWidth = xTrack.offsetWidth;
-  var xThumbWidth = xThumb.offsetWidth;
+  //var xThumbWidth = xThumb.offsetWidth;
   var viewportWidth = viewport.offsetWidth;
   var terminalWidth = viewport.scrollWidth;
 
@@ -921,6 +921,7 @@ function f0() {
     var start = fullPromptOffsetWidth;
 
     var viewportRatio = viewportWidth / terminalWidth;
+    var xThumbWidth = viewportRatio * xTrackWidth;
     var viewportPercentage = getPercentage(viewportRatio);
     var ullage = xTrackWidth - xThumbWidth;
     var xPosition = cursor.offsetLeft + cursor.offsetWidth - start;
@@ -944,7 +945,7 @@ function f1() {
   var cursor = document.getElementById('erl-cursor');
 
   var yTrackHeight = yTrack.offsetHeight;
-  var yThumbHeight = yThumb.offsetHeight;
+  //var yThumbHeight = yThumb.offsetHeight;
   var viewportHeight = viewport.offsetHeight;
   var terminalHeight = viewport.scrollHeight;
 
@@ -952,6 +953,7 @@ function f1() {
     var start = viewport.offsetTop;
 
     var _viewportRatio = viewportHeight / terminalHeight;
+    var yThumbHeight = _viewportRatio * yTrackHeight;
     var _viewportPercentage = getPercentage(_viewportRatio);
     var _ullage = yTrackHeight - yThumbHeight;
     var yPosition = cursor.offsetTop + cursor.offsetHeight - start;
