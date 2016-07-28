@@ -894,6 +894,7 @@ function render(_viewModel, rootChild, getCursor, controlConfig) {
 
     f0();
     f1();
+    f2();
 
   };
 }
@@ -912,7 +913,6 @@ function f0() {
   var prompt = document.getElementById('erl-prompt');
 
   var xTrackWidth = xTrack.offsetWidth;
-  //var xThumbWidth = xThumb.offsetWidth;
   var viewportWidth = viewport.offsetWidth;
   var terminalWidth = viewport.scrollWidth;
 
@@ -935,9 +935,6 @@ function f0() {
   }
 }
 
-    //xThumbWidth = viewportRatio * xThumbWidth;
-    //yThumbHeight = _viewportRatio * yThumbHeight;
-
 function f1() {
   var viewport = document.getElementsByClassName('erl-viewport')[0];
   var yTrack = document.getElementById('erl-y-scroll-track');
@@ -945,7 +942,6 @@ function f1() {
   var cursor = document.getElementById('erl-cursor');
 
   var yTrackHeight = yTrack.offsetHeight;
-  //var yThumbHeight = yThumb.offsetHeight;
   var viewportHeight = viewport.offsetHeight;
   var terminalHeight = viewport.scrollHeight;
 
@@ -965,16 +961,59 @@ function f1() {
     yThumbStyle.height = _viewportPercentage;
     yThumbStyle.visibility = 'visible';
   }
-
-    // viewport.scrollHeight ~=~ cursor.offsetTop;
-    // viewport.scrollHeight + viewport.scrollTop ~=~ cursor.offsetTop + cursor.offsetHeight;
-
-    //var yPosition = cursor.offsetTop + cursor.offsetHeight - viewport.scrollTop;
-    //var yPosition = cursor.offsetTop;
-    //var yPosition = cursor.offsetHeight;
-    //var yPosition = cursor.offsetHeight + cursor.offsetTop;
-    //var yPosition = cursor.offsetHeight + cursor.offsetTop - viewport.offsetTop;
 }
+
+function f2() {
+  var viewport = document.getElementsByClassName('erl-viewport')[0];
+  var yTrack = document.getElementById('erl-y-scroll-track');
+  var yThumb = document.getElementById('erl-y-scroll-thumb');
+
+  var yThumbHeight = yThumb.offsetHeight;
+  var yTrackHeight = yTrack.offsetHeight;
+  var viewportHeight = viewport.offsetHeight;
+
+  var _ullage = yTrackHeight - yThumbHeight;
+
+  function mouseMove_vertical(event) {
+    var _top = event.clientY - yTrack.getBoundingClientRect().top;
+    var top = _top < 0 ? 0 : _top > _ullage ? _ullage : _top;
+    var topPx = top + 'px';
+    yThumb.style.top = topPx;
+  };
+
+  function mouseDown_vertical() {
+    document.addEventListener('mousemove', mouseMove_vertical);
+    document.addEventListener('mouseup', mouseUp_vertical);
+  };
+
+  function mouseUp_vertical() {
+    document.removeEventListener('mousemove', mouseMove_vertical);
+    document.removeEventListener('mouseup', mouseUp_vertical);
+  };
+
+  yThumb.removeEventListener('mousedown', mouseDown_vertical);
+  yThumb.addEventListener('mousedown', mouseDown_vertical);
+}
+
+// ------------------------------------------------------------------------
+function mouseMove_horizontal(event) {
+  var _left = event.clientX - container.offsetLeft - horizontalTrack.offsetLeft;
+  var left = _left < 0 ? 0 : _left > horizontalUllage ? horizontalUllage : _left;
+  horizontalHandle.style.left = left + 'px';
+  orb.style.left = (left - 150) + 'px';
+};
+
+function mouseDown_horizontal() {
+  document.addEventListener('mousemove', mouseMove_horizontal);
+  document.addEventListener('mouseup', mouseUp_horizontal);
+};
+
+function mouseUp_horizontal() {
+  document.removeEventListener('mousemove', mouseMove_horizontal);
+  document.removeEventListener('mouseup', mouseUp_horizontal);
+};
+
+//horizontalHandle.addEventListener('mousedown', mouseDown_horizontal);
 
 },{"./../lib/interpreter":2,"./view/control/diff":23,"./view/control/recreateConsole":24,"./view/control/scroll":25}],21:[function(require,module,exports){
 function subscribe(eventType, eventHandler) {
