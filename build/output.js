@@ -917,6 +917,8 @@ function f0() {
   var viewportWidth = viewport.offsetWidth;
   var terminalWidth = viewport.scrollWidth;
 
+  var xThumbStyle = xThumb.style;
+
   if (viewportWidth < terminalWidth) {
     var fullPromptOffsetWidth = prompt.offsetLeft + prompt.offsetWidth;
     var start = fullPromptOffsetWidth;
@@ -929,10 +931,13 @@ function f0() {
     var cursorRatio = (xPosition / terminalWidth) * (ullage / xTrackWidth);
     var cursorPercentage = getPercentage(cursorRatio);
 
-    var xThumbStyle = xThumb.style;
     xThumbStyle.left = cursorPercentage;
     xThumbStyle.width = viewportPercentage;
     xThumbStyle.visibility = 'visible';
+  } else {
+    xThumbStyle.left = 0;
+    xThumbStyle.width = '100%';
+    xThumbStyle.visibility = 'hidden';
   }
 }
 
@@ -946,6 +951,8 @@ function f1() {
   var viewportHeight = viewport.offsetHeight;
   var terminalHeight = viewport.scrollHeight;
 
+  var yThumbStyle = yThumb.style;
+
   if (viewportHeight < terminalHeight) {
     var start = viewport.offsetTop;
 
@@ -957,10 +964,13 @@ function f1() {
     var _cursorRatio = (yPosition / terminalHeight) * (_ullage / yTrackHeight);
     var _cursorPercentage = getPercentage(_cursorRatio);
 
-    var yThumbStyle = yThumb.style;
     yThumbStyle.top = _cursorPercentage;
     yThumbStyle.height = _viewportPercentage;
     yThumbStyle.visibility = 'visible';
+  } else {
+    yThumbStyle.top = 0;
+    yThumbStyle.height = '100%';
+    yThumbStyle.visibility = 'hidden';
   }
 }
 
@@ -978,8 +988,11 @@ function f2() {
   function mouseMove_vertical(event) {
     var _top = event.clientY - yTrack.getBoundingClientRect().top;
     var top = _top < 0 ? 0 : _top > _ullage ? _ullage : _top;
-    var topPx = top + 'px';
-    yThumb.style.top = topPx;
+    var topRatio = top / yTrackHeight;
+    yThumb.style.top = getPercentage(topRatio);
+
+    // --------------------------------------------------------------------
+    viewport.scrollTop = topRatio * viewport.scrollHeight;
   };
 
   function mouseDown_vertical() {
@@ -1010,7 +1023,11 @@ function f3() {
   function mouseMove_horizontal(event) {
     var _left = event.clientX - xTrack.getBoundingClientRect().left;
     var left = _left < 0 ? 0 : _left > _ullage ? _ullage : _left;
-    xThumb.style.left = left + 'px';
+    var leftRatio = left / xTrackWidth;
+    xThumb.style.left = getPercentage(leftRatio);
+
+    // --------------------------------------------------------------------
+    viewport.scrollLeft = leftRatio * viewport.scrollWidth;
   };
 
   function mouseUp_horizontal() {
@@ -1025,6 +1042,11 @@ function f3() {
 
   xThumb.removeEventListener('mousedown', mouseDown_horizontal);
   xThumb.addEventListener('mousedown', mouseDown_horizontal);
+}
+
+function __scroll(node, x, y) {
+  node.scrollLeft = x;
+  node.scrollTop = y;
 }
 
 },{"./../lib/interpreter":2,"./view/control/diff":23,"./view/control/recreateConsole":24,"./view/control/scroll":25}],21:[function(require,module,exports){
@@ -1395,8 +1417,8 @@ module.exports = ERLKING;
 },{"../../../lib/elements":1,"../components/components":22}],25:[function(require,module,exports){
 var margin = 5;
 
-function getCursorOffset(cursor, viewport) {
-  return cursor.offsetLeft + cursor.offsetWidth + margin - viewport.offsetWidth;
+function getCursorOffset(cursor, node) {
+  return cursor.offsetLeft + cursor.offsetWidth + margin - node.offsetWidth;
 }
 
 function scroll(node, cursor) {
