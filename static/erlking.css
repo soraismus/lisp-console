@@ -17,7 +17,56 @@ body {
   background-color: black;
 }
 
+.background {
+  background-image: url('erlking.jpg'); /* fallback for older browsers */
+  background-image: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%,rgba(0,0,0,0.9) 100%), url('erlking.jpg');
+  background-size: cover;
+  background-repeat: no-repeat;
+  border-radius: 20px;
+  box-shadow: 0 0 20px rgba(217, 215, 255, 0.2) inset, 2px 2px 16px #000;
+}
+
+.background0 {
+  position: fixed;
+  /*top: 8%;*/
+  /*left: 8%;*/
+  width: 40%;
+  height: 65%;
+  /*bottom: 12%;*/
+  /*right: 50%;*/
+  bottom: 6%;
+  left: 5%;
+  z-index: 2;
+  background-image: linear-gradient(to bottom, rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.92) 100%), url('erlking.jpg');
+}
+
+.background1 {
+  position: fixed;
+  width: 40%;
+  height: 65%;
+  /*bottom: 12%;*/
+  /*right: 50%;*/
+  bottom: 12%;
+  left: 33%;
+  z-index: 1;
+  background-image: linear-gradient(to bottom, rgba(0,0,0,0.94) 0%,rgba(0,0,0,0.94) 100%), url('erlking.jpg');
+}
+
+.background2 {
+  position: fixed;
+  width: 40%;
+  height: 65%;
+  /*bottom: 12%;*/
+  /*right: 50%;*/
+  bottom: 18%;
+  /*left: 71%;*/
+  right: 5%;
+  z-index: 0;
+  background-image: linear-gradient(to bottom, rgba(0,0,0,0.96) 0%,rgba(0,0,0,0.96) 100%), url('erlking.jpg');
+}
+
 .console-section {
+  z-index: 3;
   margin: 0;
   position: absolute;
   top: 10%;
@@ -34,12 +83,15 @@ body {
   user-select: none;
 
 
-  background-image: url('erlking.jpg'); /* fallback for older browsers */
+  /*
+  background-image: url('erlking.jpg'); // fallback for older browsers
   background-image: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%,rgba(0,0,0,0.9) 100%), url('erlking.jpg');
-  background-size: cover; /* contain */
+  background-size: cover; // contain
   background-repeat: no-repeat;
   border-radius: 20px;
   box-shadow: 0 0 20px rgba(217, 215, 255, 0.2) inset, 2px 2px 16px #000;
+  */
+
 }
 
 .head {
@@ -147,7 +199,7 @@ body {
   position: absolute;
   background-color: rgba(0, 0, 0, 0.3);
   border-radius: 20px;
-  z-index: 1;
+  z-index: 4;
   left: 0;
   height: 5px;
   width: 100%;
@@ -158,7 +210,7 @@ body {
   position: absolute;
   background-color: rgba(0, 0, 0, 0.3);
   border-radius: 20px;
-  z-index: 1;
+  z-index: 4;
   top: 0;
   width: 5px;
   height: 100%;
