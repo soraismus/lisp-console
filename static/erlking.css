@@ -87,7 +87,6 @@ body {
 }
 .erl-viewport::-webkit-scrollbar-track {
   border-radius: 10px;
-  visibility: hidden;
 }
 .erl-viewport::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.3);
