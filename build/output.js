@@ -1802,21 +1802,21 @@ module.exports = {
 };
 
 },{}],35:[function(require,module,exports){
-var add, contains_question_, createMalBoolean, createMalCorePureFunction, createMalIdentifier, createMalIndex, createMalNumber, createMalString, dissoc, divide, exponentiate, extractJsValue, fromArray, functionsOnJsValues, get, getEnvironment, greaterThan, greaterThanOrEqual, index, jsNaN_question_, jsNumber_question_, jsString_question_, keys, length, lessThan, lessThanOrEqual, lift, malNil, max, min, mod, multiply, negate, parseNumber, reduce, setCoreFnsOnJsValues_bang_, subtract, toArray, vals,
+var add, contains_question_, createErlBoolean, createErlCorePureFunction, createErlIdentifier, createErlIndex, createErlNumber, createErlString, dissoc, divide, erlNil, exponentiate, extractJsValue, fromArray, functionsOnJsValues, get, getEnvironment, greaterThan, greaterThanOrEqual, index, jsNaN_question_, jsNumber_question_, jsString_question_, keys, length, lessThan, lessThanOrEqual, lift, max, min, mod, multiply, negate, parseNumber, reduce, setCoreFnsOnJsValues_bang_, subtract, toArray, vals,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
 
-createMalBoolean = require('./type-utilities').createMalBoolean;
+createErlBoolean = require('./type-utilities').createErlBoolean;
 
-createMalCorePureFunction = require('./type-utilities').createMalCorePureFunction;
+createErlCorePureFunction = require('./type-utilities').createErlCorePureFunction;
 
-createMalIdentifier = require('./type-utilities').createMalIdentifier;
+createErlIdentifier = require('./type-utilities').createErlIdentifier;
 
-createMalIndex = require('./type-utilities').createMalIndex;
+createErlIndex = require('./type-utilities').createErlIndex;
 
-createMalNumber = require('./type-utilities').createMalNumber;
+createErlNumber = require('./type-utilities').createErlNumber;
 
-createMalString = require('./type-utilities').createMalString;
+createErlString = require('./type-utilities').createErlString;
 
 extractJsValue = require('./type-utilities').extractJsValue;
 
@@ -1828,7 +1828,7 @@ jsNumber_question_ = require('./js-utilities').jsNumber_question_;
 
 jsString_question_ = require('./js-utilities').jsString_question_;
 
-malNil = require('./type-utilities').malNil;
+erlNil = require('./type-utilities').erlNil;
 
 reduce = require('./linked-list').reduce;
 
@@ -1837,13 +1837,13 @@ toArray = require('./linked-list').toArray;
 add = function() {
   var nbrs;
   nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-  return createMalNumber(nbrs.reduce(function(x, nbr) {
+  return createErlNumber(nbrs.reduce(function(x, nbr) {
     return x += nbr;
   }));
 };
 
 contains_question_ = function(index, key) {
-  return createMalBoolean(key in index);
+  return createErlBoolean(key in index);
 };
 
 dissoc = function() {
@@ -1859,13 +1859,13 @@ dissoc = function() {
     key = keys[_i];
     delete copy[key];
   }
-  return createMalIndex(copy);
+  return createErlIndex(copy);
 };
 
 divide = function() {
   var nbrs;
   nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-  return createMalNumber(nbrs.reduce(function(x, nbr) {
+  return createErlNumber(nbrs.reduce(function(x, nbr) {
     return x /= nbr;
   }));
 };
@@ -1873,7 +1873,7 @@ divide = function() {
 exponentiate = function() {
   var nbrs;
   nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-  return createMalNumber(nbrs.reduce(function(x, nbr) {
+  return createErlNumber(nbrs.reduce(function(x, nbr) {
     return Math.pow(x, nbr);
   }));
 };
@@ -1892,13 +1892,13 @@ getEnvironment = function(config) {
 greaterThanOrEqual = function() {
   var nbrs;
   nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-  return createMalBoolean(nbrs[0] >= nbrs[1]);
+  return createErlBoolean(nbrs[0] >= nbrs[1]);
 };
 
 greaterThan = function() {
   var nbrs;
   nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-  return createMalBoolean(nbrs[0] > nbrs[1]);
+  return createErlBoolean(nbrs[0] > nbrs[1]);
 };
 
 index = function() {
@@ -1911,7 +1911,7 @@ index = function() {
       index[k] = args[i + 1];
     }
   }
-  return createMalIndex(index);
+  return createErlIndex(index);
 };
 
 keys = function(index) {
@@ -1920,62 +1920,62 @@ keys = function(index) {
   for (key in index) {
     if (!__hasProp.call(index, key)) continue;
     value = index[key];
-    _keys.push(jsNaN_question_(jsNbr = parseFloat(key, 10)) ? (key[0] === ':' ? createMalIdentifier : createMalString)(key) : createMalNumber(jsNbr));
+    _keys.push(jsNaN_question_(jsNbr = parseFloat(key, 10)) ? (key[0] === ':' ? createErlIdentifier : createErlString)(key) : createErlNumber(jsNbr));
   }
   return fromArray(_keys);
 };
 
 length = function(jsVal) {
   if (!jsString_question_(jsVal)) {
-    return malNil;
+    return erlNil;
   }
-  return createMalNumber(jsVal.length - 2);
+  return createErlNumber(jsVal.length - 2);
 };
 
 lessThan = function() {
   var nbrs;
   nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-  return createMalBoolean(nbrs[0] < nbrs[1]);
+  return createErlBoolean(nbrs[0] < nbrs[1]);
 };
 
 lessThanOrEqual = function() {
   var nbrs;
   nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-  return createMalBoolean(nbrs[0] <= nbrs[1]);
+  return createErlBoolean(nbrs[0] <= nbrs[1]);
 };
 
 lift = function(fnOnJsValues) {
-  return function(malValueList) {
-    return fnOnJsValues.apply(null, (toArray(malValueList)).map(extractJsValue));
+  return function(erlValueList) {
+    return fnOnJsValues.apply(null, (toArray(erlValueList)).map(extractJsValue));
   };
 };
 
 max = function() {
   var nbrs;
   nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-  return createMalNumber(Math.max.apply(Math, nbrs));
+  return createErlNumber(Math.max.apply(Math, nbrs));
 };
 
 min = function() {
   var nbrs;
   nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-  return createMalNumber(Math.min.apply(Math, nbrs));
+  return createErlNumber(Math.min.apply(Math, nbrs));
 };
 
 mod = function(nbr0, nbr1) {
-  return createMalNumber(nbr0 % nbr1);
+  return createErlNumber(nbr0 % nbr1);
 };
 
 multiply = function() {
   var nbrs;
   nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-  return createMalNumber(nbrs.reduce(function(x, nbr) {
+  return createErlNumber(nbrs.reduce(function(x, nbr) {
     return x *= nbr;
   }));
 };
 
 negate = function(nbr) {
-  return createMalNumber(-1 * nbr);
+  return createErlNumber(-1 * nbr);
 };
 
 parseNumber = function(jsVal) {
@@ -1984,13 +1984,13 @@ parseNumber = function(jsVal) {
     return jsVal;
   }
   if (!jsString_question_(jsVal)) {
-    return malNil;
+    return erlNil;
   }
   jsNbr = parseFloat(stripQuotes(jsVal), 10);
   if (jsNaN_question_(jsNbr)) {
-    return malNil;
+    return erlNil;
   } else {
-    return createMalNumber(jsNbr);
+    return createErlNumber(jsNbr);
   }
 };
 
@@ -2000,7 +2000,7 @@ setCoreFnsOnJsValues_bang_ = function(env, fns) {
   for (fnName in fns) {
     if (!__hasProp.call(fns, fnName)) continue;
     fn = fns[fnName];
-    _results.push(env[fnName] = createMalCorePureFunction(lift(fn)));
+    _results.push(env[fnName] = createErlCorePureFunction(lift(fn)));
   }
   return _results;
 };
@@ -2008,7 +2008,7 @@ setCoreFnsOnJsValues_bang_ = function(env, fns) {
 subtract = function() {
   var nbrs;
   nbrs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-  return createMalNumber(nbrs.reduce(function(x, nbr) {
+  return createErlNumber(nbrs.reduce(function(x, nbr) {
     return x -= nbr;
   }));
 };
@@ -2052,7 +2052,7 @@ module.exports = getEnvironment;
 
 },{"./js-utilities":43,"./linked-list":45,"./type-utilities":51}],36:[function(require,module,exports){
 (function (process){
-var append, areEqual, assoc, atom, atom_question_, boolean_question_, car, cdr, circumpendQuotes, concat, cons, coreFn_question_, count, createMalAtom, createMalBoolean, createMalCorePureFunction, createMalIndex, createMalList, createMalNumber, createMalString, createMalSymbol, createPredicate, deref, drop, empty_question_, equal_question_, extractJsValue, false_question_, first, fromArray, function_question_, functionsOnMalValues, getEnvironment, ignoreIfTrue, ignoreUnlessTrue, ignore_bang_, interpret, last, list, list_question_, macro_question_, malAtom_question_, malBoolean_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIgnore, malIndex_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malUserPureFunction_question_, meta, next, nil_question_, nth, number_question_, prepend, prettyString, read, recurse, reduce, reset, rest, reverse, serialize, set, setCoreFnsOnMalValues_bang_, slurp, string, string_question_, stripQuotes, symbol, symbol_question_, take, time_hyphen_ms, toArray, toPartialArray, true_question_, typeOf, userFn_question_, withMeta, write, _car, _cdr, _concat, _drop, _empty_question_, _interpret, _last, _not, _prStr, _quit_, _ref, _reverse, _take, _throw,
+var append, areEqual, assoc, atom, atom_question_, boolean_question_, car, cdr, circumpendQuotes, concat, cons, coreFn_question_, count, createErlAtom, createErlBoolean, createErlCorePureFunction, createErlIndex, createErlList, createErlNumber, createErlString, createErlSymbol, createPredicate, deref, drop, empty_question_, equal_question_, erlAtom_question_, erlBoolean_question_, erlCorePureFunction_question_, erlFalse, erlFalse_question_, erlIgnore, erlIndex_question_, erlList_question_, erlMacro_question_, erlNil, erlNil_question_, erlNumber_question_, erlString_question_, erlSymbol_question_, erlTrue, erlTrue_question_, erlUserPureFunction_question_, extractJsValue, false_question_, first, fromArray, function_question_, functionsOnErlValues, getEnvironment, ignoreIfTrue, ignoreUnlessTrue, ignore_bang_, interpret, last, list, list_question_, macro_question_, meta, next, nil_question_, nth, number_question_, prepend, prettyString, read, recurse, reduce, reset, rest, reverse, serialize, set, setCoreFnsOnErlValues_bang_, slurp, string, string_question_, stripQuotes, symbol, symbol_question_, take, time_hyphen_ms, toArray, toPartialArray, true_question_, typeOf, userFn_question_, withMeta, write, _car, _cdr, _concat, _drop, _empty_question_, _interpret, _last, _not, _prStr, _quit_, _ref, _reverse, _take, _throw,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
 
@@ -2064,21 +2064,21 @@ circumpendQuotes = require('./js-utilities').circumpendQuotes;
 
 concat = require('./linked-list').concat;
 
-createMalAtom = require('./type-utilities').createMalAtom;
+createErlAtom = require('./type-utilities').createErlAtom;
 
-createMalBoolean = require('./type-utilities').createMalBoolean;
+createErlBoolean = require('./type-utilities').createErlBoolean;
 
-createMalCorePureFunction = require('./type-utilities').createMalCorePureFunction;
+createErlCorePureFunction = require('./type-utilities').createErlCorePureFunction;
 
-createMalIndex = require('./type-utilities').createMalIndex;
+createErlIndex = require('./type-utilities').createErlIndex;
 
-createMalList = require('./type-utilities').createMalList;
+createErlList = require('./type-utilities').createErlList;
 
-createMalNumber = require('./type-utilities').createMalNumber;
+createErlNumber = require('./type-utilities').createErlNumber;
 
-createMalString = require('./type-utilities').createMalString;
+createErlString = require('./type-utilities').createErlString;
 
-createMalSymbol = require('./type-utilities').createMalSymbol;
+createErlSymbol = require('./type-utilities').createErlSymbol;
 
 drop = require('./linked-list').drop;
 
@@ -2094,39 +2094,39 @@ interpret = require('./interpret');
 
 last = require('./linked-list').last;
 
-malAtom_question_ = require('./type-utilities').malAtom_question_;
+erlAtom_question_ = require('./type-utilities').erlAtom_question_;
 
-malCorePureFunction_question_ = require('./type-utilities').malCorePureFunction_question_;
+erlCorePureFunction_question_ = require('./type-utilities').erlCorePureFunction_question_;
 
-malBoolean_question_ = require('./type-utilities').malBoolean_question_;
+erlBoolean_question_ = require('./type-utilities').erlBoolean_question_;
 
-malFalse = require('./type-utilities').malFalse;
+erlFalse = require('./type-utilities').erlFalse;
 
-malFalse_question_ = require('./type-utilities').malFalse_question_;
+erlFalse_question_ = require('./type-utilities').erlFalse_question_;
 
-malIgnore = require('./type-utilities').malIgnore;
+erlIgnore = require('./type-utilities').erlIgnore;
 
-malIndex_question_ = require('./type-utilities').malIndex_question_;
+erlIndex_question_ = require('./type-utilities').erlIndex_question_;
 
-malList_question_ = require('./type-utilities').malList_question_;
+erlList_question_ = require('./type-utilities').erlList_question_;
 
-malMacro_question_ = require('./type-utilities').malMacro_question_;
+erlMacro_question_ = require('./type-utilities').erlMacro_question_;
 
-malNil = require('./type-utilities').malNil;
+erlNil = require('./type-utilities').erlNil;
 
-malNil_question_ = require('./type-utilities').malNil_question_;
+erlNil_question_ = require('./type-utilities').erlNil_question_;
 
-malNumber_question_ = require('./type-utilities').malNumber_question_;
+erlNumber_question_ = require('./type-utilities').erlNumber_question_;
 
-malString_question_ = require('./type-utilities').malString_question_;
+erlString_question_ = require('./type-utilities').erlString_question_;
 
-malSymbol_question_ = require('./type-utilities').malSymbol_question_;
+erlSymbol_question_ = require('./type-utilities').erlSymbol_question_;
 
-malTrue = require('./type-utilities').malTrue;
+erlTrue = require('./type-utilities').erlTrue;
 
-malTrue_question_ = require('./type-utilities').malTrue_question_;
+erlTrue_question_ = require('./type-utilities').erlTrue_question_;
 
-malUserPureFunction_question_ = require('./type-utilities').malUserPureFunction_question_;
+erlUserPureFunction_question_ = require('./type-utilities').erlUserPureFunction_question_;
 
 next = require('./linked-list').next;
 
@@ -2144,34 +2144,34 @@ toArray = require('./linked-list').toArray;
 
 toPartialArray = require('./linked-list').toPartialArray;
 
-append = function(malArgs) {
-  var malList, malValues, _ref;
-  _ref = toArray(malArgs), malList = _ref[0], malValues = 2 <= _ref.length ? __slice.call(_ref, 1) : [];
-  return concat(malList, fromArray(malValues));
+append = function(erlArgs) {
+  var erlList, erlValues, _ref;
+  _ref = toArray(erlArgs), erlList = _ref[0], erlValues = 2 <= _ref.length ? __slice.call(_ref, 1) : [];
+  return concat(erlList, fromArray(erlValues));
 };
 
-areEqual = function(malArgs) {
-  var malValue0, malValue1, _areEqual, _ref;
-  _ref = toPartialArray(2, malArgs), malValue0 = _ref[0], malValue1 = _ref[1];
-  _areEqual = function(malValue0, malValue1) {
+areEqual = function(erlArgs) {
+  var erlValue0, erlValue1, _areEqual, _ref;
+  _ref = toPartialArray(2, erlArgs), erlValue0 = _ref[0], erlValue1 = _ref[1];
+  _areEqual = function(erlValue0, erlValue1) {
     var jsIndex0, jsIndex1;
-    if (malList_question_(malValue0) && malList_question_(malValue1)) {
-      return equal_question_(malValue0, malValue1, _areEqual);
-    } else if (malIndex_question_(malValue0) && malIndex_question_(malValue1)) {
-      jsIndex0 = malValue0.jsValue;
-      jsIndex1 = malValue1.jsValue;
+    if (erlList_question_(erlValue0) && erlList_question_(erlValue1)) {
+      return equal_question_(erlValue0, erlValue1, _areEqual);
+    } else if (erlIndex_question_(erlValue0) && erlIndex_question_(erlValue1)) {
+      jsIndex0 = erlValue0.jsValue;
+      jsIndex1 = erlValue1.jsValue;
       return (_areEqual(keys(jsIndex0), keys(jsIndex1))) && (_areEqual(vals(jsIndex0), vals(jsIndex1)));
     } else {
-      return malValue0.jsValue === malValue1.jsValue;
+      return erlValue0.jsValue === erlValue1.jsValue;
     }
   };
-  return createMalBoolean(_areEqual(malValue0, malValue1));
+  return createErlBoolean(_areEqual(erlValue0, erlValue1));
 };
 
-assoc = function(malArgs) {
+assoc = function(erlArgs) {
   var args, copy, jsIndex, k, key, v, value;
-  jsIndex = extractJsValue(car(malArgs));
-  args = cdr(malArgs);
+  jsIndex = extractJsValue(car(erlArgs));
+  args = cdr(erlArgs);
   copy = {};
   for (key in jsIndex) {
     if (!__hasProp.call(jsIndex, key)) continue;
@@ -2184,190 +2184,190 @@ assoc = function(malArgs) {
     args = recurse(recurse(args));
     copy[extractJsValue(k)] = v;
   }
-  return createMalIndex(copy);
+  return createErlIndex(copy);
 };
 
-atom = function(malArgs) {
-  return createMalAtom(car(malArgs));
+atom = function(erlArgs) {
+  return createErlAtom(car(erlArgs));
 };
 
-_car = function(malArgs) {
+_car = function(erlArgs) {
   var arg;
-  arg = car(malArgs);
-  if (malList_question_(arg)) {
+  arg = car(erlArgs);
+  if (erlList_question_(arg)) {
     return car(arg);
   } else {
-    return malNil;
+    return erlNil;
   }
 };
 
-_cdr = function(malArgs) {
+_cdr = function(erlArgs) {
   var arg;
-  arg = car(malArgs);
-  if (malList_question_(arg)) {
+  arg = car(erlArgs);
+  if (erlList_question_(arg)) {
     return cdr(arg);
   } else {
-    return malNil;
+    return erlNil;
   }
 };
 
-_concat = function(malArgs) {
-  var malLists;
-  malLists = toArray(malArgs);
-  return concat.apply(null, malLists);
+_concat = function(erlArgs) {
+  var erlLists;
+  erlLists = toArray(erlArgs);
+  return concat.apply(null, erlLists);
 };
 
-cons = function(malArgs) {
-  return createMalList(car(malArgs), next(malArgs));
+cons = function(erlArgs) {
+  return createErlList(car(erlArgs), next(erlArgs));
 };
 
-count = function(malArgs) {
-  var malList, _reduce;
-  malList = car(malArgs);
-  if (!malList_question_(malList)) {
-    return malNil;
+count = function(erlArgs) {
+  var erlList, _reduce;
+  erlList = car(erlArgs);
+  if (!erlList_question_(erlList)) {
+    return erlNil;
   }
   _reduce = function(sum, value) {
     return sum + 1;
   };
-  return createMalNumber(reduce(0, _reduce, car(malArgs)));
+  return createErlNumber(reduce(0, _reduce, car(erlArgs)));
 };
 
 createPredicate = function(pred) {
   return function(jsList) {
-    var malValue;
-    malValue = jsList.value;
-    return createMalBoolean(pred(malValue));
+    var erlValue;
+    erlValue = jsList.value;
+    return createErlBoolean(pred(erlValue));
   };
 };
 
-deref = function(malArgs) {
-  return (car(malArgs)).malValue;
+deref = function(erlArgs) {
+  return (car(erlArgs)).erlValue;
 };
 
-_drop = function(malArgs) {
-  var malList, malNumber, _ref;
-  _ref = toPartialArray(2, malArgs), malNumber = _ref[0], malList = _ref[1];
-  return drop(extractJsValue(malNumber), malList);
+_drop = function(erlArgs) {
+  var erlList, erlNumber, _ref;
+  _ref = toPartialArray(2, erlArgs), erlNumber = _ref[0], erlList = _ref[1];
+  return drop(extractJsValue(erlNumber), erlList);
 };
 
-_empty_question_ = function(malArgs) {
-  if (empty_question_(malArgs)) {
-    return malFalse;
+_empty_question_ = function(erlArgs) {
+  if (empty_question_(erlArgs)) {
+    return erlFalse;
   } else {
-    if (empty_question_(car(malArgs))) {
-      return malTrue;
+    if (empty_question_(car(erlArgs))) {
+      return erlTrue;
     } else {
-      return malFalse;
+      return erlFalse;
     }
   }
 };
 
-first = function(malArgs) {
-  return car(car(malArgs));
+first = function(erlArgs) {
+  return car(car(erlArgs));
 };
 
 function_question_ = function(jsList) {
-  var malValue;
-  malValue = jsList.value;
-  return createMalBoolean(malCorePureFunction_question_(malValue) || malUserPureFunction_question_(malValue));
+  var erlValue;
+  erlValue = jsList.value;
+  return createErlBoolean(erlCorePureFunction_question_(erlValue) || erlUserPureFunction_question_(erlValue));
 };
 
 getEnvironment = function(config) {
   var environment;
   environment = config.environment;
-  setCoreFnsOnMalValues_bang_(environment, functionsOnMalValues);
+  setCoreFnsOnErlValues_bang_(environment, functionsOnErlValues);
   return environment;
 };
 
-ignore_bang_ = function(malArgs) {
-  return malIgnore;
+ignore_bang_ = function(erlArgs) {
+  return erlIgnore;
 };
 
-ignoreIfTrue = function(malArgs) {
-  var malBool, malValue, _ref;
-  _ref = toPartialArray(2, malArgs), malBool = _ref[0], malValue = _ref[1];
-  if (extractJsValue(malBool)) {
-    return malIgnore;
+ignoreIfTrue = function(erlArgs) {
+  var erlBool, erlValue, _ref;
+  _ref = toPartialArray(2, erlArgs), erlBool = _ref[0], erlValue = _ref[1];
+  if (extractJsValue(erlBool)) {
+    return erlIgnore;
   } else {
-    return malValue;
+    return erlValue;
   }
 };
 
-ignoreUnlessTrue = function(malArgs) {
-  var malBool, malValue, _ref;
-  _ref = toPartialArray(2, malArgs), malBool = _ref[0], malValue = _ref[1];
-  if (extractJsValue(malBool)) {
-    return malValue;
+ignoreUnlessTrue = function(erlArgs) {
+  var erlBool, erlValue, _ref;
+  _ref = toPartialArray(2, erlArgs), erlBool = _ref[0], erlValue = _ref[1];
+  if (extractJsValue(erlBool)) {
+    return erlValue;
   } else {
-    return malIgnore;
+    return erlIgnore;
   }
 };
 
-_interpret = function(malArgs) {
-  return interpret(stripQuotes(extractJsValue(car(malArgs))));
+_interpret = function(erlArgs) {
+  return interpret(stripQuotes(extractJsValue(car(erlArgs))));
 };
 
-_last = function(malArgs) {
+_last = function(erlArgs) {
   var arg;
-  arg = car(malArgs);
-  if (malList_question_(arg)) {
+  arg = car(erlArgs);
+  if (erlList_question_(arg)) {
     return last(arg);
   } else {
-    return malNil;
+    return erlNil;
   }
 };
 
-list = function(malArgs) {
-  return malArgs;
+list = function(erlArgs) {
+  return erlArgs;
 };
 
-meta = function(malArgs) {
-  var malMeta;
-  malMeta = (car(malArgs)).meta;
-  if (malMeta != null) {
-    return malMeta;
+meta = function(erlArgs) {
+  var erlMeta;
+  erlMeta = (car(erlArgs)).meta;
+  if (erlMeta != null) {
+    return erlMeta;
   } else {
-    return malNil;
+    return erlNil;
   }
 };
 
-_not = function(malArgs) {
-  var malVal;
-  malVal = car(malArgs);
-  if (malNil_question_(malVal) || malFalse_question_(malVal)) {
-    return malTrue;
+_not = function(erlArgs) {
+  var erlVal;
+  erlVal = car(erlArgs);
+  if (erlNil_question_(erlVal) || erlFalse_question_(erlVal)) {
+    return erlTrue;
   } else {
-    return malFalse;
+    return erlFalse;
   }
 };
 
-nth = function(malArgs) {
-  var i, malList, malNumber, _i, _ref, _ref1;
-  _ref = toPartialArray(2, malArgs), malNumber = _ref[0], malList = _ref[1];
-  for (i = _i = 0, _ref1 = extractJsValue(malNumber); 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
-    malList = cdr(malList);
+nth = function(erlArgs) {
+  var erlList, erlNumber, i, _i, _ref, _ref1;
+  _ref = toPartialArray(2, erlArgs), erlNumber = _ref[0], erlList = _ref[1];
+  for (i = _i = 0, _ref1 = extractJsValue(erlNumber); 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+    erlList = cdr(erlList);
   }
-  return car(malList);
+  return car(erlList);
 };
 
-prepend = function(malArgs) {
-  var malList, malValues, _reduce, _ref;
-  _ref = toArray(malArgs), malList = _ref[0], malValues = 2 <= _ref.length ? __slice.call(_ref, 1) : [];
+prepend = function(erlArgs) {
+  var erlList, erlValues, _reduce, _ref;
+  _ref = toArray(erlArgs), erlList = _ref[0], erlValues = 2 <= _ref.length ? __slice.call(_ref, 1) : [];
   _reduce = function(list, val) {
-    return createMalList(val, list);
+    return createErlList(val, list);
   };
-  return malValues.reduce(_reduce, malList);
+  return erlValues.reduce(_reduce, erlList);
 };
 
-_prStr = function(malArgs, printReadably_question_) {
-  return ((toArray(malArgs)).map(function(malArg) {
-    return serialize(malArg, printReadably_question_);
+_prStr = function(erlArgs, printReadably_question_) {
+  return ((toArray(erlArgs)).map(function(erlArg) {
+    return serialize(erlArg, printReadably_question_);
   })).join('');
 };
 
-prettyString = function(malArgs) {
-  return createMalString(circumpendQuotes(_prStr(malArgs, true)));
+prettyString = function(erlArgs) {
+  return createErlString(circumpendQuotes(_prStr(erlArgs, true)));
 };
 
 _quit_ = function() {
@@ -2376,131 +2376,131 @@ _quit_ = function() {
 
 read = function(jsList) {
   var _read;
-  _read = function(malArgs) {
+  _read = function(erlArgs) {
     var jsFileName;
-    jsFileName = stripQuotes(extractJsValue(car(malArgs)));
+    jsFileName = stripQuotes(extractJsValue(car(erlArgs)));
     return require('fs').readFileSync(jsFileName).toString();
   };
-  return createMalString(_read(jsList));
+  return createErlString(_read(jsList));
 };
 
-reset = function(malArgs) {
+reset = function(erlArgs) {
   var value, _ref;
-  _ref = toPartialArray(2, malArgs), atom = _ref[0], value = _ref[1];
-  atom.malValue = value;
+  _ref = toPartialArray(2, erlArgs), atom = _ref[0], value = _ref[1];
+  atom.erlValue = value;
   return atom;
 };
 
-rest = function(malArgs) {
+rest = function(erlArgs) {
   var arg;
-  arg = car(malArgs);
-  if (malList_question_(arg)) {
+  arg = car(erlArgs);
+  if (erlList_question_(arg)) {
     return cdr(arg);
   } else {
-    return malNil;
+    return erlNil;
   }
 };
 
-_reverse = function(malArgs) {
+_reverse = function(erlArgs) {
   var arg;
-  arg = car(malArgs);
-  if (malList_question_(arg)) {
+  arg = car(erlArgs);
+  if (erlList_question_(arg)) {
     return reverse(arg);
   } else {
-    return malNil;
+    return erlNil;
   }
 };
 
-set = function(malArgs) {
+set = function(erlArgs) {
   var index, key, val, _ref;
-  _ref = toPartialArray(3, malArgs), index = _ref[0], key = _ref[1], val = _ref[2];
+  _ref = toPartialArray(3, erlArgs), index = _ref[0], key = _ref[1], val = _ref[2];
   (extractJsValue(index))[extractJsValue(key)] = val;
   return index;
 };
 
-setCoreFnsOnMalValues_bang_ = function(env, fns) {
+setCoreFnsOnErlValues_bang_ = function(env, fns) {
   var fn, fnName, _results;
   _results = [];
   for (fnName in fns) {
     if (!__hasProp.call(fns, fnName)) continue;
     fn = fns[fnName];
-    _results.push(env[fnName] = createMalCorePureFunction(fn));
+    _results.push(env[fnName] = createErlCorePureFunction(fn));
   }
   return _results;
 };
 
-slurp = function(malArgs) {
+slurp = function(erlArgs) {
   var jsFileName;
-  jsFileName = stripQuotes(extractJsValue(car(malArgs)));
-  return createMalString(circumpendQuotes(require('fs').readFileSync(jsFileName).toString()));
+  jsFileName = stripQuotes(extractJsValue(car(erlArgs)));
+  return createErlString(circumpendQuotes(require('fs').readFileSync(jsFileName).toString()));
 };
 
-string = function(malArgs) {
-  return createMalString(circumpendQuotes(_prStr(malArgs, false)));
+string = function(erlArgs) {
+  return createErlString(circumpendQuotes(_prStr(erlArgs, false)));
 };
 
 stripQuotes = function(jsString) {
   return jsString.slice(1, -1);
 };
 
-symbol = function(malArgs) {
-  var jsStr, malValue;
-  malValue = car(malArgs);
-  if (malString_question_(malValue)) {
-    jsStr = extractJsValue(malValue);
-    return createMalSymbol(jsStr.slice(1, -1));
+symbol = function(erlArgs) {
+  var erlValue, jsStr;
+  erlValue = car(erlArgs);
+  if (erlString_question_(erlValue)) {
+    jsStr = extractJsValue(erlValue);
+    return createErlSymbol(jsStr.slice(1, -1));
   } else {
-    return malNil;
+    return erlNil;
   }
 };
 
-_take = function(malArgs) {
-  var malList, malNumber, _ref;
-  _ref = toPartialArray(2, malArgs), malNumber = _ref[0], malList = _ref[1];
-  return take(extractJsValue(malNumber), malList);
+_take = function(erlArgs) {
+  var erlList, erlNumber, _ref;
+  _ref = toPartialArray(2, erlArgs), erlNumber = _ref[0], erlList = _ref[1];
+  return take(extractJsValue(erlNumber), erlList);
 };
 
-typeOf = function(malArgs) {
-  var malValue;
-  malValue = car(malArgs);
-  return createMalString(circumpendQuotes(malValue.type));
+typeOf = function(erlArgs) {
+  var erlValue;
+  erlValue = car(erlArgs);
+  return createErlString(circumpendQuotes(erlValue.type));
 };
 
-_throw = function(malArgs) {
-  throw car(malArgs);
+_throw = function(erlArgs) {
+  throw car(erlArgs);
 };
 
 time_hyphen_ms = function() {
-  return createMalNumber(new Date().getTime());
+  return createErlNumber(new Date().getTime());
 };
 
-withMeta = function(malArgs) {
-  var jsValue, malMeta, malVal, malValue, type, _ref;
-  _ref = toPartialArray(2, malArgs), malVal = _ref[0], malMeta = _ref[1];
-  if (malAtom_question_(malVal)) {
-    malValue = malVal.malValue, type = malVal.type;
+withMeta = function(erlArgs) {
+  var erlMeta, erlVal, erlValue, jsValue, type, _ref;
+  _ref = toPartialArray(2, erlArgs), erlVal = _ref[0], erlMeta = _ref[1];
+  if (erlAtom_question_(erlVal)) {
+    erlValue = erlVal.erlValue, type = erlVal.type;
     return {
-      malValue: malValue,
+      erlValue: erlValue,
       type: type,
-      meta: malMeta
+      meta: erlMeta
     };
   } else {
-    jsValue = malVal.jsValue, type = malVal.type;
+    jsValue = erlVal.jsValue, type = erlVal.type;
     return {
       jsValue: jsValue,
       type: type,
-      meta: malMeta
+      meta: erlMeta
     };
   }
 };
 
-write = function(malArgs) {
-  return createMalString(serialize(car(malArgs)));
+write = function(erlArgs) {
+  return createErlString(serialize(car(erlArgs)));
 };
 
-_ref = [malAtom_question_, malBoolean_question_, malCorePureFunction_question_, malFalse_question_, malList_question_, malMacro_question_, malNil_question_, malNumber_question_, malSymbol_question_, malString_question_, malUserPureFunction_question_, malTrue_question_].map(createPredicate), atom_question_ = _ref[0], boolean_question_ = _ref[1], coreFn_question_ = _ref[2], false_question_ = _ref[3], list_question_ = _ref[4], macro_question_ = _ref[5], nil_question_ = _ref[6], number_question_ = _ref[7], symbol_question_ = _ref[8], string_question_ = _ref[9], userFn_question_ = _ref[10], true_question_ = _ref[11];
+_ref = [erlAtom_question_, erlBoolean_question_, erlCorePureFunction_question_, erlFalse_question_, erlList_question_, erlMacro_question_, erlNil_question_, erlNumber_question_, erlSymbol_question_, erlString_question_, erlUserPureFunction_question_, erlTrue_question_].map(createPredicate), atom_question_ = _ref[0], boolean_question_ = _ref[1], coreFn_question_ = _ref[2], false_question_ = _ref[3], list_question_ = _ref[4], macro_question_ = _ref[5], nil_question_ = _ref[6], number_question_ = _ref[7], symbol_question_ = _ref[8], string_question_ = _ref[9], userFn_question_ = _ref[10], true_question_ = _ref[11];
 
-functionsOnMalValues = {
+functionsOnErlValues = {
   '=': areEqual,
   'append': append,
   'assoc': assoc,
@@ -2559,10 +2559,10 @@ module.exports = getEnvironment;
 
 }).call(this,require('_process'))
 },{"./interpret":42,"./js-utilities":43,"./linked-list":45,"./serialize":47,"./type-utilities":51,"_process":30,"fs":29}],37:[function(require,module,exports){
-var createMalCoreEffectfulFunction, displayEffectsOnMalValues, getEnvironment, serialize, setCoreEffectfulFnsOnMalValues_bang_, toArray, _prStr,
+var createErlCoreEffectfulFunction, displayEffectsOnErlValues, getEnvironment, serialize, setCoreEffectfulFnsOnErlValues_bang_, toArray, _prStr,
   __hasProp = {}.hasOwnProperty;
 
-createMalCoreEffectfulFunction = require('./type-utilities').createMalCoreEffectfulFunction;
+createErlCoreEffectfulFunction = require('./type-utilities').createErlCoreEffectfulFunction;
 
 serialize = require('./serialize');
 
@@ -2571,61 +2571,61 @@ toArray = require('./linked-list').toArray;
 getEnvironment = function(config) {
   var display, environment;
   display = config.display, environment = config.environment;
-  setCoreEffectfulFnsOnMalValues_bang_(display)(environment, displayEffectsOnMalValues);
+  setCoreEffectfulFnsOnErlValues_bang_(display)(environment, displayEffectsOnErlValues);
   return environment;
 };
 
-_prStr = function(malArgs, printReadably_question_) {
-  return ((toArray(malArgs)).map(function(malArg) {
-    return serialize(malArg, printReadably_question_);
+_prStr = function(erlArgs, printReadably_question_) {
+  return ((toArray(erlArgs)).map(function(erlArg) {
+    return serialize(erlArg, printReadably_question_);
   })).join('');
 };
 
-setCoreEffectfulFnsOnMalValues_bang_ = function(represent) {
+setCoreEffectfulFnsOnErlValues_bang_ = function(represent) {
   return function(env, fns) {
     var fn, fnName, _results;
     _results = [];
     for (fnName in fns) {
       if (!__hasProp.call(fns, fnName)) continue;
       fn = fns[fnName];
-      _results.push(env[fnName] = createMalCoreEffectfulFunction(function(malArgs) {
-        return represent(fn(malArgs));
+      _results.push(env[fnName] = createErlCoreEffectfulFunction(function(erlArgs) {
+        return represent(fn(erlArgs));
       }));
     }
     return _results;
   };
 };
 
-displayEffectsOnMalValues = {
-  'print': function(malArgs) {
-    return _prStr(malArgs, false);
+displayEffectsOnErlValues = {
+  'print': function(erlArgs) {
+    return _prStr(erlArgs, false);
   },
-  'pretty-print': function(malArgs) {
-    return _prStr(malArgs, true);
+  'pretty-print': function(erlArgs) {
+    return _prStr(erlArgs, true);
   }
 };
 
 module.exports = getEnvironment;
 
 },{"./linked-list":45,"./serialize":47,"./type-utilities":51}],38:[function(require,module,exports){
-var car, createMalCorePureFunction, createMalList, createMalSymbol, extractJsValue, fromArray, fromMalIndex, getEnvironment, malList_question_, setCoreFnsOnMalValues_bang_, stripQuotes, toArray, toPartialArray, tokenizeAndParse, _process, _process_,
+var car, createErlCorePureFunction, createErlList, createErlSymbol, erlList_question_, extractJsValue, fromArray, fromErlIndex, getEnvironment, setCoreFnsOnErlValues_bang_, stripQuotes, toArray, toPartialArray, tokenizeAndParse, _process, _process_,
   __hasProp = {}.hasOwnProperty;
 
 car = require('./linked-list').car;
 
-createMalCorePureFunction = require('./type-utilities').createMalCorePureFunction;
+createErlCorePureFunction = require('./type-utilities').createErlCorePureFunction;
 
-createMalList = require('./type-utilities').createMalList;
+createErlList = require('./type-utilities').createErlList;
 
-createMalSymbol = require('./type-utilities').createMalSymbol;
+createErlSymbol = require('./type-utilities').createErlSymbol;
 
 extractJsValue = require('./type-utilities').extractJsValue;
 
 fromArray = require('./linked-list').fromArray;
 
-fromMalIndex = require('./index-utilities').fromMalIndex;
+fromErlIndex = require('./index-utilities').fromErlIndex;
 
-malList_question_ = require('./type-utilities').malList_question_;
+erlList_question_ = require('./type-utilities').erlList_question_;
 
 _process = require('./_process');
 
@@ -2636,54 +2636,54 @@ tokenizeAndParse = require('./tokenizeAndParse');
 toPartialArray = require('./linked-list').toPartialArray;
 
 getEnvironment = function(config) {
-  var apply, call, environment, evalString, evalWithBareEnv, evalWithEnv, functionsOnMalValues, parse, _eval, _evalListHead;
+  var apply, call, environment, evalString, evalWithBareEnv, evalWithEnv, functionsOnErlValues, parse, _eval, _evalListHead;
   environment = config.environment;
-  apply = function(malArgs) {
-    var malArgList, malFn, _ref;
-    _ref = toArray(malArgs), malFn = _ref[0], malArgList = _ref[1];
-    return _eval(createMalList(malFn, malArgList));
+  apply = function(erlArgs) {
+    var erlArgList, erlFn, _ref;
+    _ref = toArray(erlArgs), erlFn = _ref[0], erlArgList = _ref[1];
+    return _eval(createErlList(erlFn, erlArgList));
   };
-  call = function(malArgs) {
-    return _eval(malArgs);
+  call = function(erlArgs) {
+    return _eval(erlArgs);
   };
-  _eval = function(malVal) {
-    return _process_([environment])(malVal);
+  _eval = function(erlVal) {
+    return _process_([environment])(erlVal);
   };
-  _evalListHead = function(malArgs) {
-    return _eval(car(malArgs));
+  _evalListHead = function(erlArgs) {
+    return _eval(car(erlArgs));
   };
-  evalString = function(malArgs) {
+  evalString = function(erlArgs) {
     return (function(__i) {
       return _eval(tokenizeAndParse(stripQuotes(extractJsValue(car(__i)))));
-    })(malArgs);
+    })(erlArgs);
   };
-  evalWithBareEnv = function(malArgs) {
+  evalWithBareEnv = function(erlArgs) {
     var expr, localEnv, _ref;
-    _ref = toPartialArray(2, malArgs), expr = _ref[0], localEnv = _ref[1];
-    return _process_([fromMalIndex(localEnv)])(expr);
+    _ref = toPartialArray(2, erlArgs), expr = _ref[0], localEnv = _ref[1];
+    return _process_([fromErlIndex(localEnv)])(expr);
   };
-  evalWithEnv = function(malArgs) {
+  evalWithEnv = function(erlArgs) {
     var expr, localEnv, _ref;
-    _ref = toPartialArray(2, malArgs), expr = _ref[0], localEnv = _ref[1];
-    return _process_([fromMalIndex(localEnv), environment])(expr);
+    _ref = toPartialArray(2, erlArgs), expr = _ref[0], localEnv = _ref[1];
+    return _process_([fromErlIndex(localEnv), environment])(expr);
   };
-  parse = function(malArgs) {
-    return tokenizeAndParse(stripQuotes(extractJsValue(car(malArgs))));
+  parse = function(erlArgs) {
+    return tokenizeAndParse(stripQuotes(extractJsValue(car(erlArgs))));
   };
-  functionsOnMalValues = {
+  functionsOnErlValues = {
     parse: parse
   };
-  setCoreFnsOnMalValues_bang_(environment, functionsOnMalValues);
+  setCoreFnsOnErlValues_bang_(environment, functionsOnErlValues);
   return environment;
 };
 
-setCoreFnsOnMalValues_bang_ = function(env, fns) {
+setCoreFnsOnErlValues_bang_ = function(env, fns) {
   var fn, fnName, _results;
   _results = [];
   for (fnName in fns) {
     if (!__hasProp.call(fns, fnName)) continue;
     fn = fns[fnName];
-    _results.push(env[fnName] = createMalCorePureFunction(fn));
+    _results.push(env[fnName] = createErlCorePureFunction(fn));
   }
   return _results;
 };
@@ -2692,14 +2692,14 @@ stripQuotes = function(jsString) {
   return jsString.slice(1, -1);
 };
 
-_process_ = _process(function(malVal) {
-  return malVal;
+_process_ = _process(function(erlVal) {
+  return erlVal;
 });
 
 module.exports = getEnvironment;
 
 },{"./_process":32,"./index-utilities":41,"./linked-list":45,"./tokenizeAndParse":50,"./type-utilities":51}],39:[function(require,module,exports){
-var addEnv, car, catch_asterisk_, cdr, circumpendQuotes, commentSignal, createFn, createLocalEnv, createMacro, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNumber, createMalString, createMalSymbol, createMalUserPureFunction, def_bang_, defineNewValue, empty_question_, evalQuasiquotedExpr, evaluate, expandMacro, expand_hyphen_macro, extractJsValue, filter, fn_asterisk_, forEach, fromArray, fromJsObjects, fromMalIndex, ignorable_question_, jsString_question_, keyword_question_, let_asterisk_, letrec_asterisk_, lookup, macro_asterisk_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malSymbol_question_, malUserPureFunction_question_, map, next, quasiquote, quote, recurse, reduce, reduceBy2, reduceLet_asterisk_, reduceLetrec_asterisk_, reverse, setMainEnv, splat, spliceUnquote, spliceUnquote_question_, spliceUnquotedExpr_question_, toPartialArray, try_asterisk_, undef_bang_, undefineValue, unquote, unquote_question_, unquotedExpr_question_, unsetMainEnv, _do, _eval, _evalWithEnv, _evaluate, _getCurrentEnv, _getDefaultEnv, _if,
+var addEnv, car, catch_asterisk_, cdr, circumpendQuotes, commentSignal, createErlIndex, createErlKeyword, createErlList, createErlMacro, createErlNumber, createErlString, createErlSymbol, createErlUserPureFunction, createFn, createLocalEnv, createMacro, def_bang_, defineNewValue, empty_question_, erlCoreEffectfulFunction_question_, erlCorePureFunction_question_, erlIgnore_question_, erlIndex_question_, erlKeyword_question_, erlList_question_, erlMacro_question_, erlNil, erlSymbol_question_, erlUserPureFunction_question_, evalQuasiquotedExpr, evaluate, expandMacro, expand_hyphen_macro, extractJsValue, filter, fn_asterisk_, forEach, fromArray, fromErlIndex, fromJsObjects, ignorable_question_, jsString_question_, keyword_question_, let_asterisk_, letrec_asterisk_, lookup, macro_asterisk_, map, next, quasiquote, quote, recurse, reduce, reduceBy2, reduceLet_asterisk_, reduceLetrec_asterisk_, reverse, setMainEnv, splat, spliceUnquote, spliceUnquote_question_, spliceUnquotedExpr_question_, toPartialArray, try_asterisk_, undef_bang_, undefineValue, unquote, unquote_question_, unquotedExpr_question_, unsetMainEnv, _do, _eval, _evalWithEnv, _evaluate, _getCurrentEnv, _getDefaultEnv, _if,
   __hasProp = {}.hasOwnProperty;
 
 addEnv = require('./env-utilities').addEnv;
@@ -2714,21 +2714,21 @@ circumpendQuotes = require('./js-utilities').circumpendQuotes;
 
 commentSignal = require('./commentSignal');
 
-createMalIndex = require('./type-utilities').createMalIndex;
+createErlIndex = require('./type-utilities').createErlIndex;
 
-createMalKeyword = require('./type-utilities').createMalKeyword;
+createErlKeyword = require('./type-utilities').createErlKeyword;
 
-createMalList = require('./type-utilities').createMalList;
+createErlList = require('./type-utilities').createErlList;
 
-createMalMacro = require('./type-utilities').createMalMacro;
+createErlMacro = require('./type-utilities').createErlMacro;
 
-createMalNumber = require('./type-utilities').createMalNumber;
+createErlNumber = require('./type-utilities').createErlNumber;
 
-createMalString = require('./type-utilities').createMalString;
+createErlString = require('./type-utilities').createErlString;
 
-createMalSymbol = require('./type-utilities').createMalSymbol;
+createErlSymbol = require('./type-utilities').createErlSymbol;
 
-createMalUserPureFunction = require('./type-utilities').createMalUserPureFunction;
+createErlUserPureFunction = require('./type-utilities').createErlUserPureFunction;
 
 def_bang_ = require('./keyTokens').def_bang_;
 
@@ -2754,7 +2754,7 @@ fromArray = require('./linked-list').fromArray;
 
 fromJsObjects = require('./index-utilities').fromJsObjects;
 
-fromMalIndex = require('./index-utilities').fromMalIndex;
+fromErlIndex = require('./index-utilities').fromErlIndex;
 
 _getCurrentEnv = require('./keyTokens')._getCurrentEnv;
 
@@ -2774,25 +2774,25 @@ lookup = require('./env-utilities').lookup;
 
 macro_asterisk_ = require('./keyTokens').macro_asterisk_;
 
-malCoreEffectfulFunction_question_ = require('./type-utilities').malCoreEffectfulFunction_question_;
+erlCoreEffectfulFunction_question_ = require('./type-utilities').erlCoreEffectfulFunction_question_;
 
-malCorePureFunction_question_ = require('./type-utilities').malCorePureFunction_question_;
+erlCorePureFunction_question_ = require('./type-utilities').erlCorePureFunction_question_;
 
-malIgnore_question_ = require('./type-utilities').malIgnore_question_;
+erlIgnore_question_ = require('./type-utilities').erlIgnore_question_;
 
-malIndex_question_ = require('./type-utilities').malIndex_question_;
+erlIndex_question_ = require('./type-utilities').erlIndex_question_;
 
-malKeyword_question_ = require('./type-utilities').malKeyword_question_;
+erlKeyword_question_ = require('./type-utilities').erlKeyword_question_;
 
-malList_question_ = require('./type-utilities').malList_question_;
+erlList_question_ = require('./type-utilities').erlList_question_;
 
-malMacro_question_ = require('./type-utilities').malMacro_question_;
+erlMacro_question_ = require('./type-utilities').erlMacro_question_;
 
-malNil = require('./type-utilities').malNil;
+erlNil = require('./type-utilities').erlNil;
 
-malSymbol_question_ = require('./type-utilities').malSymbol_question_;
+erlSymbol_question_ = require('./type-utilities').erlSymbol_question_;
 
-malUserPureFunction_question_ = require('./type-utilities').malUserPureFunction_question_;
+erlUserPureFunction_question_ = require('./type-utilities').erlUserPureFunction_question_;
 
 map = require('./linked-list').map;
 
@@ -2826,117 +2826,117 @@ undef_bang_ = require('./keyTokens').undef_bang_;
 
 unsetMainEnv = require('./env-utilities').unsetMainEnv;
 
-createFn = function(malList, envs) {
-  return createMalUserPureFunction({
+createFn = function(erlList, envs) {
+  return createErlUserPureFunction({
     localEnvs: envs.slice(0),
-    malExpression: next(malList),
-    malParameters: car(malList)
+    erlExpression: next(erlList),
+    erlParameters: car(erlList)
   });
 };
 
-createLocalEnv = function(malParams, malArgs) {
+createLocalEnv = function(erlParams, erlArgs) {
   var env, jsParam;
   env = {};
-  while (!empty_question_(malParams)) {
-    jsParam = extractJsValue(car(malParams));
+  while (!empty_question_(erlParams)) {
+    jsParam = extractJsValue(car(erlParams));
     if (jsParam === splat) {
-      env[extractJsValue(next(malParams))] = malArgs;
+      env[extractJsValue(next(erlParams))] = erlArgs;
       return env;
     } else {
-      env[jsParam] = car(malArgs);
-      malParams = cdr(malParams);
-      malArgs = cdr(malArgs);
+      env[jsParam] = car(erlArgs);
+      erlParams = cdr(erlParams);
+      erlArgs = cdr(erlArgs);
     }
   }
   return env;
 };
 
-createMacro = function(malList, envs) {
-  return createMalMacro({
+createMacro = function(erlList, envs) {
+  return createErlMacro({
     localEnvs: envs.slice(0),
-    malExpression: next(malList),
-    malParameters: car(malList)
+    erlExpression: next(erlList),
+    erlParameters: car(erlList)
   });
 };
 
-defineNewValue = function(malList, envs, addResult) {
-  var jsKey, malValue;
-  jsKey = extractJsValue(car(malList));
-  malValue = _evaluate(next(malList), envs, addResult);
-  return setMainEnv(envs, jsKey, malValue);
+defineNewValue = function(erlList, envs, addResult) {
+  var erlValue, jsKey;
+  jsKey = extractJsValue(car(erlList));
+  erlValue = _evaluate(next(erlList), envs, addResult);
+  return setMainEnv(envs, jsKey, erlValue);
 };
 
 evalQuasiquotedExpr = function(expr, envs, addResult) {
   var manageItem;
-  if (!malList_question_(expr)) {
+  if (!erlList_question_(expr)) {
     return expr;
   }
   manageItem = function(memo, item) {
     var _manageItem;
     switch (false) {
       case !unquotedExpr_question_(item):
-        return createMalList(_evaluate(next(item), envs, addResult), memo);
+        return createErlList(_evaluate(next(item), envs, addResult), memo);
       case !spliceUnquotedExpr_question_(item):
         _manageItem = function(_memo, _item) {
-          return createMalList(_item, _memo);
+          return createErlList(_item, _memo);
         };
         return reduce(memo, _manageItem, _evaluate(next(item), envs, addResult));
-      case !malList_question_(item):
-        return createMalList(evalQuasiquotedExpr(item, envs, addResult), memo);
+      case !erlList_question_(item):
+        return createErlList(evalQuasiquotedExpr(item, envs, addResult), memo);
       default:
-        return createMalList(item, memo);
+        return createErlList(item, memo);
     }
   };
-  return reverse(reduce(createMalList(), manageItem, expr));
+  return reverse(reduce(createErlList(), manageItem, expr));
 };
 
-_evaluate = function(malExpr, envs, addResult) {
-  var arg1, catchExpr, ex, fn, head, index, jsString, key, localEnvs, malArgs, malExpression, malInvokable, malParameters, malSymbol, newEnv, newIndex, otherwise, remainingArgs, tailList, value, _catch, _ex, _ref, _ref1, _ref2;
+_evaluate = function(erlExpr, envs, addResult) {
+  var arg1, catchExpr, erlArgs, erlExpression, erlInvokable, erlParameters, erlSymbol, ex, fn, head, index, jsString, key, localEnvs, newEnv, newIndex, otherwise, remainingArgs, tailList, value, _catch, _ex, _ref, _ref1, _ref2;
   while (true) {
     switch (false) {
-      case !malSymbol_question_(malExpr):
-        jsString = extractJsValue(malExpr);
+      case !erlSymbol_question_(erlExpr):
+        jsString = extractJsValue(erlExpr);
         if (keyword_question_(jsString)) {
-          return createMalKeyword(jsString);
+          return createErlKeyword(jsString);
         } else {
           return lookup(envs, jsString);
         }
         break;
-      case !malIndex_question_(malExpr):
-        index = extractJsValue(malExpr);
+      case !erlIndex_question_(erlExpr):
+        index = extractJsValue(erlExpr);
         newIndex = {};
         for (key in index) {
           if (!__hasProp.call(index, key)) continue;
           value = index[key];
           newIndex[key] = _evaluate(index[key], envs, addResult);
         }
-        return createMalIndex(newIndex);
-      case !!(malList_question_(malExpr)):
-        return malExpr;
+        return createErlIndex(newIndex);
+      case !!(erlList_question_(erlExpr)):
+        return erlExpr;
       default:
-        malExpr = filter((function(x) {
+        erlExpr = filter((function(x) {
           return !(ignorable_question_(x, envs, addResult));
-        }), malExpr);
-        _ref = toPartialArray(2, malExpr), head = _ref[0], arg1 = _ref[1], remainingArgs = _ref[2];
-        tailList = cdr(malExpr);
+        }), erlExpr);
+        _ref = toPartialArray(2, erlExpr), head = _ref[0], arg1 = _ref[1], remainingArgs = _ref[2];
+        tailList = cdr(erlExpr);
         switch (extractJsValue(head)) {
           case def_bang_:
             return defineNewValue(tailList, envs, addResult);
           case undef_bang_:
             return undefineValue(tailList, envs);
           case _eval:
-            malExpr = _evaluate(arg1, envs, addResult);
+            erlExpr = _evaluate(arg1, envs, addResult);
             break;
           case _evalWithEnv:
-            envs = [fromMalIndex(_evaluate(arg1, envs, addResult))];
-            malExpr = _evaluate(car(remainingArgs), envs, addResult);
+            envs = [fromErlIndex(_evaluate(arg1, envs, addResult))];
+            erlExpr = _evaluate(car(remainingArgs), envs, addResult);
             break;
           case let_asterisk_:
-            malExpr = car(remainingArgs);
+            erlExpr = car(remainingArgs);
             envs = addEnv(envs, reduceLet_asterisk_(envs, arg1, addResult));
             break;
           case letrec_asterisk_:
-            malExpr = car(remainingArgs);
+            erlExpr = car(remainingArgs);
             envs = addEnv(envs, reduceLetrec_asterisk_(envs, arg1, addResult));
             break;
           case _do:
@@ -2946,7 +2946,7 @@ _evaluate = function(malExpr, envs, addResult) {
           case _getDefaultEnv:
             return fromJsObjects(envs[envs.length - 1]);
           case _if:
-            malExpr = extractJsValue(_evaluate(arg1, envs, addResult)) ? car(remainingArgs) : empty_question_(otherwise = next(remainingArgs)) ? malNil : otherwise;
+            erlExpr = extractJsValue(_evaluate(arg1, envs, addResult)) ? car(remainingArgs) : empty_question_(otherwise = next(remainingArgs)) ? erlNil : otherwise;
             break;
           case fn_asterisk_:
             return createFn(tailList, envs);
@@ -2971,7 +2971,7 @@ _evaluate = function(malExpr, envs, addResult) {
                   throw ex;
                 }
                 if (ex instanceof Error) {
-                  ex = createMalString(circumpendQuotes(ex.message));
+                  ex = createErlString(circumpendQuotes(ex.message));
                 }
                 newEnv = {};
                 newEnv[extractJsValue(_ex)] = ex;
@@ -2980,34 +2980,34 @@ _evaluate = function(malExpr, envs, addResult) {
             }
             break;
           default:
-            malSymbol = head;
-            malExpr = tailList;
-            malInvokable = _evaluate(malSymbol, envs, addResult);
+            erlSymbol = head;
+            erlExpr = tailList;
+            erlInvokable = _evaluate(erlSymbol, envs, addResult);
             switch (false) {
-              case !malKeyword_question_(malInvokable):
-                malExpr = createMalList(malInvokable, tailList);
+              case !erlKeyword_question_(erlInvokable):
+                erlExpr = createErlList(erlInvokable, tailList);
                 break;
-              case !malMacro_question_(malInvokable):
-                malExpr = expandMacro(head, tailList, envs, addResult);
+              case !erlMacro_question_(erlInvokable):
+                erlExpr = expandMacro(head, tailList, envs, addResult);
                 break;
-              case !malCorePureFunction_question_(malInvokable):
-                fn = extractJsValue(malInvokable);
-                malArgs = map(evaluate(envs, addResult), malExpr);
-                return fn(malArgs);
-              case !malCoreEffectfulFunction_question_(malInvokable):
-                fn = extractJsValue(malInvokable);
-                malArgs = map(evaluate(envs, addResult), malExpr);
-                addResult(fn(malArgs));
-                return malNil;
-              case !malUserPureFunction_question_(malInvokable):
-                _ref2 = extractJsValue(malInvokable), localEnvs = _ref2.localEnvs, malExpression = _ref2.malExpression, malParameters = _ref2.malParameters;
-                malArgs = map(evaluate(envs, addResult), malExpr);
-                malExpr = malExpression;
-                newEnv = createLocalEnv(malParameters, malArgs);
+              case !erlCorePureFunction_question_(erlInvokable):
+                fn = extractJsValue(erlInvokable);
+                erlArgs = map(evaluate(envs, addResult), erlExpr);
+                return fn(erlArgs);
+              case !erlCoreEffectfulFunction_question_(erlInvokable):
+                fn = extractJsValue(erlInvokable);
+                erlArgs = map(evaluate(envs, addResult), erlExpr);
+                addResult(fn(erlArgs));
+                return erlNil;
+              case !erlUserPureFunction_question_(erlInvokable):
+                _ref2 = extractJsValue(erlInvokable), localEnvs = _ref2.localEnvs, erlExpression = _ref2.erlExpression, erlParameters = _ref2.erlParameters;
+                erlArgs = map(evaluate(envs, addResult), erlExpr);
+                erlExpr = erlExpression;
+                newEnv = createLocalEnv(erlParameters, erlArgs);
                 envs = addEnv(localEnvs, newEnv);
                 break;
               default:
-                throw "" + (extractJsValue(malSymbol)) + " does not evaluate to a function, macro, or keyword.";
+                throw "" + (extractJsValue(erlSymbol)) + " does not evaluate to a function, macro, or keyword.";
             }
         }
     }
@@ -3015,26 +3015,26 @@ _evaluate = function(malExpr, envs, addResult) {
 };
 
 evaluate = function(envs, addResult) {
-  return function(malExpr) {
-    if (malExpr === commentSignal) {
+  return function(erlExpr) {
+    if (erlExpr === commentSignal) {
       return commentSignal;
     }
-    return _evaluate(malExpr, envs, addResult);
+    return _evaluate(erlExpr, envs, addResult);
   };
 };
 
-expandMacro = function(malMacroSymbol, malArgs, envs, addResult) {
-  var localEnvs, malExpression, malMacro, malParameters, newEnv, newEnvStack, _ref;
-  malMacro = _evaluate(malMacroSymbol, envs, addResult);
-  _ref = extractJsValue(malMacro), localEnvs = _ref.localEnvs, malExpression = _ref.malExpression, malParameters = _ref.malParameters;
-  newEnv = createLocalEnv(malParameters, malArgs);
+expandMacro = function(erlMacroSymbol, erlArgs, envs, addResult) {
+  var erlExpression, erlMacro, erlParameters, localEnvs, newEnv, newEnvStack, _ref;
+  erlMacro = _evaluate(erlMacroSymbol, envs, addResult);
+  _ref = extractJsValue(erlMacro), localEnvs = _ref.localEnvs, erlExpression = _ref.erlExpression, erlParameters = _ref.erlParameters;
+  newEnv = createLocalEnv(erlParameters, erlArgs);
   newEnvStack = addEnv(localEnvs, newEnv);
-  return _evaluate(malExpression, newEnvStack, addResult);
+  return _evaluate(erlExpression, newEnvStack, addResult);
 };
 
-ignorable_question_ = function(malVal, envs, addResult) {
+ignorable_question_ = function(erlVal, envs, addResult) {
   var jsString, symbol;
-  return malIgnore_question_(malVal) || (malList_question_(malVal) && malSymbol_question_(symbol = car(malVal)) && (((jsString = extractJsValue(symbol)) === 'ignore!') || ((jsString === 'ignoreIfTrue') && (extractJsValue(_evaluate(next(malVal), envs, addResult)))) || ((jsString === 'ignoreUnlessTrue') && !(extractJsValue(_evaluate(next(malVal), envs, addResult))))));
+  return erlIgnore_question_(erlVal) || (erlList_question_(erlVal) && erlSymbol_question_(symbol = car(erlVal)) && (((jsString = extractJsValue(symbol)) === 'ignore!') || ((jsString === 'ignoreIfTrue') && (extractJsValue(_evaluate(next(erlVal), envs, addResult)))) || ((jsString === 'ignoreUnlessTrue') && !(extractJsValue(_evaluate(next(erlVal), envs, addResult))))));
 };
 
 reduceLet_asterisk_ = function(envs, list, addResult) {
@@ -3052,40 +3052,40 @@ reduceLet_asterisk_ = function(envs, list, addResult) {
 };
 
 reduceLetrec_asterisk_ = function(envs, list, addResult) {
-  var envValue, jsKey, newEnv, _envs, _malExpr;
+  var envValue, jsKey, newEnv, _envs, _erlExpr;
   newEnv = {};
   _envs = addEnv(envs, newEnv);
   while (!empty_question_(list)) {
     jsKey = extractJsValue(list.value);
     list = recurse(list);
-    _malExpr = fromArray([createMalSymbol("fix*"), fromArray([createMalSymbol("fn*"), fromArray([jsKey]), list.value])]);
-    envValue = _evaluate(_malExpr, _envs, addResult);
+    _erlExpr = fromArray([createErlSymbol("fix*"), fromArray([createErlSymbol("fn*"), fromArray([jsKey]), list.value])]);
+    envValue = _evaluate(_erlExpr, _envs, addResult);
     newEnv[jsKey] = envValue;
     list = recurse(list);
   }
   return newEnv;
 };
 
-spliceUnquote_question_ = function(malValue) {
-  return spliceUnquote === (extractJsValue(malValue));
+spliceUnquote_question_ = function(erlValue) {
+  return spliceUnquote === (extractJsValue(erlValue));
 };
 
-spliceUnquotedExpr_question_ = function(malValue) {
-  return malList_question_(malValue) && (spliceUnquote_question_(car(malValue)));
+spliceUnquotedExpr_question_ = function(erlValue) {
+  return erlList_question_(erlValue) && (spliceUnquote_question_(car(erlValue)));
 };
 
-undefineValue = function(malList, envs) {
+undefineValue = function(erlList, envs) {
   var jsKey;
-  jsKey = extractJsValue(car(malList));
+  jsKey = extractJsValue(car(erlList));
   return unsetMainEnv(envs, jsKey);
 };
 
-unquote_question_ = function(malValue) {
-  return unquote === (extractJsValue(malValue));
+unquote_question_ = function(erlValue) {
+  return unquote === (extractJsValue(erlValue));
 };
 
-unquotedExpr_question_ = function(malValue) {
-  return malList_question_(malValue) && (unquote_question_(car(malValue)));
+unquotedExpr_question_ = function(erlValue) {
+  return erlList_question_(erlValue) && (unquote_question_(car(erlValue)));
 };
 
 module.exports = evaluate;
@@ -3119,11 +3119,11 @@ getLispEnvironment = function(config) {
 module.exports = getLispEnvironment;
 
 },{"./env0":35,"./env1":36,"./env2":37,"./env3":38}],41:[function(require,module,exports){
-var createMalIndex, fromJsObjects, fromMalIndex, jsString_question_,
+var createErlIndex, fromErlIndex, fromJsObjects, jsString_question_,
   __slice = [].slice,
   __hasProp = {}.hasOwnProperty;
 
-createMalIndex = require('./type-utilities').createMalIndex;
+createErlIndex = require('./type-utilities').createErlIndex;
 
 jsString_question_ = require('./js-utilities').jsString_question_;
 
@@ -3143,13 +3143,13 @@ fromJsObjects = function() {
       }
     }
   }
-  return createMalIndex(copy);
+  return createErlIndex(copy);
 };
 
-fromMalIndex = function(malIndex) {
+fromErlIndex = function(erlIndex) {
   var key, newKey, result, value, _ref;
   result = {};
-  _ref = malIndex.jsValue;
+  _ref = erlIndex.jsValue;
   for (key in _ref) {
     if (!__hasProp.call(_ref, key)) continue;
     value = _ref[key];
@@ -3174,16 +3174,16 @@ fromMalIndex = function(malIndex) {
 
 module.exports = {
   fromJsObjects: fromJsObjects,
-  fromMalIndex: fromMalIndex
+  fromErlIndex: fromErlIndex
 };
 
 },{"./js-utilities":43,"./type-utilities":51}],42:[function(require,module,exports){
-var circumpendQuotes, createMalString, encapsulate, environment, error, flattenIfNecessary, fromArray, getLispEnvironment, interpret, serialize, standardFnsAndMacros, tokenizeAndParse, _createMalString, _interpret, _process, _serialize,
+var circumpendQuotes, createErlString, encapsulate, environment, error, flattenIfNecessary, fromArray, getLispEnvironment, interpret, serialize, standardFnsAndMacros, tokenizeAndParse, _createErlString, _interpret, _process, _serialize,
   __hasProp = {}.hasOwnProperty;
 
 circumpendQuotes = require('./js-utilities').circumpendQuotes;
 
-createMalString = require('./type-utilities').createMalString;
+createErlString = require('./type-utilities').createErlString;
 
 fromArray = require('./linked-list').fromArray;
 
@@ -3197,17 +3197,17 @@ standardFnsAndMacros = require('./standard-fns-and-macros');
 
 tokenizeAndParse = require('./tokenizeAndParse');
 
-_createMalString = function(jsString) {
-  return createMalString(circumpendQuotes(jsString));
+_createErlString = function(jsString) {
+  return createErlString(circumpendQuotes(jsString));
 };
 
 encapsulate = function(type) {
-  return function(malValue) {
+  return function(erlValue) {
     return {
       effect: {
         type: type
       },
-      value: malValue
+      value: erlValue
     };
   };
 };
@@ -3239,7 +3239,7 @@ interpret = function(jsString, userJsArray) {
   var userEnv;
   if (userJsArray != null) {
     userEnv = {
-      '*ARGV*': fromArray(userJsArray.map(_createMalString))
+      '*ARGV*': fromArray(userJsArray.map(_createErlString))
     };
     return _interpret([userEnv, environment], jsString);
   } else {
@@ -3366,41 +3366,41 @@ module.exports = {
 };
 
 },{}],45:[function(require,module,exports){
-var EOL, car, cdr, concat, cons, copy, createMalList, createNode, drop, empty_question_, equal_question_, filter, forEach, fromArray, last, lastTail, malListType, malTypes, map, next, recurse, reduce, reduceBy2, reverse, take, toArray, toPartialArray, zip, _EOL,
+var EOL, car, cdr, concat, cons, copy, createErlList, createNode, drop, empty_question_, equal_question_, erlListType, erlTypes, filter, forEach, fromArray, last, lastTail, map, next, recurse, reduce, reduceBy2, reverse, take, toArray, toPartialArray, zip, _EOL,
   __slice = [].slice;
 
-malTypes = require('./types').malTypes;
+erlTypes = require('./types').erlTypes;
 
-malListType = malTypes[6];
+erlListType = erlTypes[6];
 
-car = function(malList) {
-  if (empty_question_(malList)) {
+car = function(erlList) {
+  if (empty_question_(erlList)) {
     return EOL;
   } else {
-    return malList.value;
+    return erlList.value;
   }
 };
 
-cdr = function(malList) {
-  if (empty_question_(malList)) {
+cdr = function(erlList) {
+  if (empty_question_(erlList)) {
     return EOL;
   } else {
-    return malList.next;
+    return erlList.next;
   }
 };
 
 concat = function() {
-  var malList, malLists, result, tail, _copy, _i, _len, _ref;
-  malLists = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-  if (malLists.length === 0) {
+  var erlList, erlLists, result, tail, _copy, _i, _len, _ref;
+  erlLists = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+  if (erlLists.length === 0) {
     return EOL;
   }
-  result = copy(malLists[0]);
+  result = copy(erlLists[0]);
   tail = lastTail(result);
-  _ref = malLists.slice(1);
+  _ref = erlLists.slice(1);
   for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-    malList = _ref[_i];
-    _copy = copy(malList);
+    erlList = _ref[_i];
+    _copy = copy(erlList);
     if (empty_question_(tail)) {
       result = _copy;
       tail = lastTail(result);
@@ -3414,17 +3414,17 @@ concat = function() {
   return result;
 };
 
-cons = function(malArgs) {
-  return createMalList(car(malArgs), next(malArgs));
+cons = function(erlArgs) {
+  return createErlList(car(erlArgs), next(erlArgs));
 };
 
-copy = function(malList) {
+copy = function(erlList) {
   return map((function(x) {
     return x;
-  }), malList);
+  }), erlList);
 };
 
-createMalList = function(value, nextNode) {
+createErlList = function(value, nextNode) {
   if (value == null) {
     return EOL;
   }
@@ -3433,18 +3433,18 @@ createMalList = function(value, nextNode) {
 
 createNode = function(value, nextNode) {
   return {
-    type: malListType,
+    type: erlListType,
     value: value,
     next: nextNode
   };
 };
 
-drop = function(nbr, malList) {
+drop = function(nbr, erlList) {
   while (nbr !== 0) {
-    malList = cdr(malList);
+    erlList = cdr(erlList);
     nbr = nbr - 1;
   }
-  return malList;
+  return erlList;
 };
 
 empty_question_ = function(value) {
@@ -3466,7 +3466,7 @@ filter = function(predicate, list) {
   var _reduce;
   _reduce = function(list, value) {
     if (predicate(value)) {
-      return createMalList(value, list);
+      return createErlList(value, list);
     } else {
       return list;
     }
@@ -3484,17 +3484,17 @@ forEach = function(fn, list) {
   return result;
 };
 
-last = function(malList) {
-  return car(lastTail(malList));
+last = function(erlList) {
+  return car(lastTail(erlList));
 };
 
-lastTail = function(malList) {
+lastTail = function(erlList) {
   var current, prior;
-  if (empty_question_(malList)) {
-    return malList;
+  if (empty_question_(erlList)) {
+    return erlList;
   }
-  prior = malList;
-  current = cdr(malList);
+  prior = erlList;
+  current = cdr(erlList);
   while (!empty_question_(current)) {
     prior = cdr(prior);
     current = cdr(current);
@@ -3505,13 +3505,13 @@ lastTail = function(malList) {
 map = function(fn, list) {
   var _reduce;
   _reduce = function(list, value) {
-    return createMalList(fn(value), list);
+    return createErlList(fn(value), list);
   };
   return reverse(reduce(EOL, _reduce, list));
 };
 
-next = function(malList) {
-  return car(cdr(malList));
+next = function(erlList) {
+  return car(cdr(erlList));
 };
 
 recurse = function(list) {
@@ -3546,19 +3546,19 @@ reverse = function(list) {
   var result;
   result = EOL;
   while (!empty_question_(list)) {
-    result = createMalList(list.value, result);
+    result = createErlList(list.value, result);
     list = list.next;
   }
   return result;
 };
 
-take = function(nbr, malList) {
+take = function(nbr, erlList) {
   var node, result;
-  result = createMalList();
+  result = createErlList();
   while (nbr !== 0) {
-    node = car(malList);
-    malList = cdr(malList);
-    result = createMalList(node, result);
+    node = car(erlList);
+    erlList = cdr(erlList);
+    result = createErlList(node, result);
     nbr = nbr - 1;
   }
   return reverse(result);
@@ -3576,9 +3576,9 @@ toArray = function(list) {
 fromArray = function(array) {
   var _reduce;
   _reduce = function(list, value) {
-    return createMalList(value, list);
+    return createErlList(value, list);
   };
-  return array.reverse().reduce(_reduce, createMalList());
+  return array.reverse().reduce(_reduce, createErlList());
 };
 
 toPartialArray = function(nbr, list) {
@@ -3616,7 +3616,7 @@ module.exports = {
   concat: concat,
   cons: cons,
   copy: copy,
-  createMalList: createMalList,
+  createErlList: createErlList,
   drop: drop,
   empty_question_: empty_question_,
   equal_question_: equal_question_,
@@ -3636,30 +3636,30 @@ module.exports = {
 };
 
 },{"./types":52}],46:[function(require,module,exports){
-var atomize, binaryGlyphIndex, binaryGlyphTokens, binaryGlyph_question_, boolean_question_, comment, createMalBoolean, createMalIdentifier, createMalIgnore, createMalIndex, createMalList, createMalNil, createMalNumber, createMalString, createMalSymbol, deref, derefGlyph, extractJsValue, float_question_, glyphIndex, glyphTokens, glyph_question_, identifer_question_, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, ignore_question_, indexEnd, indexStart, indexStart_question_, integer_question_, keyTokens, listEnd, listStart, listStart_question_, nil, nil_question_, parse, parseBinaryGlyph, parseBoolean, parseFloat10, parseGlyph, parseIndex, parseInt10, parseList, quasiquote, quasiquoteGlyph, quote, quoteGlyph, reverse, spliceUnquote, spliceUnquoteGlyph, startsWith_question_, string_question_, stripUnderscores, unquote, unquoteGlyph, _false, _parse, _true,
+var atomize, binaryGlyphIndex, binaryGlyphTokens, binaryGlyph_question_, boolean_question_, comment, createErlBoolean, createErlIdentifier, createErlIgnore, createErlIndex, createErlList, createErlNil, createErlNumber, createErlString, createErlSymbol, deref, derefGlyph, extractJsValue, float_question_, glyphIndex, glyphTokens, glyph_question_, identifer_question_, ignore, ignoreIfTrue, ignoreIfTrueGlyph, ignoreUnlessTrue, ignoreUnlessTrueGlyph, ignore_bang_, ignore_bang_Glyph, ignore_question_, indexEnd, indexStart, indexStart_question_, integer_question_, keyTokens, listEnd, listStart, listStart_question_, nil, nil_question_, parse, parseBinaryGlyph, parseBoolean, parseFloat10, parseGlyph, parseIndex, parseInt10, parseList, quasiquote, quasiquoteGlyph, quote, quoteGlyph, reverse, spliceUnquote, spliceUnquoteGlyph, startsWith_question_, string_question_, stripUnderscores, unquote, unquoteGlyph, _false, _parse, _true,
   __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
 binaryGlyphTokens = require('./keyTokens').binaryGlyphTokens;
 
 comment = require('./commentSignal');
 
-createMalBoolean = require('./type-utilities').createMalBoolean;
+createErlBoolean = require('./type-utilities').createErlBoolean;
 
-createMalIdentifier = require('./type-utilities').createMalIdentifier;
+createErlIdentifier = require('./type-utilities').createErlIdentifier;
 
-createMalIgnore = require('./type-utilities').createMalIgnore;
+createErlIgnore = require('./type-utilities').createErlIgnore;
 
-createMalIndex = require('./type-utilities').createMalIndex;
+createErlIndex = require('./type-utilities').createErlIndex;
 
-createMalList = require('./type-utilities').createMalList;
+createErlList = require('./type-utilities').createErlList;
 
-createMalNil = require('./type-utilities').createMalNil;
+createErlNil = require('./type-utilities').createErlNil;
 
-createMalNumber = require('./type-utilities').createMalNumber;
+createErlNumber = require('./type-utilities').createErlNumber;
 
-createMalString = require('./type-utilities').createMalString;
+createErlString = require('./type-utilities').createErlString;
 
-createMalSymbol = require('./type-utilities').createMalSymbol;
+createErlSymbol = require('./type-utilities').createErlSymbol;
 
 deref = require('./keyTokens').deref;
 
@@ -3718,34 +3718,34 @@ reverse = require('./linked-list').reverse;
 _true = require('./keyTokens')._true;
 
 atomize = function(token) {
-  var createMalValue;
-  createMalValue = (function() {
+  var createErlValue;
+  createErlValue = (function() {
     switch (false) {
       case !nil_question_(token):
-        return createMalNil;
+        return createErlNil;
       case !ignore_question_(token):
-        return createMalIgnore;
+        return createErlIgnore;
       case !boolean_question_(token):
         return function(__i) {
-          return createMalBoolean(parseBoolean(__i));
+          return createErlBoolean(parseBoolean(__i));
         };
       case !string_question_(token):
-        return createMalString;
+        return createErlString;
       case !identifer_question_(token):
-        return createMalIdentifier;
+        return createErlIdentifier;
       case !integer_question_(token):
         return function(__i) {
-          return createMalNumber(parseInt10(__i));
+          return createErlNumber(parseInt10(__i));
         };
       case !float_question_(token):
         return function(__i) {
-          return createMalNumber(parseFloat10(__i));
+          return createErlNumber(parseFloat10(__i));
         };
       default:
-        return createMalSymbol;
+        return createErlSymbol;
     }
   })();
-  return createMalValue(token);
+  return createErlValue(token);
 };
 
 boolean_question_ = function(token) {
@@ -3807,7 +3807,7 @@ parse = function(tokens) {
 };
 
 parseBinaryGlyph = function(keyword, tokens) {
-  return createMalList(createMalSymbol(keyword), createMalList(parse(tokens), createMalList(parse(tokens))));
+  return createErlList(createErlSymbol(keyword), createErlList(parse(tokens), createErlList(parse(tokens))));
 };
 
 parseBoolean = function(token) {
@@ -3819,7 +3819,7 @@ parseFloat10 = function(token) {
 };
 
 parseGlyph = function(keyword, tokens) {
-  return createMalList(createMalSymbol(keyword), createMalList(parse(tokens)));
+  return createErlList(createErlSymbol(keyword), createErlList(parse(tokens)));
 };
 
 parseIndex = function(tokens) {
@@ -3836,7 +3836,7 @@ parseIndex = function(tokens) {
       keyStep_question_ = true;
     }
   }
-  return createMalIndex(jsIndex);
+  return createErlIndex(jsIndex);
 };
 
 parseInt10 = function(token) {
@@ -3844,12 +3844,12 @@ parseInt10 = function(token) {
 };
 
 parseList = function(tokens) {
-  var malList, token;
-  malList = createMalList();
+  var erlList, token;
+  erlList = createErlList();
   while ((token = tokens.shift()) !== listEnd) {
-    malList = createMalList(_parse(token, tokens), malList);
+    erlList = createErlList(_parse(token, tokens), erlList);
   }
-  return reverse(malList);
+  return reverse(erlList);
 };
 
 startsWith_question_ = function(char) {
@@ -3889,7 +3889,7 @@ identifer_question_ = startsWith_question_(':');
 module.exports = parse;
 
 },{"./commentSignal":33,"./keyTokens":44,"./linked-list":45,"./type-utilities":51}],47:[function(require,module,exports){
-var adjoinMalValue, commentSignal, coreEffectfulFunctionLabel, corePureFunctionLabel, extractJsValue, ignoreLabel, indexEnd, indexStart, keywordLabel, listEnd, listStart, macroLabel, malAtom_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malIdentifier_question_, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil_question_, malString_question_, malUserPureFunction_question_, nilLabel, reduce, serialize, serializeAtom, serializeIdentifier, serializeIndex, serializeList, serializeString, stripQuotes, userPureFunctionLabel,
+var adjoinErlValue, commentSignal, coreEffectfulFunctionLabel, corePureFunctionLabel, erlAtom_question_, erlCoreEffectfulFunction_question_, erlCorePureFunction_question_, erlIdentifier_question_, erlIgnore_question_, erlIndex_question_, erlKeyword_question_, erlList_question_, erlMacro_question_, erlNil_question_, erlString_question_, erlUserPureFunction_question_, extractJsValue, ignoreLabel, indexEnd, indexStart, keywordLabel, listEnd, listStart, macroLabel, nilLabel, reduce, serialize, serializeAtom, serializeIdentifier, serializeIndex, serializeList, serializeString, stripQuotes, userPureFunctionLabel,
   __hasProp = {}.hasOwnProperty;
 
 commentSignal = require('./commentSignal');
@@ -3904,36 +3904,36 @@ listEnd = require('./keyTokens').listEnd;
 
 listStart = require('./keyTokens').listStart;
 
-malAtom_question_ = require('./type-utilities').malAtom_question_;
+erlAtom_question_ = require('./type-utilities').erlAtom_question_;
 
-malCoreEffectfulFunction_question_ = require('./type-utilities').malCoreEffectfulFunction_question_;
+erlCoreEffectfulFunction_question_ = require('./type-utilities').erlCoreEffectfulFunction_question_;
 
-malCorePureFunction_question_ = require('./type-utilities').malCorePureFunction_question_;
+erlCorePureFunction_question_ = require('./type-utilities').erlCorePureFunction_question_;
 
-malIdentifier_question_ = require('./type-utilities').malIdentifier_question_;
+erlIdentifier_question_ = require('./type-utilities').erlIdentifier_question_;
 
-malIgnore_question_ = require('./type-utilities').malIgnore_question_;
+erlIgnore_question_ = require('./type-utilities').erlIgnore_question_;
 
-malIndex_question_ = require('./type-utilities').malIndex_question_;
+erlIndex_question_ = require('./type-utilities').erlIndex_question_;
 
-malKeyword_question_ = require('./type-utilities').malKeyword_question_;
+erlKeyword_question_ = require('./type-utilities').erlKeyword_question_;
 
-malList_question_ = require('./type-utilities').malList_question_;
+erlList_question_ = require('./type-utilities').erlList_question_;
 
-malMacro_question_ = require('./type-utilities').malMacro_question_;
+erlMacro_question_ = require('./type-utilities').erlMacro_question_;
 
-malNil_question_ = require('./type-utilities').malNil_question_;
+erlNil_question_ = require('./type-utilities').erlNil_question_;
 
-malString_question_ = require('./type-utilities').malString_question_;
+erlString_question_ = require('./type-utilities').erlString_question_;
 
-malUserPureFunction_question_ = require('./type-utilities').malUserPureFunction_question_;
+erlUserPureFunction_question_ = require('./type-utilities').erlUserPureFunction_question_;
 
 reduce = require('./linked-list').reduce;
 
-adjoinMalValue = function(printReadably_question_) {
-  return function(memo, malValue) {
+adjoinErlValue = function(printReadably_question_) {
+  return function(memo, erlValue) {
     var serialized;
-    serialized = serialize(malValue, printReadably_question_);
+    serialized = serialize(erlValue, printReadably_question_);
     if (memo.length === 0) {
       return serialized;
     } else {
@@ -3942,52 +3942,52 @@ adjoinMalValue = function(printReadably_question_) {
   };
 };
 
-serialize = function(malExpr, printReadably_question_) {
+serialize = function(erlExpr, printReadably_question_) {
   var _serialize;
-  if (malExpr === commentSignal) {
+  if (erlExpr === commentSignal) {
     return commentSignal;
   }
   _serialize = (function() {
     switch (false) {
-      case !malList_question_(malExpr):
+      case !erlList_question_(erlExpr):
         return serializeList;
-      case !malIgnore_question_(malExpr):
+      case !erlIgnore_question_(erlExpr):
         return function(x) {
           return ignoreLabel;
         };
-      case !malIndex_question_(malExpr):
+      case !erlIndex_question_(erlExpr):
         return serializeIndex;
-      case !malKeyword_question_(malExpr):
+      case !erlKeyword_question_(erlExpr):
         return function(x) {
           return keywordLabel;
         };
-      case !malCoreEffectfulFunction_question_(malExpr):
+      case !erlCoreEffectfulFunction_question_(erlExpr):
         return function(x) {
           return coreEffectfulFunctionLabel;
         };
-      case !malCorePureFunction_question_(malExpr):
+      case !erlCorePureFunction_question_(erlExpr):
         return function(x) {
           return corePureFunctionLabel;
         };
-      case !malUserPureFunction_question_(malExpr):
+      case !erlUserPureFunction_question_(erlExpr):
         return function(x) {
           return userPureFunctionLabel;
         };
-      case !malMacro_question_(malExpr):
+      case !erlMacro_question_(erlExpr):
         return function(x) {
           return macroLabel;
         };
-      case !malNil_question_(malExpr):
+      case !erlNil_question_(erlExpr):
         return function(x) {
           return nilLabel;
         };
-      case !malIdentifier_question_(malExpr):
+      case !erlIdentifier_question_(erlExpr):
         return serializeIdentifier;
-      case !malString_question_(malExpr):
+      case !erlString_question_(erlExpr):
         return serializeString;
-      case !malAtom_question_(malExpr):
+      case !erlAtom_question_(erlExpr):
         return serializeAtom;
-      case malExpr.jsValue == null:
+      case erlExpr.jsValue == null:
         return extractJsValue;
       default:
         return function(x) {
@@ -3995,38 +3995,38 @@ serialize = function(malExpr, printReadably_question_) {
         };
     }
   })();
-  return _serialize(malExpr, printReadably_question_);
+  return _serialize(erlExpr, printReadably_question_);
 };
 
-serializeAtom = function(malAtom, printReadably_question_) {
-  return "(atom " + (serialize(malAtom.malValue, printReadably_question_)) + ")";
+serializeAtom = function(erlAtom, printReadably_question_) {
+  return "(atom " + (serialize(erlAtom.erlValue, printReadably_question_)) + ")";
 };
 
-serializeIdentifier = function(malString, printReadably_question_) {
-  return extractJsValue(malString);
+serializeIdentifier = function(erlString, printReadably_question_) {
+  return extractJsValue(erlString);
 };
 
-serializeIndex = function(malIndex, printReadably_question_) {
-  var jsIndex, key, malValue, memo;
-  jsIndex = malIndex.jsValue;
+serializeIndex = function(erlIndex, printReadably_question_) {
+  var erlValue, jsIndex, key, memo;
+  jsIndex = erlIndex.jsValue;
   memo = '';
   for (key in jsIndex) {
     if (!__hasProp.call(jsIndex, key)) continue;
-    malValue = jsIndex[key];
-    memo = memo === '' ? "" + key + " " + (serialize(malValue, printReadably_question_)) : "" + memo + ", " + key + " " + (serialize(malValue, printReadably_question_));
+    erlValue = jsIndex[key];
+    memo = memo === '' ? "" + key + " " + (serialize(erlValue, printReadably_question_)) : "" + memo + ", " + key + " " + (serialize(erlValue, printReadably_question_));
   }
   return indexStart + memo + indexEnd;
 };
 
-serializeList = function(malList, printReadably_question_) {
+serializeList = function(erlList, printReadably_question_) {
   var serializedList;
-  serializedList = reduce("", adjoinMalValue(printReadably_question_), malList);
+  serializedList = reduce("", adjoinErlValue(printReadably_question_), erlList);
   return listStart + serializedList + listEnd;
 };
 
-serializeString = function(malString, printReadably_question_) {
+serializeString = function(erlString, printReadably_question_) {
   var jsString;
-  jsString = stripQuotes(extractJsValue(malString));
+  jsString = stripQuotes(extractJsValue(erlString));
   if (!printReadably_question_) {
     return jsString;
   }
@@ -4054,7 +4054,7 @@ userPureFunctionLabel = '<function>';
 module.exports = serialize;
 
 },{"./commentSignal":33,"./keyTokens":44,"./linked-list":45,"./type-utilities":51}],48:[function(require,module,exports){
-module.exports = "(do\n  (def! fix*\n    (fn* (f)\n      ( (fn* (x) (f (fn* (& ys) (apply (x x) ys))))\n        (fn* (x) (f (fn* (& ys) (apply (x x) ys)))))))\n\n  (def! memfix*\n    (fn* (f)\n      (let* (cache {})\n        (\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          cache))))\n\n  (def! _0 car)\n  (def! _1 (fn* (xs) (nth 1 xs)))\n  (def! _2 (fn* (xs) (nth 2 xs)))\n\n  (def! swap! (macro* (atom & xs)\n    (if (empty? xs)\n      atom\n      `(let* (-atom- ~atom)\n        (do\n          (reset! -atom- (~(car xs) (deref -atom-) ~@(cdr xs)))\n          (deref -atom-))))))\n\n  (def! *gensym-counter* (atom 0))\n\n  (def! gensym (fn* ()\n    (symbol (string \"G__\" (swap! *gensym-counter* incr)))))\n\n  (def! or (macro* (& xs)\n    (if (empty? xs)\n      false\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query- \n            ~-query-\n            (or ~@(cdr xs))))))))\n\n  (def! and (macro* (& xs)\n    (if (empty? xs)\n      true\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query-\n            (and ~@(cdr xs))\n            false))))))\n\n  (def! cond (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (if (empty? (cdr xs))\n        (throw \"`cond` requires an even number of forms.\")\n        (let* (-query- (gensym))\n          `(let* (~-query- ~(car xs))\n            (if ~-query-\n              ~(_1 xs)\n              (cond ~@(cdr (cdr xs))))))))))\n\n  (def! loop (macro* (form0 form1)\n    `(let* (loop (memfix* (fn* (loop) (fn* (~(_0 form0)) ~form1)))) (loop ~(_1 form0)))))\n\n  (def! -> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                forms  (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~(car form) ~x ~@(cdr form)))\n                (list form x))\n              `(-> (-> ~x ~form) ~@forms))))))))\n\n  (def! ->> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                 forms (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~@form  ~x))\n                (list form x))\n              `(->> (->> ~x ~form) ~@forms))))))))\n\n  (def! ->* (macro* (& xs) `(fn* (-x-) (-> -x- ~@xs))))\n\n  (def! ->>* (macro* (& xs) `(fn* (-x-) (->> -x- ~@xs))))\n\n  (def! not (fn* (x) (if x false true)))\n  (def! incr  (->* (+ 1)))\n  (def! decr  (->* (- 1)))\n  (def! zero? (->* (= 0)))\n\n  (def! identity (fn* (x) x))\n\n  (def! constant-fn (fn* (x) (fn* (y) x)))\n\n  (def! call-on (fn* (& xs) (fn* (fn) (apply fn xs))))\n\n  (def! step-into-list (fn* (xs fn0 fn1)\n    (let* (x   (car xs)\n          -xs- (cdr xs))\n      (if (empty? -xs-)\n        (fn1 x)\n        (fn0 x -xs-)))))\n\n  (def! apply-on (fn* (& xs)\n    (step-into-list\n      xs\n      (fn* (arguments -xs-) (apply (car -xs-) arguments))\n      (fn* (arguments) (fn* (f) (apply f arguments))))))\n\n  (def! reduce (fn* (f seed xs)\n      (if (empty? xs)\n        seed\n        (reduce f (f seed (car xs)) (cdr xs)))))\n\n  (def! filter (fn* (predicate xs)\n    (reverse\n      (reduce\n        (fn* (memo x)\n          (if (predicate x)\n            (cons x memo)\n            memo))\n        '()\n        xs))))\n\n  (def! map (fn* (f xs)\n    (reverse (reduce (fn* (memo x) (cons (f x) memo)) '() xs))))\n\n  (def! every?  (fn* (pred xs)\n    (if (empty? xs)\n      true\n      (if (pred (car xs))\n        (every? pred (cdr xs))\n        false))))\n\n  (def! some?  (fn* (pred xs)\n    (if (empty? xs)\n      false\n      (if (pred (car xs))\n        true\n        (some? pred (cdr xs))))))\n\n  (def! letmemrec* (macro* (alias expr)\n    `(let* (~(car alias) (memfix* (fn* (~(car alias)) ~(_1 alias)))) ~expr)))\n\n  (def! skip (fn* (nbr xs)\n    (letrec* (-skip- (fn* (ys)\n      (let* (nbr (car ys)\n             xs  (_1 ys))\n        (cond\n          (= 0 nbr) xs\n          (= 1 nbr) (cdr xs)\n          \"default\" (-skip- (list (decr nbr) (cdr xs)))))))\n      (-skip- (list nbr xs)))))\n\n  (def! invokable? (fn* (x) (or (function? x) (macro? x))))\n\n  (def! . (macro* (x key & xs)\n    (if (empty? xs)\n      `(get ~x ~key)\n      `((get ~x ~key) ~@xs))))\n\n  (def! .. (fn* (lo hi)\n    (letrec* (-..- (fn* (xs)\n      (let* (lo     (_0 xs)\n             hi     (_1 xs)\n             -list- (_2 xs))\n        (if (= lo hi)\n          (cons hi -list-)\n          (-..- (list lo (decr hi) (cons hi -list-)))))))\n      (-..- (list lo hi '())))))\n\n  (def! defrec! (macro* (fn-name fn-body)\n    `(def! ~fn-name (letrec* (~fn-name ~fn-body) ~fn-name))))\n\n  (def! for* (macro* (loop-parameters body)\n    `(loop\n      ~(_0 loop-parameters)\n      (if ~(_1 loop-parameters)\n        (do ~body (loop ~(_2 loop-parameters)))\n        nil))))\n\n  (def! for-each (fn* (f xs)\n    (reduce\n      (fn* (memo x) (do (f x) memo))\n      nil\n      xs)))\n\n  (def! n-times (fn* (n f)\n    (loop (i 0)\n      (if (= i n)\n        nil\n        (do (f i) (loop (+ i 1)))))))\n\n  (def! tap (fn* (f x) (do (f x) x)))\n\n  (def! with-side-effect (fn* (thunk x)\n    (do (thunk) x)))\n\n  (def! thunk (macro* (form)\n    `(fn* () ~form)))\n\n  (def! call (macro* (f & xs) `(~f ~@xs)))\n\n  (def! apply (macro* (f xs) `(eval (cons ~f ~xs))))\n\n  (def! eval-string (fn* (malString) (eval (parse malString))))\n\n)";
+module.exports = "(do\n  (def! fix*\n    (fn* (f)\n      ( (fn* (x) (f (fn* (& ys) (apply (x x) ys))))\n        (fn* (x) (f (fn* (& ys) (apply (x x) ys)))))))\n\n  (def! memfix*\n    (fn* (f)\n      (let* (cache {})\n        (\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          (fn* (x cache)\n            (f\n              (fn* (z)\n                (if (contains? cache z)\n                  (get cache z)\n                  (let* (result ((fn* (y) ((x x cache) y)) z))\n                    (do (set! cache z result) result))))\n              cache))\n          cache))))\n\n  (def! _0 car)\n  (def! _1 (fn* (xs) (nth 1 xs)))\n  (def! _2 (fn* (xs) (nth 2 xs)))\n\n  (def! swap! (macro* (atom & xs)\n    (if (empty? xs)\n      atom\n      `(let* (-atom- ~atom)\n        (do\n          (reset! -atom- (~(car xs) (deref -atom-) ~@(cdr xs)))\n          (deref -atom-))))))\n\n  (def! *gensym-counter* (atom 0))\n\n  (def! gensym (fn* ()\n    (symbol (string \"G__\" (swap! *gensym-counter* incr)))))\n\n  (def! or (macro* (& xs)\n    (if (empty? xs)\n      false\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query- \n            ~-query-\n            (or ~@(cdr xs))))))))\n\n  (def! and (macro* (& xs)\n    (if (empty? xs)\n      true\n      (let* (-query- (gensym))\n        `(let* (~-query- ~(car xs))\n          (if ~-query-\n            (and ~@(cdr xs))\n            false))))))\n\n  (def! cond (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (if (empty? (cdr xs))\n        (throw \"`cond` requires an even number of forms.\")\n        (let* (-query- (gensym))\n          `(let* (~-query- ~(car xs))\n            (if ~-query-\n              ~(_1 xs)\n              (cond ~@(cdr (cdr xs))))))))))\n\n  (def! loop (macro* (form0 form1)\n    `(let* (loop (memfix* (fn* (loop) (fn* (~(_0 form0)) ~form1)))) (loop ~(_1 form0)))))\n\n  (def! -> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                forms  (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~(car form) ~x ~@(cdr form)))\n                (list form x))\n              `(-> (-> ~x ~form) ~@forms))))))))\n\n  (def! ->> (macro* (& xs)\n    (if (empty? xs)\n      nil\n      (let* (x  (car xs)\n             xs (cdr xs))\n        (if (empty? xs)\n          x\n          (let* (form  (car xs)\n                 forms (cdr xs))\n            (if (empty? forms)\n              (if (list? form)\n                (if (= (symbol \"fn*\") (car form))\n                  `(~form ~x)\n                  `(~@form  ~x))\n                (list form x))\n              `(->> (->> ~x ~form) ~@forms))))))))\n\n  (def! ->* (macro* (& xs) `(fn* (-x-) (-> -x- ~@xs))))\n\n  (def! ->>* (macro* (& xs) `(fn* (-x-) (->> -x- ~@xs))))\n\n  (def! not (fn* (x) (if x false true)))\n  (def! incr  (->* (+ 1)))\n  (def! decr  (->* (- 1)))\n  (def! zero? (->* (= 0)))\n\n  (def! identity (fn* (x) x))\n\n  (def! constant-fn (fn* (x) (fn* (y) x)))\n\n  (def! call-on (fn* (& xs) (fn* (fn) (apply fn xs))))\n\n  (def! step-into-list (fn* (xs fn0 fn1)\n    (let* (x   (car xs)\n          -xs- (cdr xs))\n      (if (empty? -xs-)\n        (fn1 x)\n        (fn0 x -xs-)))))\n\n  (def! apply-on (fn* (& xs)\n    (step-into-list\n      xs\n      (fn* (arguments -xs-) (apply (car -xs-) arguments))\n      (fn* (arguments) (fn* (f) (apply f arguments))))))\n\n  (def! reduce (fn* (f seed xs)\n      (if (empty? xs)\n        seed\n        (reduce f (f seed (car xs)) (cdr xs)))))\n\n  (def! filter (fn* (predicate xs)\n    (reverse\n      (reduce\n        (fn* (memo x)\n          (if (predicate x)\n            (cons x memo)\n            memo))\n        '()\n        xs))))\n\n  (def! map (fn* (f xs)\n    (reverse (reduce (fn* (memo x) (cons (f x) memo)) '() xs))))\n\n  (def! every?  (fn* (pred xs)\n    (if (empty? xs)\n      true\n      (if (pred (car xs))\n        (every? pred (cdr xs))\n        false))))\n\n  (def! some?  (fn* (pred xs)\n    (if (empty? xs)\n      false\n      (if (pred (car xs))\n        true\n        (some? pred (cdr xs))))))\n\n  (def! letmemrec* (macro* (alias expr)\n    `(let* (~(car alias) (memfix* (fn* (~(car alias)) ~(_1 alias)))) ~expr)))\n\n  (def! skip (fn* (nbr xs)\n    (letrec* (-skip- (fn* (ys)\n      (let* (nbr (car ys)\n             xs  (_1 ys))\n        (cond\n          (= 0 nbr) xs\n          (= 1 nbr) (cdr xs)\n          \"default\" (-skip- (list (decr nbr) (cdr xs)))))))\n      (-skip- (list nbr xs)))))\n\n  (def! invokable? (fn* (x) (or (function? x) (macro? x))))\n\n  (def! . (macro* (x key & xs)\n    (if (empty? xs)\n      `(get ~x ~key)\n      `((get ~x ~key) ~@xs))))\n\n  (def! .. (fn* (lo hi)\n    (letrec* (-..- (fn* (xs)\n      (let* (lo     (_0 xs)\n             hi     (_1 xs)\n             -list- (_2 xs))\n        (if (= lo hi)\n          (cons hi -list-)\n          (-..- (list lo (decr hi) (cons hi -list-)))))))\n      (-..- (list lo hi '())))))\n\n  (def! defrec! (macro* (fn-name fn-body)\n    `(def! ~fn-name (letrec* (~fn-name ~fn-body) ~fn-name))))\n\n  (def! for* (macro* (loop-parameters body)\n    `(loop\n      ~(_0 loop-parameters)\n      (if ~(_1 loop-parameters)\n        (do ~body (loop ~(_2 loop-parameters)))\n        nil))))\n\n  (def! for-each (fn* (f xs)\n    (reduce\n      (fn* (memo x) (do (f x) memo))\n      nil\n      xs)))\n\n  (def! n-times (fn* (n f)\n    (loop (i 0)\n      (if (= i n)\n        nil\n        (do (f i) (loop (+ i 1)))))))\n\n  (def! tap (fn* (f x) (do (f x) x)))\n\n  (def! with-side-effect (fn* (thunk x)\n    (do (thunk) x)))\n\n  (def! thunk (macro* (form)\n    `(fn* () ~form)))\n\n  (def! call (macro* (f & xs) `(~f ~@xs)))\n\n  (def! apply (macro* (f xs) `(eval (cons ~f ~xs))))\n\n  (def! eval-string (fn* (erlString) (eval (parse erlString))))\n\n)";
 
 },{}],49:[function(require,module,exports){
 var commentSignal, comment_question_, createTokenRegex, meaningful_question_, tokenize;
@@ -4104,52 +4104,52 @@ module.exports = function(sourceCode) {
 };
 
 },{"./parse":46,"./tokenize":49}],51:[function(require,module,exports){
-var createMalAtom, createMalBoolean, createMalCoreEffectfulFunction, createMalCorePureFunction, createMalIdentifier, createMalIgnore, createMalIndex, createMalKeyword, createMalList, createMalMacro, createMalNil, createMalNumber, createMalSpecialForm, createMalString, createMalSymbol, createMalUserPureFunction, createMalValue, createPredicate, create_hyphen_factory_hyphen__ampersand__hyphen_predicate, extractJsValue, malAtomType, malAtom_question_, malBoolean_question_, malCoreEffectfulFunction_question_, malCorePureFunction_question_, malFalse, malFalse_question_, malIdentifier_question_, malIgnore, malIgnore_question_, malIndex_question_, malKeyword_question_, malList_question_, malMacro_question_, malNil, malNil_question_, malNumber_question_, malSpecialForm_question_, malString_question_, malSymbol_question_, malTrue, malTrue_question_, malTypes, malUserPureFunction_question_, _createMalAtom, _createMalBoolean, _createMalList, _createMalUnit, _malUnit_question_, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
+var createErlAtom, createErlBoolean, createErlCoreEffectfulFunction, createErlCorePureFunction, createErlIdentifier, createErlIgnore, createErlIndex, createErlKeyword, createErlList, createErlMacro, createErlNil, createErlNumber, createErlSpecialForm, createErlString, createErlSymbol, createErlUserPureFunction, createErlValue, createPredicate, create_hyphen_factory_hyphen__ampersand__hyphen_predicate, erlAtomType, erlAtom_question_, erlBoolean_question_, erlCoreEffectfulFunction_question_, erlCorePureFunction_question_, erlFalse, erlFalse_question_, erlIdentifier_question_, erlIgnore, erlIgnore_question_, erlIndex_question_, erlKeyword_question_, erlList_question_, erlMacro_question_, erlNil, erlNil_question_, erlNumber_question_, erlSpecialForm_question_, erlString_question_, erlSymbol_question_, erlTrue, erlTrue_question_, erlTypes, erlUserPureFunction_question_, extractJsValue, _createErlAtom, _createErlBoolean, _createErlList, _createErlUnit, _erlUnit_question_, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15, _ref16, _ref17, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
 
-createMalList = require('./linked-list').createMalList;
+createErlList = require('./linked-list').createErlList;
 
-malAtomType = require('./types').malAtomType;
+erlAtomType = require('./types').erlAtomType;
 
-malTypes = require('./types').malTypes;
+erlTypes = require('./types').erlTypes;
 
-create_hyphen_factory_hyphen__ampersand__hyphen_predicate = function(malType) {
+create_hyphen_factory_hyphen__ampersand__hyphen_predicate = function(erlType) {
   var factory, predicate;
   factory = function(jsValue) {
-    return createMalValue(jsValue, malType);
+    return createErlValue(jsValue, erlType);
   };
-  predicate = function(malValue) {
-    return malValue.type === malType;
+  predicate = function(erlValue) {
+    return erlValue.type === erlType;
   };
   return [factory, predicate];
 };
 
-createMalAtom = function(malValue) {
+createErlAtom = function(erlValue) {
   return {
-    malValue: malValue,
-    type: malAtomType
+    erlValue: erlValue,
+    type: erlAtomType
   };
 };
 
-createMalBoolean = function(jsBoolean) {
+createErlBoolean = function(jsBoolean) {
   if (jsBoolean) {
-    return malTrue;
+    return erlTrue;
   } else {
-    return malFalse;
+    return erlFalse;
   }
 };
 
-createMalIgnore = function() {
-  return malIgnore;
+createErlIgnore = function() {
+  return erlIgnore;
 };
 
-createMalNil = function() {
-  return malNil;
+createErlNil = function() {
+  return erlNil;
 };
 
-createMalValue = function(jsValue, malType) {
+createErlValue = function(jsValue, erlType) {
   return {
     jsValue: jsValue,
-    type: malType
+    type: erlType
   };
 };
 
@@ -4159,84 +4159,84 @@ createPredicate = function(constant) {
   };
 };
 
-extractJsValue = function(malValue) {
-  return malValue.jsValue;
+extractJsValue = function(erlValue) {
+  return erlValue.jsValue;
 };
 
-_ref = malTypes.map(create_hyphen_factory_hyphen__ampersand__hyphen_predicate), (_ref1 = _ref[0], _createMalBoolean = _ref1[0], malBoolean_question_ = _ref1[1]), (_ref2 = _ref[1], createMalCoreEffectfulFunction = _ref2[0], malCoreEffectfulFunction_question_ = _ref2[1]), (_ref3 = _ref[2], createMalCorePureFunction = _ref3[0], malCorePureFunction_question_ = _ref3[1]), (_ref4 = _ref[3], createMalIdentifier = _ref4[0], malIdentifier_question_ = _ref4[1]), (_ref5 = _ref[4], createMalIndex = _ref5[0], malIndex_question_ = _ref5[1]), (_ref6 = _ref[5], createMalKeyword = _ref6[0], malKeyword_question_ = _ref6[1]), (_ref7 = _ref[6], _createMalList = _ref7[0], malList_question_ = _ref7[1]), (_ref8 = _ref[7], createMalMacro = _ref8[0], malMacro_question_ = _ref8[1]), (_ref9 = _ref[8], createMalNumber = _ref9[0], malNumber_question_ = _ref9[1]), (_ref10 = _ref[9], createMalSpecialForm = _ref10[0], malSpecialForm_question_ = _ref10[1]), (_ref11 = _ref[10], createMalString = _ref11[0], malString_question_ = _ref11[1]), (_ref12 = _ref[11], createMalSymbol = _ref12[0], malSymbol_question_ = _ref12[1]), (_ref13 = _ref[12], _createMalUnit = _ref13[0], _malUnit_question_ = _ref13[1]), (_ref14 = _ref[13], createMalUserPureFunction = _ref14[0], malUserPureFunction_question_ = _ref14[1]), (_ref15 = _ref[14], _createMalAtom = _ref15[0], malAtom_question_ = _ref15[1]);
+_ref = erlTypes.map(create_hyphen_factory_hyphen__ampersand__hyphen_predicate), (_ref1 = _ref[0], _createErlBoolean = _ref1[0], erlBoolean_question_ = _ref1[1]), (_ref2 = _ref[1], createErlCoreEffectfulFunction = _ref2[0], erlCoreEffectfulFunction_question_ = _ref2[1]), (_ref3 = _ref[2], createErlCorePureFunction = _ref3[0], erlCorePureFunction_question_ = _ref3[1]), (_ref4 = _ref[3], createErlIdentifier = _ref4[0], erlIdentifier_question_ = _ref4[1]), (_ref5 = _ref[4], createErlIndex = _ref5[0], erlIndex_question_ = _ref5[1]), (_ref6 = _ref[5], createErlKeyword = _ref6[0], erlKeyword_question_ = _ref6[1]), (_ref7 = _ref[6], _createErlList = _ref7[0], erlList_question_ = _ref7[1]), (_ref8 = _ref[7], createErlMacro = _ref8[0], erlMacro_question_ = _ref8[1]), (_ref9 = _ref[8], createErlNumber = _ref9[0], erlNumber_question_ = _ref9[1]), (_ref10 = _ref[9], createErlSpecialForm = _ref10[0], erlSpecialForm_question_ = _ref10[1]), (_ref11 = _ref[10], createErlString = _ref11[0], erlString_question_ = _ref11[1]), (_ref12 = _ref[11], createErlSymbol = _ref12[0], erlSymbol_question_ = _ref12[1]), (_ref13 = _ref[12], _createErlUnit = _ref13[0], _erlUnit_question_ = _ref13[1]), (_ref14 = _ref[13], createErlUserPureFunction = _ref14[0], erlUserPureFunction_question_ = _ref14[1]), (_ref15 = _ref[14], _createErlAtom = _ref15[0], erlAtom_question_ = _ref15[1]);
 
-malIgnore = _createMalUnit(null);
+erlIgnore = _createErlUnit(null);
 
-malNil = _createMalUnit(null);
+erlNil = _createErlUnit(null);
 
-_ref16 = [false, true].map(_createMalBoolean), malFalse = _ref16[0], malTrue = _ref16[1];
+_ref16 = [false, true].map(_createErlBoolean), erlFalse = _ref16[0], erlTrue = _ref16[1];
 
-_ref17 = [malFalse, malIgnore, malNil, malTrue].map(createPredicate), malFalse_question_ = _ref17[0], malIgnore_question_ = _ref17[1], malNil_question_ = _ref17[2], malTrue_question_ = _ref17[3];
+_ref17 = [erlFalse, erlIgnore, erlNil, erlTrue].map(createPredicate), erlFalse_question_ = _ref17[0], erlIgnore_question_ = _ref17[1], erlNil_question_ = _ref17[2], erlTrue_question_ = _ref17[3];
 
 module.exports = {
-  createMalAtom: createMalAtom,
-  createMalBoolean: createMalBoolean,
-  createMalCoreEffectfulFunction: createMalCoreEffectfulFunction,
-  createMalCorePureFunction: createMalCorePureFunction,
-  createMalIdentifier: createMalIdentifier,
-  createMalIgnore: createMalIgnore,
-  createMalIndex: createMalIndex,
-  createMalKeyword: createMalKeyword,
-  createMalList: createMalList,
-  createMalMacro: createMalMacro,
-  createMalNil: createMalNil,
-  createMalNumber: createMalNumber,
-  createMalSpecialForm: createMalSpecialForm,
-  createMalString: createMalString,
-  createMalSymbol: createMalSymbol,
-  createMalUserPureFunction: createMalUserPureFunction,
+  createErlAtom: createErlAtom,
+  createErlBoolean: createErlBoolean,
+  createErlCoreEffectfulFunction: createErlCoreEffectfulFunction,
+  createErlCorePureFunction: createErlCorePureFunction,
+  createErlIdentifier: createErlIdentifier,
+  createErlIgnore: createErlIgnore,
+  createErlIndex: createErlIndex,
+  createErlKeyword: createErlKeyword,
+  createErlList: createErlList,
+  createErlMacro: createErlMacro,
+  createErlNil: createErlNil,
+  createErlNumber: createErlNumber,
+  createErlSpecialForm: createErlSpecialForm,
+  createErlString: createErlString,
+  createErlSymbol: createErlSymbol,
+  createErlUserPureFunction: createErlUserPureFunction,
   extractJsValue: extractJsValue,
-  malAtom_question_: malAtom_question_,
-  malBoolean_question_: malBoolean_question_,
-  malCoreEffectfulFunction_question_: malCoreEffectfulFunction_question_,
-  malCorePureFunction_question_: malCorePureFunction_question_,
-  malFalse: malFalse,
-  malFalse_question_: malFalse_question_,
-  malIdentifier_question_: malIdentifier_question_,
-  malIgnore: malIgnore,
-  malIgnore_question_: malIgnore_question_,
-  malIndex_question_: malIndex_question_,
-  malKeyword_question_: malKeyword_question_,
-  malList_question_: malList_question_,
-  malMacro_question_: malMacro_question_,
-  malNil: malNil,
-  malNil_question_: malNil_question_,
-  malNumber_question_: malNumber_question_,
-  malSpecialForm_question_: malSpecialForm_question_,
-  malString_question_: malString_question_,
-  malSymbol_question_: malSymbol_question_,
-  malTrue: malTrue,
-  malTrue_question_: malTrue_question_,
-  malUserPureFunction_question_: malUserPureFunction_question_
+  erlAtom_question_: erlAtom_question_,
+  erlBoolean_question_: erlBoolean_question_,
+  erlCoreEffectfulFunction_question_: erlCoreEffectfulFunction_question_,
+  erlCorePureFunction_question_: erlCorePureFunction_question_,
+  erlFalse: erlFalse,
+  erlFalse_question_: erlFalse_question_,
+  erlIdentifier_question_: erlIdentifier_question_,
+  erlIgnore: erlIgnore,
+  erlIgnore_question_: erlIgnore_question_,
+  erlIndex_question_: erlIndex_question_,
+  erlKeyword_question_: erlKeyword_question_,
+  erlList_question_: erlList_question_,
+  erlMacro_question_: erlMacro_question_,
+  erlNil: erlNil,
+  erlNil_question_: erlNil_question_,
+  erlNumber_question_: erlNumber_question_,
+  erlSpecialForm_question_: erlSpecialForm_question_,
+  erlString_question_: erlString_question_,
+  erlSymbol_question_: erlSymbol_question_,
+  erlTrue: erlTrue,
+  erlTrue_question_: erlTrue_question_,
+  erlUserPureFunction_question_: erlUserPureFunction_question_
 };
 
 },{"./linked-list":45,"./types":52}],52:[function(require,module,exports){
-var malAtomType, malBooleanType, malCoreEffectfulFunctionType, malCorePureFunctionType, malIdentifierType, malIndexType, malKeywordType, malListType, malMacroType, malNumberType, malSpecialFormType, malStringType, malSymbolType, malTypes, malUnitType, malUserPureFunctionType;
+var erlAtomType, erlBooleanType, erlCoreEffectfulFunctionType, erlCorePureFunctionType, erlIdentifierType, erlIndexType, erlKeywordType, erlListType, erlMacroType, erlNumberType, erlSpecialFormType, erlStringType, erlSymbolType, erlTypes, erlUnitType, erlUserPureFunctionType;
 
-malTypes = [malBooleanType = 'malBooleanType', malCoreEffectfulFunctionType = 'malCoreEffectfulFunctionType', malCorePureFunctionType = 'malCorePureFunctionType', malIdentifierType = 'malIdentifierType', malIndexType = 'malIndexType', malKeywordType = 'malKeywordType', malListType = 'malListType', malMacroType = 'malMacroType', malNumberType = 'malNumberType', malSpecialFormType = 'malSpecialFormType', malStringType = 'malStringType', malSymbolType = 'malSymbolType', malUnitType = 'malUnitType', malUserPureFunctionType = 'malUserPureFunctionType', malAtomType = 'malAtomType'];
+erlTypes = [erlBooleanType = 'erlBooleanType', erlCoreEffectfulFunctionType = 'erlCoreEffectfulFunctionType', erlCorePureFunctionType = 'erlCorePureFunctionType', erlIdentifierType = 'erlIdentifierType', erlIndexType = 'erlIndexType', erlKeywordType = 'erlKeywordType', erlListType = 'erlListType', erlMacroType = 'erlMacroType', erlNumberType = 'erlNumberType', erlSpecialFormType = 'erlSpecialFormType', erlStringType = 'erlStringType', erlSymbolType = 'erlSymbolType', erlUnitType = 'erlUnitType', erlUserPureFunctionType = 'erlUserPureFunctionType', erlAtomType = 'erlAtomType'];
 
 module.exports = {
-  malAtomType: malAtomType,
-  malBooleanType: malBooleanType,
-  malCoreEffectfulFunctionType: malCoreEffectfulFunctionType,
-  malCorePureFunctionType: malCorePureFunctionType,
-  malIdentifierType: malIdentifierType,
-  malIndexType: malIndexType,
-  malKeywordType: malKeywordType,
-  malListType: malListType,
-  malMacroType: malMacroType,
-  malNumberType: malNumberType,
-  malSpecialFormType: malSpecialFormType,
-  malStringType: malStringType,
-  malSymbolType: malSymbolType,
-  malTypes: malTypes,
-  malUnitType: malUnitType,
-  malUserPureFunctionType: malUserPureFunctionType
+  erlAtomType: erlAtomType,
+  erlBooleanType: erlBooleanType,
+  erlCoreEffectfulFunctionType: erlCoreEffectfulFunctionType,
+  erlCorePureFunctionType: erlCorePureFunctionType,
+  erlIdentifierType: erlIdentifierType,
+  erlIndexType: erlIndexType,
+  erlKeywordType: erlKeywordType,
+  erlListType: erlListType,
+  erlMacroType: erlMacroType,
+  erlNumberType: erlNumberType,
+  erlSpecialFormType: erlSpecialFormType,
+  erlStringType: erlStringType,
+  erlSymbolType: erlSymbolType,
+  erlTypes: erlTypes,
+  erlUnitType: erlUnitType,
+  erlUserPureFunctionType: erlUserPureFunctionType
 };
 
 },{}],53:[function(require,module,exports){
