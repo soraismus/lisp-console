@@ -8,7 +8,7 @@
 
 html {
   height: 100%;
-  padding:0px;
+  padding: 0px;
   width: 100%;
 }
 
@@ -50,14 +50,18 @@ body {
   font-family: 'Architects Daughter', 'Helvetica Neue', Helvetica, Arial, serif;
   color: #FFF;
   position: fixed;
-  padding:5px;
+  padding: 5px;
   top: 0;
   left: 10%;
 }
 
 .head h1 {
-  font-size: 1.5em;
+  font-size: 2.5em;
   color: rgb(0, 255, 0);
+}
+
+.head h4 {
+  font-size: 1.5em;
 }
 
 .head h1, .head h4 {
@@ -84,6 +88,7 @@ body {
 }
 
 .erl-viewport {
+  font-size: 1.35em;
   height: 94%;
   margin: 15px 20px;
   overflow: hidden;
