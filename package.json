@@ -18,5 +18,8 @@
   "license": "MIT",
   "devDependencies": {
     "browserify": "^13.0.1"
+  },
+  "dependencies": {
+    "express": "^4.14.0"
   }
 }

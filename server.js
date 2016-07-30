@@ -1,21 +1,21 @@
 'use strict';
 
 var app;
-var webPage;
+var webpage;
 
 var express = require('express');
 var fs      = require('fs');
 var http    = require('http');
 var path    = require('path');
 
-var herokuHost = 'todomvc-reactive-aspen.herokuapp.com';
-var host       = isProduction ? herokuHost : 'localhost';
-
-var fiveMin      = 5 * 60 * 1000;
-var httpConfig   = { host: host };
+var herokuHost   = 'todomvc-reactive-aspen.herokuapp.com';
 var isProduction = !!(process.env.NODE_ENV === 'production');
-var port         = process.env.PORT || 4000;
-var utf8         = { encoding: 'utf8' };
+var host         = isProduction ? herokuHost : 'localhost';
+
+var fiveMin    = 5 * 60 * 1000;
+var httpConfig = { host: host };
+var port       = process.env.PORT || 5000;
+var utf8       = { encoding: 'utf8' };
 
 if (!isProduction) {
   httpConfig.port = port;
@@ -31,7 +31,7 @@ function onStart() {
 }
 
 function pingHeroku() {
-  http.get(httpConfig);
+  //http.get(httpConfig);
 }
 
 function preventHerokuSleep() {
@@ -40,13 +40,11 @@ function preventHerokuSleep() {
 }
 
 app = express();
-webPage = fs.readFileSync('./public/index.html', utf8);
+webpage = fs.readFileSync('./public/index.html', utf8);
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { index: webpage }));
 
-app.get('*', function (req, res) {
-  res.send(webPage);
-});
+app.get('/', function (req, res) { res.send(webpage); });
 
 process.on('SIGINT',  exitProcess);
 process.on('SIGTERM', exitProcess);
