@@ -151,6 +151,14 @@ body {
   z-index: 4;
 }
 
+.erl-scroll-thumb:hover {
+  visibility: hidden;
+  position: absolute;
+  background-color: rgb(0, 80, 0);
+  border-radius: 20px;
+  z-index: 4;
+}
+
 .erl-x-scroll-thumb {
   left: 0;
   height: 5px;
