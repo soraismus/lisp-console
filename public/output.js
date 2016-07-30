@@ -4323,7 +4323,6 @@ function createElement(tag) {
   };
 }
 
-// WET.
 function isString(value) {
   return {}.toString.call(value) === '[object String]';
 }
@@ -4411,22 +4410,22 @@ function createElement(config) {
     return config;
   }
   var node = document.createElement(config.tag);
-  if (config.id != null) { // isString
+  if (config.id != null) {
     node.id = config.id;
   }
-  if (config.classes != null) { // isObject
+  if (config.classes != null) {
     for (var klass in config.classes) {
       node.classList.add(klass);
     }
   }
-  if (config.attribs != null) { // isObject
+  if (config.attribs != null) {
     for (var attribKey in config.attribs) {
       if (attribKey !== 'style') {
         node.setAttribute(attribKey, config.attribs[attribKey]);
       }
     }
   }
-  if (config.style != null) { // isObject
+  if (config.style != null) {
     for (var styleKey in config.style) {
       node.style[styleKey] = config.style[styleKey];
     }
@@ -4434,7 +4433,7 @@ function createElement(config) {
   if (config.children != null) {
     if (isString(config.children)) {
       createAndAttachElement(node, config.children);
-    } else { // isObject
+    } else {
       config.children.forEach(function (newConfig, index) { 
         createAndAttachElement(node, newConfig);
       });
@@ -4479,12 +4478,7 @@ function findChildren(parent, config) {
 }
 
 function isCommandIndex(value) {
-  //return !isNaN(parseInt(value, 10));
   return isNumber(value);
-}
-
-function isNaN(value) {
-  return isNumber(value) && value !== +value;
 }
 
 function isNumber(value) {
@@ -4522,7 +4516,6 @@ function _modifyElement(node, tree, commands) {
         break;
 
       case 'style':
-        // TODO: In case the continuation is a command index.
         for (var styleIndex = 0; styleIndex < continuation.length; styleIndex++) {
           var style = continuation[styleIndex].index;
           var command = commands[continuation[styleIndex].value];
@@ -4539,7 +4532,6 @@ function _modifyElement(node, tree, commands) {
         break;
 
       case 'attribs':
-        // TODO: In case the continuation is a command index.
         for (var attribIndex = 0; attribIndex < continuation.length; attribIndex++) {
           var attrib = continuation[attribIndex].index;
           var command = commands[continuation[attribIndex].value];
@@ -4590,7 +4582,6 @@ function _modifyElement(node, tree, commands) {
         if (isCommandIndex(continuation)) {
           var command = commands[continuation]
           switch (command[0]) {
-            //case 'delete':
             case 'remove':
               removeChildren(node);
               break;
@@ -4606,8 +4597,8 @@ function _modifyElement(node, tree, commands) {
                 createAndAttachElements(node, command[1]);
               }
               break;
-            case 'insertAtEnd': // ?
-            //case 'setAtKey':    // ?
+            case 'insertAtEnd':
+              createAndAttachElement(node, command[1]);
               break;
           }
         } else {
@@ -4617,15 +4608,13 @@ function _modifyElement(node, tree, commands) {
             if (isCommandIndex(childContinuation)) {
               var command = commands[childContinuation]
               switch (command[0]) {
-                //case 'delete':
                 case 'remove':
                   removeChild(node, child);
                   break;
-                case 'replace':     // ?
+                case 'replace':
                   createAndSubstituteElement(node, command[1], child);
                   break;
-                case 'insertAtEnd': // ?
-                //case 'setAtKey':    // ?
+                case 'insertAtEnd':
                   createAndAttachElement(node, command[1]);
                   break;
               }
