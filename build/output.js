@@ -1375,9 +1375,8 @@ var scroll             = require('./control/scroll');
 function initializeViewDynamics(rootChild, getCursor) {
   var erlViewport = document.getElementsByClassName('erl-viewport')[0];
 
-  if (detectCssScrollbar()) {
-    erlViewport.style.overflow = 'auto';
-  } else {
+  if (!detectCssScrollbar()) {
+    erlViewport.style.overflow = 'hidden';
     document.addEventListener('terminal-render', function (event) {
       f0();
       f1();
@@ -1385,10 +1384,6 @@ function initializeViewDynamics(rootChild, getCursor) {
       f3();
     });
   }
-
-  window.addEventListener('resize', function (event) {
-    scroll(erlViewport, getCursor());
-  });
 }
 
 module.exports = initializeViewDynamics;
@@ -2432,7 +2427,8 @@ setCoreFnsOnErlValues_bang_ = function(env, fns) {
 slurp = function(erlArgs) {
   var jsFileName;
   jsFileName = stripQuotes(extractJsValue(car(erlArgs)));
-  return createErlString(circumpendQuotes(require('fs').readFileSync(jsFileName).toString()));
+  var _fs_ = require('fs');
+  return createErlString(circumpendQuotes(_fs_.readFileSync(jsFileName).toString()));
 };
 
 string = function(erlArgs) {

@@ -48,7 +48,6 @@ body {
 
 .head {
   font-family: 'Architects Daughter', 'Helvetica Neue', Helvetica, Arial, serif;
-  color: #FFF;
   position: fixed;
   padding: 5px;
   top: 0;
@@ -56,11 +55,12 @@ body {
 }
 
 .head h1 {
+  color: rgb(0, 190, 0);
   font-size: 2.5em;
-  color: rgb(0, 255, 0);
 }
 
 .head h4 {
+  color: rgb(0, 150, 0);
   font-size: 1.5em;
 }
 
@@ -85,34 +85,39 @@ body {
   right: 0;
   bottom: 0;
   top: 69px;
+
+  /*overflow: scroll;*/
 }
 
 .erl-viewport {
   font-size: 1.35em;
   height: 94%;
   margin: 15px 20px;
-  overflow: hidden;
+  overflow: auto;
   padding: 0;
 }
 
 .erl-viewport::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 9px;
+  height: 9px;
 }
+
 .erl-viewport::-webkit-scrollbar-track {
   border-radius: 10px;
 }
+
 .erl-viewport::-webkit-scrollbar-thumb {
   background-color: rgba(55, 53, 50, 0.5);
   border-radius: 10px;
 }
+
 .erl-viewport::-webkit-scrollbar-corner {
   visibility: hidden;
 }
 
 .erl-line {
   line-height: 1.5;
-  white-space: normal;
+  white-space: pre-wrap;
 }
 
 .erl-cursor {
@@ -161,12 +166,12 @@ body {
 
 .erl-x-scroll-thumb {
   left: 0;
-  height: 5px;
+  height: 100%;
   width: 100%;
 }
 
 .erl-y-scroll-thumb {
   top: 0;
-  width: 5px;
+  width: 100%;
   height: 100%;
 }
